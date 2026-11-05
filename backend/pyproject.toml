@@ -1,0 +1,24 @@
+[project]
+name = "cobranza"
+version = "0.1.0"
+description = "Backend del agente de voz de cobranza NSF"
+requires-python = ">=3.12"
+dependencies = [
+    "psycopg[binary,pool]>=3.2",
+    "phonenumbers>=8.13",
+    "anthropic>=1.0",
+    "tzdata",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,38 @@
+services:
+  db:
+    image: postgres:16
+    container_name: cobranza-db
+    environment:
+      POSTGRES_DB: cobranza
+      POSTGRES_USER: cobranza
+      POSTGRES_PASSWORD: cobranza_dev
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cobranza -d cobranza"]
+      interval: 2s
+      retries: 30
+    volumes:
+      # Los .sql de esta carpeta se ejecutan en orden alfabético solo la primera vez
+      # que se crea el volumen. Para recrear: docker compose down -v && docker compose up -d
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+      - cobranza-data:/var/lib/postgresql/data
+
+  # Backend en Python. No arranca con `docker compose up`; se usa con:
+  #   docker compose run --rm app            -> corre las pruebas
+  #   docker compose run --rm app bash       -> consola dentro del contenedor
+  app:
+    build: .
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql://cobranza:cobranza_dev@db:5432/cobranza
+      PII_HMAC_KEY: dev-only-pii-key
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+
+volumes:
+  cobranza-data:
