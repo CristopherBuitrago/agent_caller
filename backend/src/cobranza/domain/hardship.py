@@ -3,8 +3,9 @@
 from dataclasses import dataclass
 from enum import Enum
 
-# Lista entregada por el jefe; el agente usa solo estas preguntas, sin improvisar.
-# La traducción al inglés está pendiente de su aprobación (ver README, sección 8).
+# Lista entregada por el jefe; traducción al inglés aprobada el 2026-11-08.
+# Si hace falta preguntar algo más, se sigue el tono de estas preguntas. Nunca se
+# sugiere vender bienes ni pedir dinero prestado, porque puede verse como presión.
 HARDSHIP_QUESTIONS = (
     "Can you tell me a little about what happened and when this situation started?",
     "Do you expect this to be temporary, or a longer-term change in your income?",

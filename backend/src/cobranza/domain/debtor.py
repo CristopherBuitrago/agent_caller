@@ -8,14 +8,9 @@ de la verificación de identidad y no salen de la base.
 from dataclasses import dataclass, replace
 from datetime import date
 
-# Estados que el agente puede cobrar. Cualquier otro valor se transfiere a una persona.
-COLLECTABLE_STATUSES = frozenset({
-    "NSF",
-    "first_attempt",
-    "second_attempt",
-    "third_attempt",
-    "fourth_attempt",
-})
+# El agente cobra solo NSF (decisión del 2026-11-08). Cualquier otro estado,
+# incluidos first_attempt..fourth_attempt, se transfiere a una persona.
+COLLECTABLE_STATUSES = frozenset({"NSF"})
 
 
 @dataclass(frozen=True)
@@ -48,7 +43,7 @@ class DebtorSummary:
     accounts: tuple[AccountSummary, ...]
 
     def can_collect(self, account: AccountSummary) -> bool:
-        """El agente cobra solo NSF / intentos 1–4, sin disputa y sin "no llamar"."""
+        """El agente cobra solo NSF, sin disputa y sin "no llamar"."""
         return (
             account.status in COLLECTABLE_STATUSES
             and not account.is_disputed

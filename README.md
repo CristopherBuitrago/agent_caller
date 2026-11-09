@@ -1,6 +1,6 @@
 # Agente de voz de cobranza NSF: registro de decisiones
 
-Actualizado: 2026-11-02
+Actualizado: 2026-11-08
 
 Este documento registra cada decisión de negocio, quién la tomó y las palabras con las que se respondió. Las respuestas están citadas tal como se escribieron, con sus errores de tipeo.
 
@@ -11,6 +11,127 @@ Cómo leer la columna **Origen**:
 - **Jefe:** el desarrollador consultó las preguntas con el jefe y trajo sus respuestas.
 - **Desarrollador:** respondió el desarrollador. En el registro no consta si lo consultó con el jefe.
 - **Claude:** lo propuso Claude. La columna de respuesta indica si fue aprobado.
+
+## Resumen por función (2026-11-08)
+
+Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas. Solo la Función 6 está detenida. Las reglas que nadie confirmó quedaron como supuestos vigentes (sección 4) y no detienen ninguna función.
+
+### Base: modelo de datos
+
+| Pregunta | Respuesta | Origen |
+| --- | --- | --- |
+| ¿Qué estados de pago se cobran? | Solo NSF. Cualquier otro estado, incluidos `first_attempt` a `fourth_attempt`, pasa a una persona | Jefe; confirmado por el desarrollador el 2026-11-08 |
+| ¿Varias deudas por deudor? | "Sí, pueden ser del mismo o diferentes" → tablas `debtors` y `accounts` separadas | Jefe |
+| ¿Hay datos del NSF? | "Sí" | Jefe |
+| ¿Hay estado o dirección del deudor? | Pueden faltar; después de `fourth_attempt` se usa Skip Tracing | Jefe |
+| ¿Los estados de intento van en el mismo campo que NSF? | "Sí, vienen en el mismo campo" | Desarrollador |
+| ¿Hay nombres de campos fijos? | "Sí", vendrán en el EER; mientras tanto se usa el modelo actual | Jefe |
+
+**Pendiente (no impide avanzar):** el diagrama EER y la base de datos real, y si el resultado de la llamada se inserta como fila nueva o actualiza un registro existente.
+
+### Función 1: consultar deudor
+
+| Pregunta | Respuesta |
+| --- | --- |
+| ¿Cómo se identifica a quien llama? | "agente recibe num y busca" (por el teléfono) |
+| ¿Cómo entrega el resultado el job de NSF (salientes)? | "Por definir" |
+| Saliente sin ubicación | "Se hace la cobranza normal y se deduce por el codigo de area" |
+
+**Pendiente (no impide avanzar):** cómo entrega el job sus resultados. Hoy se busca por ID de cuenta.
+
+### Función 2: verificar identidad
+
+| Pregunta | Respuesta |
+| --- | --- |
+| ¿Qué datos se verifican? | Nombre completo + últimos 4 del SSN + fecha de nacimiento |
+| ¿Dónde se cuentan los intentos? | En un campo nuevo, `verification_attempts`, aparte del estado del NSF |
+| ¿Bloquear tras 5 fallos en 24 h? | "Listo si" (propuesta de Claude) |
+| ¿Pedir deletrear el apellido antes de contar un fallo? | "Perfecto" (propuesta de Claude) |
+
+**Supuesto:** máximo 2 fallos por llamada.
+
+### Función 3: registrar la llamada y resumen
+
+| Pregunta | Respuesta |
+| --- | --- |
+| ¿Aviso de grabación? | Sí, al inicio de cada llamada |
+| ¿Qué pasa si el deudor no acepta la grabación? | "Por ley se tiene que grabar" → se cierra como `recording_refused` sin hablar de la deuda |
+| ¿La IA genera el resumen? | "Si, que lo genere la IA" |
+| ¿Con qué modelo? | Claude Haiku 5.5, con Claude Sonnet 5.5 como respaldo |
+| ¿En qué idioma va el resumen? | Inglés: "todos ahi hablan ingles y el servicio es para estados unidos" (2026-11-08) |
+
+**Pendiente:** falta `ANTHROPIC_API_KEY` para probar el resumen con la API real.
+**Alerta:** ninguna ley federal obliga a grabar, hasta donde sabe Claude; falta confirmar de dónde sale esa regla (alerta 2).
+
+### Función 4: negociar el acuerdo
+
+| Pregunta | Respuesta |
+| --- | --- |
+| ¿Descuentos? | "JAMÁS… siempre se le cobra todo" |
+| ¿Mínimo del pago parcial? | Al menos el 10%; también aplica a la primera cuota |
+| Orden de las ofertas | "intentar todo de una, si no, a dos cuotas, despues si dice que le queda complejo a 3, pero siempre por lo más rapido" |
+| ¿Cómo son las cuotas? | "el deudor no propone, acepta, tienen que ser iguales y con frecuencia fija" |
+| ¿Cada cuánto se paga? | "Cuotas mensuales fecha establecida" (Jefe; reemplazó la quincenal) |
+| Plazo máximo del plan | 1 año |
+| ¿Cuándo es el primer pago? | En unos días, máximo 8 ("Si, se puede pagar a 8 dias", Jefe) |
+| ¿Cuándo se paga el resto de un parcial? | "normalmente es al mes" → 30 días |
+| ¿Se acepta menos del 10%? | "en cos muy específicos" → piso de 5%, como último recurso |
+| ¿Qué estado queda tras el acuerdo? | `PTP`; `RCC` queda fuera del alcance |
+| ¿Qué pasa después de `PTP`? | La llamada de recordatorio la hace un cobrador; ahí termina el trabajo del agente |
+
+**Supuestos:**
+- Máximo de 10 cuotas.
+- Los 30 días del resto se cuentan desde el primer pago.
+- Si el mes no tiene el día fijado, se usa su último día.
+- Un solo acuerdo activo por cuenta.
+- El pago total también pasa a `PTP`.
+
+### Función 5: Hardship Questions
+
+| Pregunta | Respuesta |
+| --- | --- |
+| ¿Cuándo se hacen? | Si el deudor no puede con 3 cuotas, antes de ofrecer de 4 a 10 cuotas |
+| ¿Qué preguntas se hacen? | Las 5 que entregó el jefe el 2026-11-04 (sección 8) |
+| ¿Traducción al inglés? | Aprobada: "confirmo la conversion a ingles" (2026-11-08) |
+| ¿Frases como "vender el carro" o "pedir plata prestada"? | Descartadas por poder verse como presión. Si hace falta preguntar más, se sigue el tono de las 5 preguntas del jefe (2026-11-08) |
+| ¿Se aprueban los campos y el orden? | "Sí, apruebo los campos y el orden, constrúyelo" |
+| ¿Y si después sigue sin poder pagar? | "Se transfiere a un agente" |
+| ¿Cómo se registra una promesa de pago? | Se anota, con fecha y monto en `scheduled_payments` |
+
+Sin pendientes.
+
+### Función 6: IVR PCI ⛔
+
+| Pregunta | Respuesta |
+| --- | --- |
+| ¿Cómo se paga con tarjeta? | Transferencia a un IVR PCI que captura los dígitos por teclado; la IA nunca ve la tarjeta |
+| ¿Qué proveedor? | Por elegir. Queda como bloqueante; primero se terminan las demás funciones (2026-11-08) |
+
+**Bloqueante:** elegir el proveedor y saber cómo devuelve el resultado del pago.
+**Supuesto:** el NSF puede venir de ACH, cheque o tarjeta.
+
+### Función 7: disputas y "no llamar"
+
+| Pregunta | Respuesta |
+| --- | --- |
+| ¿"Yo sí pagué" o "fue error del banco" cuenta como disputa? | "Sí, cuenta como disputa, constrúyelo así" → se marca la cuenta, se cierra como `dispute` y pasa a una persona |
+
+**Supuestos:**
+- Una disputa o "no llamar" impide cobrar.
+- En entrantes, "no llamar" exige verificar identidad; en salientes no.
+- Una disputa no cancela un acuerdo que ya está en `PTP`.
+- Si el deudor rechazó la grabación y pide "no llamar", se guarda la marca y la llamada se cierra como `recording_refused`.
+
+### Para todo el proyecto
+
+- Revisión legal del guion y de los avisos.
+- Cómo cuentan las llamadas del agente y de los cobradores para el límite de 7 intentos en 7 días (Reg F).
+
+### Bloqueantes reales
+
+1. El proveedor del IVR PCI: detiene la Función 6.
+2. La `ANTHROPIC_API_KEY`: hace falta para probar el resumen y la conversación con Claude (paso 8).
+3. El EER, la base de datos real y cómo entrega el job sus resultados: no detienen el desarrollo, pero se necesitan antes de conectar con el sistema real.
 
 ## 1. Decisiones iniciales (2026-10-28)
 
@@ -32,7 +153,7 @@ Cómo leer la columna **Origen**:
 
 | # | Pregunta | Respuesta textual | Cómo se aplicó |
 | --- | --- | --- | --- |
-| 1 | ¿Qué estados de pago existen además de NSF? | "Manejaremos solo nfc, cualquier otra llamada que tenga un deudor en un estado distinto es remitido a un personal" | Se entendió "nfc" como NSF. Otro estado se transfiere a una persona |
+| 1 | ¿Qué estados de pago existen además de NSF? | "Manejaremos solo nfc, cualquier otra llamada que tenga un deudor en un estado distinto es remitido a un personal" | Se entendió "nfc" como NSF. Otro estado, incluidos `first_attempt` a `fourth_attempt`, se transfiere a una persona (confirmado el 2026-11-08) |
 | 2 | ¿Un deudor puede tener varias deudas? | "Si, pueden ser del mismo o diferentes" | Tablas `debtors` y `accounts` separadas |
 | 3 | ¿Qué datos del NSF hay? ¿ACH, cheque o tarjeta? | "Si" | Se modelaron todos los campos. Falta confirmar el medio de pago |
 | 4 | ¿Cómo entrega el resultado el job? | "Por definir" | Abierto |
@@ -95,28 +216,43 @@ Aclaraciones posteriores del desarrollador:
 | Después de `PTP` | "Despues se hace una llamada recordando que tienen que pagar, pero eso lo hace un cobrador (una persona) nuestro trabajo es que el flujo NSF quede perfecto" | El trabajo del agente termina al pasar la cuenta a `PTP`. No se construyen llamadas de recordatorio |
 | Flujos de entrantes y salientes | "mi jefe aprobo" | Quedan como en el diagrama del documento de arquitectura |
 | Campos de Hardship y orden de la negociación | "Sí, apruebo los campos y el orden, constrúyelo" (propuestos por Claude) | Todo, 2 cuotas, 3 cuotas, Hardship Questions, de 4 a 10 cuotas, parcial menor al 10% y, si nada funciona, transferir a un agente |
+| "Yo sí pagué" o "fue error del banco" | "Sí, cuenta como disputa, constrúyelo así" | Se marca la cuenta en disputa, se cierra la llamada como `dispute` y se transfiere a un agente |
 
-## 4. Interpretaciones de Claude que falta confirmar
+Decisiones del desarrollador del 2026-11-08:
 
-Estas reglas ya están en el código o en el diseño, pero nadie las dijo explícitamente.
-
-| Regla | De dónde sale | Qué falta |
+| Tema | Respuesta textual | Cómo se aplica |
 | --- | --- | --- |
-| El agente cobra NSF y también `first_attempt` a `fourth_attempt` | Los intentos van en el mismo campo que NSF. La respuesta 1 dice "solo" NSF | Confirmar |
-| Máximo 2 fallos de verificación por llamada | Propuesta de Claude en el diseño | Confirmar |
-| Una disputa o "no llamar" impide cobrar | Propuesta de Claude por la ley de cobranza | Confirmar |
-| Máximo de 10 cuotas | Consecuencia de cuotas iguales con la primera ≥ 10% | Confirmar |
-| Los 30 días del resto se cuentan desde el primer pago, no desde la llamada | Claude lo eligió; el jefe no lo respondió explícitamente | Confirmar |
-| En todo pago parcial, también entre 5% y 10%, el resto va en un solo pago | Con cuotas mensuales no caben 2 pagos en 30 días | Confirmar: ver sección 6 |
-| "Fecha establecida" es el día del mes del primer pago; si un mes no tiene ese día, se usa su último día | Lectura de Claude | Confirmar |
-| Una cuenta solo puede tener un acuerdo activo | Propuesta de Claude para evitar cobros duplicados | Confirmar |
-| Todo acuerdo pasa la cuenta a `PTP`, incluso el pago total | La respuesta del jefe no distingue por tipo de acuerdo | Confirmar |
+| Estados que cobra el agente | "Solo NSF, si ese estado no encaja en el nuestro descartemoslo" | `COLLECTABLE_STATUSES` = solo `NSF`. Los intentos pasan a una persona. Se ajustaron pruebas y datos simulados (`ACC-T002b` y `ACC-T003` pasan a NSF) |
+| Traducción de las Hardship Questions | "confirmo la conversion a ingles" | Aprobada la versión de `domain/hardship.py` |
+| Frases de presión en Hardship | "correcto ya no incluir esas preguntas que puedan verse como presion, usa las frases que dio el jefe y guiate de ellas en caso de necesitar hacer más preguntas" | Descartadas "vender el carro" y "pedir dinero prestado". Si hace falta preguntar más, se sigue el tono de las 5 preguntas del jefe |
+| Idioma del resumen | "Esto si está confirmado, en ingles, porque todos ahi hablan ingles y el servicio es para estados unidos" | El resumen se genera en inglés |
+| Proveedor del IVR PCI | "igual dejalo como bloqueante por ahroa" | Sigue bloqueando la Función 6; primero se terminan las demás funciones |
+| Reglas sin confirmar | "Tdoas las demas que queden por confirmar dejalas como supuestos excepto las que no tienen respuesta temporal alemnos" | Pasan a la sección 4 como supuestos; las que no tienen respuesta siguen en la sección 6 |
+
+## 4. Supuestos vigentes
+
+Desde el 2026-11-08 estas reglas se dan por buenas mientras nadie diga lo contrario. Las propuso Claude y ya están en el código.
+
+| Supuesto | De dónde sale |
+| --- | --- |
+| Máximo 2 fallos de verificación por llamada | Propuesta de Claude en el diseño |
+| Una disputa o "no llamar" impide cobrar | Propuesta de Claude por la ley de cobranza |
+| Máximo de 10 cuotas | Consecuencia de cuotas iguales con la primera ≥ 10% |
+| Los 30 días del resto se cuentan desde el primer pago, no desde la llamada | Claude lo eligió; el jefe no lo respondió explícitamente |
+| En todo pago parcial, también entre 5% y 10%, el resto va en un solo pago | Con cuotas mensuales no caben 2 pagos en 30 días |
+| "Fecha establecida" es el día del mes del primer pago; si un mes no tiene ese día, se usa su último día | Lectura de Claude |
+| Una cuenta solo puede tener un acuerdo activo | Propuesta de Claude para evitar cobros duplicados |
+| Todo acuerdo pasa la cuenta a `PTP`, incluso el pago total | La respuesta del jefe no distingue por tipo de acuerdo |
+| "No llamar" se respeta sin verificación en salientes, pero en entrantes la exige | En una saliente se llamó al deudor del job; en una entrante, otra persona podría bloquear sus llamadas |
+| Una disputa no cambia el estado ni cancela un acuerdo activo de la cuenta | Claude no quiso asumir qué hace el cobrador en ese caso |
+| La grabación es obligatoria; si el deudor no acepta, se cierra como `recording_refused` | Respuesta "Por ley se tiene que grabar". Falta saber qué ley o política lo exige (alerta 2) |
+| El NSF puede venir de ACH, cheque o tarjeta | El modelo acepta los tres. Falta saber cuál usa realmente el sistema |
 
 ## 5. Alertas de cumplimiento
 
 Ninguna de estas alertas fue revisada por un abogado.
 
-1. **Recomendaciones de Hardship.** Claude advirtió que frases como "le recomiendo que venda su carro" o hacerle entender al deudor que se endeudó pueden considerarse presión o una práctica injusta (FDCPA, CFPB). Además chocan con la decisión inicial de negociar sin presionar. El desarrollador respondió que no hay problema, y el jefe confirmó que se busque cómo puede pagar el deudor con sugerencias como vender el carro, pedir dinero prestado o la colaboración de familiares. Claude recomendó revisión legal antes del piloto. Sugerir la ayuda de familiares no permite contactarlos ni hablarles de la deuda. La lista de preguntas entregada el 2026-11-04 ya no incluye vender el carro ni pedir dinero prestado, y el agente solo tiene esas 5 preguntas. Falta confirmar que esas frases quedan descartadas.
+1. **Recomendaciones de Hardship.** Claude advirtió que frases como "le recomiendo que venda su carro" o hacerle entender al deudor que se endeudó pueden considerarse presión o una práctica injusta (FDCPA, CFPB). Además chocan con la decisión inicial de negociar sin presionar. El desarrollador respondió que no hay problema, y el jefe confirmó que se busque cómo puede pagar el deudor con sugerencias como vender el carro, pedir dinero prestado o la colaboración de familiares. Claude recomendó revisión legal antes del piloto. Sugerir la ayuda de familiares no permite contactarlos ni hablarles de la deuda. **Resuelta el 2026-11-08:** el desarrollador confirmó que esas frases quedan descartadas. El agente usa las 5 preguntas del jefe y, si necesita preguntar más, sigue su tono.
 2. **Grabación obligatoria.** La respuesta fue que la ley obliga a grabar. Claude señaló que, hasta donde sabe, ninguna ley federal lo exige y que quizá sea una política de la empresa o un requisito del cliente. Falta confirmar la fuente. Como varios estados exigen consentimiento, si el deudor no acepta se cierra la llamada sin mencionar la deuda (`recording_refused`).
 3. **Límites de llamadas.** Las llamadas del agente y las de los cobradores suman contactos. Falta confirmar con un abogado cómo cuentan para el límite de 7 intentos en 7 días (Reg F).
 
@@ -124,13 +260,16 @@ Ninguna de estas alertas fue revisada por un abogado.
 
 | Tema | Estado |
 | --- | --- |
-| Traducción al inglés de las Hardship Questions | Falta la aprobación del jefe |
+Estos temas no tienen ni una respuesta provisional.
+
+| Tema | Estado |
+| --- | --- |
 | Cómo entrega el resultado el job de NSF | Por definir |
 | Insertar o actualizar el resultado de la llamada | Por definir |
 | Diagrama EER y base de datos real | Pendiente de entrega |
-| Proveedor del IVR PCI | Por elegir |
-| Medio de pago del NSF (ACH, cheque o tarjeta) | Falta confirmar |
-| Idioma del resumen de la llamada | En inglés por ahora; falta confirmar |
+| Proveedor del IVR PCI y cómo devuelve el resultado del pago | Por elegir; **bloquea la Función 6** |
+| Cómo cuentan las llamadas del agente y de los cobradores para el límite de 7 en 7 días (Reg F) | Falta un abogado (alerta 3) |
+| Revisión legal del guion y de los avisos | Pendiente |
 
 ## 7. Datos que deben tomarse como estimaciones
 
@@ -142,7 +281,7 @@ Estas cifras son estimaciones de Claude, todavía sin medir en un piloto:
 
 ## 8. Preguntas de Hardship entregadas por el jefe (2026-11-04)
 
-Texto tal como lo entregó. El agente habla en inglés, así que falta aprobar la traducción.
+Texto tal como lo entregó. La traducción al inglés de `backend/src/cobranza/domain/hardship.py` se aprobó el 2026-11-08.
 
 1. «¿Puede contarme un poco qué fue lo que pasó y cuándo empezó esta situación?»
 2. «¿Es algo que espera que sea temporal o un cambio a largo plazo en sus ingresos?»

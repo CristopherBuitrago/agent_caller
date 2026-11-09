@@ -33,7 +33,7 @@ def test_found_by_secondary_phone(find_by_phone):
 
 def test_multiple_accounts_all_returned(find_by_phone):
     mark = _only(find_by_phone("+15125550002"))
-    assert sorted(a.status for a in mark.accounts) == ["NSF", "second_attempt"]
+    assert sorted(a.status for a in mark.accounts) == ["NSF", "NSF"]
     assert len(mark.collectable_accounts) == 2
 
 
@@ -52,10 +52,10 @@ def test_stored_timezone_is_not_marked_inferred(find_by_phone):
     assert (jane.timezone, jane.timezone_inferred) == ("America/New_York", False)
 
 
-def test_fourth_attempt_is_collectable(find_by_phone):
+def test_attempt_status_goes_to_human(find_by_phone):
     grace = _only(find_by_phone("+16175550009"))  # 617 = Boston
     assert grace.accounts[0].status == "fourth_attempt"
-    assert grace.collectable_accounts == grace.accounts
+    assert grace.collectable_accounts == ()
     assert grace.timezone == "America/New_York"
 
 

@@ -59,8 +59,8 @@ CREATE TABLE accounts (
     current_balance_cents  bigint NOT NULL CHECK (current_balance_cents >= 0),
     payment_method         text CHECK (payment_method IN ('ACH', 'CHECK', 'CARD')),
     -- Un solo campo para el estado de pago y los intentos de contacto.
-    -- El agente solo atiende NSF y first_attempt..fourth_attempt; cualquier otro
-    -- valor se transfiere a una persona. Texto libre hasta conocer el catálogo real.
+    -- El agente solo cobra NSF; cualquier otro valor, incluidos los intentos,
+    -- se transfiere a una persona. Texto libre hasta conocer el catálogo real.
     status                 text NOT NULL,
     status_updated_at      timestamptz NOT NULL DEFAULT now(),
     nsf_date               date,

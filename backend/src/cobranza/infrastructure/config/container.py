@@ -9,6 +9,7 @@ import anthropic
 from psycopg_pool import ConnectionPool
 
 from cobranza.application.interfaces.call_summarizer import CallSummarizer
+from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
 from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
 from cobranza.application.use_cases.negotiate_arrangement import (
     CreateArrangement,
@@ -47,6 +48,8 @@ class UseCases:
     propose_partial_payment: ProposePartialPayment
     create_arrangement: CreateArrangement
     record_hardship_assessment: RecordHardshipAssessment
+    record_dispute: RecordDispute
+    mark_do_not_call: MarkDoNotCall
 
 
 def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
@@ -69,6 +72,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
     get_debtor_by_account = GetDebtorByAccount(debtors, phones)
     arrangements = PostgresArrangementRepository(pool)
     hardships = PostgresHardshipRepository(pool)
+    end_call = EndCall(calls, summarizer, clock)
     gate = _ArrangementGate(calls, arrangements, get_debtor_by_account, clock, hardships)
     return UseCases(
         find_debtors_by_phone=FindDebtorsByPhone(debtors, phones),
@@ -82,5 +86,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         ),
         start_call=StartCall(calls, debtors, phones, clock),
         record_recording_consent=RecordRecordingConsent(calls),
-        end_call=EndCall(calls, summarizer, clock),
+        end_call=end_call,
+        record_dispute=RecordDispute(calls, debtors, end_call),
+        mark_do_not_call=MarkDoNotCall(calls, debtors, end_call),
     )

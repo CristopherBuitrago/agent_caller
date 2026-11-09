@@ -30,7 +30,7 @@ INSERT INTO test_cases VALUES
     ('TEST-006', 'Tom',   'Fischer',  '1966-09-09', '3333', '+12065550006', 'WA', 'America/Los_Angeles', false), -- estado PAID
     ('TEST-007', 'Ana',   'Reyes',    '1990-12-12', '4444', '+16025550007', 'AZ', 'America/Phoenix',     false), -- teléfono compartido
     ('TEST-008', 'Luis',  'Reyes',    '1989-02-28', '5555', '+16025550007', 'AZ', 'America/Phoenix',     false), -- teléfono compartido
-    ('TEST-009', 'Grace', 'Liu',      '1995-04-18', '6666', '+16175550009', NULL, NULL,                  false); -- fourth_attempt sin ubicación (617 = MA)
+    ('TEST-009', 'Grace', 'Liu',      '1995-04-18', '6666', '+16175550009', NULL, NULL,                  false); -- fourth_attempt: pasa a una persona; sin ubicación (617 = MA)
 
 WITH ins AS (
     INSERT INTO debtors (external_id, first_name, last_name, dob_hmac, ssn_last4_hmac,
@@ -54,8 +54,8 @@ SELECT a.ext, d.id, a.creditor, a.masked, a.orig, a.orig, a.fee, a.balance,
 FROM (VALUES
     ('ACC-T001',  'TEST-001', 'Lakeside Auto Finance',   '****4821', 45000,  3500, 48500,  'ACH',   'NSF',            '2026-10-10', 'R01', false),
     ('ACC-T002a', 'TEST-002', 'Brightwater Utilities',   '****1190', 18000,  2500, 20500,  'CHECK', 'NSF',            '2026-10-01', 'R01', false),
-    ('ACC-T002b', 'TEST-002', 'Summit Health Partners',  '****7734', 92000,  3500, 95500,  'ACH',   'second_attempt', '2026-09-15', 'R01', false),
-    ('ACC-T003',  'TEST-003', 'Pinecrest Wireless',      '****3008', 12000,  2500, 14500,  'CARD',  'first_attempt',  '2026-10-05', 'R01', false),
+    ('ACC-T002b', 'TEST-002', 'Summit Health Partners',  '****7734', 92000,  3500, 95500,  'ACH',   'NSF',            '2026-09-15', 'R01', false),
+    ('ACC-T003',  'TEST-003', 'Pinecrest Wireless',      '****3008', 12000,  2500, 14500,  'CARD',  'NSF',            '2026-10-05', 'R01', false),
     ('ACC-T004',  'TEST-004', 'Northgate Property Mgmt', '****5512', 150000, 3900, 153900, 'ACH',   'NSF',            '2026-09-28', 'R01', true),
     ('ACC-T005',  'TEST-005', 'Lakeside Auto Finance',   '****6620', 38000,  3500, 41500,  'ACH',   'NSF',            '2026-10-12', 'R01', false),
     ('ACC-T006',  'TEST-006', 'Brightwater Utilities',   '****8841', 9000,   2500, 0,      'CHECK', 'PAID',           '2026-08-20', 'R01', false),

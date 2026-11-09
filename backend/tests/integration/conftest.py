@@ -29,12 +29,17 @@ def started_calls(pool):
     """Lista donde las pruebas anotan los ids de llamadas que crean; se borran al terminar."""
     ids = []
     with pool.connection() as conn:
-        statuses = conn.execute("SELECT id, status FROM accounts WHERE external_id LIKE 'ACC-T%'").fetchall()
+        accounts = conn.execute(
+            "SELECT id, status, is_disputed FROM accounts WHERE external_id LIKE 'ACC-T%'").fetchall()
+        debtors = conn.execute("SELECT id, do_not_call FROM debtors WHERE external_id LIKE 'TEST-%'").fetchall()
     yield ids
     with pool.connection() as conn:
-        # Crear un acuerdo cambia el estado de la cuenta; se restaura para las demás pruebas.
-        for account_id, status in statuses:
-            conn.execute("UPDATE accounts SET status = %s WHERE id = %s", (status, account_id))
+        # Los casos de uso cambian estas marcas; se restauran para las demás pruebas.
+        for account_id, status, is_disputed in accounts:
+            conn.execute("UPDATE accounts SET status = %s, is_disputed = %s WHERE id = %s",
+                         (status, is_disputed, account_id))
+        for debtor_id, do_not_call in debtors:
+            conn.execute("UPDATE debtors SET do_not_call = %s WHERE id = %s", (do_not_call, debtor_id))
         conn.execute("DELETE FROM hardship_assessments WHERE call_id = ANY(%s::uuid[])", (ids,))
         conn.execute(
             """DELETE FROM scheduled_payments WHERE arrangement_id IN

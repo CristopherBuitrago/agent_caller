@@ -1,6 +1,6 @@
 # Agente de voz de cobranza NSF: pendientes
 
-Actualizado: 2026-10-28
+Actualizado: 2026-11-08
 Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 
 ## Para mañana
@@ -22,6 +22,10 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 | Negociación | Sin presionar ni amenazar |
 | **Descuentos** | **NUNCA.** Siempre se cobra el saldo completo. Se acepta pago parcial, pero el resto se sigue debiendo |
 | Idioma del agente | Inglés |
+| Idioma del resumen | Inglés: todo el equipo habla inglés y el servicio es para EE. UU. (2026-11-08) |
+| Estados que cobra el agente | Solo `NSF`. Cualquier otro, incluidos `first_attempt` a `fourth_attempt`, pasa a una persona (2026-11-08) |
+| Hardship Questions | Traducción al inglés aprobada. Sin frases que puedan verse como presión; si hace falta preguntar más, se sigue el tono de las 5 del jefe (2026-11-08) |
+| Reglas sin confirmar | Quedan como supuestos vigentes (`README.md`, sección 4), salvo las que no tienen respuesta provisional (sección 6) |
 | Datos | Interfaz `DebtorRepository` + implementación en PostgreSQL con datos simulados, hasta conocer la base real |
 | Forma de trabajo | Antes de cada función o tabla, Claude presenta la propuesta y se aprueban los campos |
 
@@ -57,9 +61,10 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [ ] Probar el resumen con la API real (falta `ANTHROPIC_API_KEY`)
 - [x] Función 4: negociar el acuerdo (`ProposeArrangement`, `ProposePartialPayment`, `CreateArrangement`), 128 pruebas. Definido el 2026-11-02: sin descuentos; el agente ofrece primero todo de una, luego 2 cuotas, luego 3, siempre lo más rápido; el deudor acepta, no propone; cuotas iguales y de frecuencia fija; parcial con el resto en máximo 30 días; primer pago ≥ 10% y puede ser en unos días; plan de máximo 1 año. Cuotas mensuales en fecha fija (decisión del jefe), primer pago en máximo 8 días y resto del parcial a 30 días por defecto. Al crear un acuerdo la cuenta pasa a `PTP` y ahí termina el trabajo del agente; `RCC` queda fuera del alcance. Entre 5% y 10% solo como último recurso. Decisiones y origen: `README.md`
 - [x] Función 5: Hardship Questions (`RecordHardshipAssessment`) y orden de la negociación. Flujos de entrantes y salientes aprobados por el jefe; las llamadas de recordatorio las hace un cobrador. 149 pruebas
-- [ ] Aprobar la traducción al inglés de las Hardship Questions
-- [ ] Función 6: transferir al IVR PCI y registrar el resultado del pago (falta elegir proveedor)
-- [ ] Función 7: registrar disputas y "no llamar"
+- [x] Aprobar la traducción al inglés de las Hardship Questions (2026-11-08)
+- [ ] Función 6: transferir al IVR PCI y registrar el resultado del pago. **Bloqueada:** falta elegir proveedor; se deja para después de las demás funciones
+- [x] Función 7: disputas y "no llamar" (`RecordDispute`, `MarkDoNotCall`). 166 pruebas
+- [x] Cambio a solo NSF probado (2026-11-08): 166 pruebas pasan
 
 Correr las pruebas: `cd agente-cobranza/backend && docker compose run --rm --build app`
 

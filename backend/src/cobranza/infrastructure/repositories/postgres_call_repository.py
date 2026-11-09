@@ -43,6 +43,10 @@ class PostgresCallRepository:
         with self._pool.connection() as conn:
             conn.execute("UPDATE calls SET recording_consent = %s WHERE id = %s", (accepted, call_id))
 
+    def link_account(self, call_id: str, account_id: str) -> None:
+        with self._pool.connection() as conn:
+            conn.execute("UPDATE calls SET account_id = %s WHERE id = %s", (account_id, call_id))
+
     def close(self, call_id: str, outcome: CallOutcome, summary: str | None, ended_at: datetime) -> None:
         with self._pool.connection() as conn:
             conn.execute(

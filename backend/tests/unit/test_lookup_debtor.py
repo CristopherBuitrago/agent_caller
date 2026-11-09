@@ -46,10 +46,9 @@ phones = PhonenumbersPhoneService()
 # --- dominio ------------------------------------------------------------------
 
 def test_collectable_statuses():
-    for status in ["NSF", "first_attempt", "second_attempt", "third_attempt", "fourth_attempt"]:
-        debtor = _debtor(accounts=[_account(status)])
-        assert debtor.can_collect(debtor.accounts[0]), status
-    for status in ["PAID", "CLOSED", "DISPUTED", "PAYMENT_PLAN", "anything_else"]:
+    debtor = _debtor(accounts=[_account("NSF")])
+    assert debtor.can_collect(debtor.accounts[0])
+    for status in ["first_attempt", "second_attempt", "third_attempt", "fourth_attempt", "PAID", "CLOSED", "DISPUTED", "PAYMENT_PLAN", "anything_else"]:
         debtor = _debtor(accounts=[_account(status)])
         assert not debtor.can_collect(debtor.accounts[0]), status
 
