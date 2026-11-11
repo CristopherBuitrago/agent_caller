@@ -141,6 +141,8 @@ S.append(p("<b>Límite:</b> Opus es el modelo más grande y razona más antes de
 
 # --- 2. errores ---------------------------------------------------------------------------
 S.append(p("2. Errores encontrados en el código", H1))
+S.append(p("Fallas del código que aparecieron durante las pruebas. Ya tienen una corrección propuesta y no necesitan "
+           "una decisión de negocio; se incluyen para conocer su impacto y su prioridad."))
 S.append(table(["#", "Error", "Dónde y por qué", "Consecuencia", "Corrección propuesta", "Criticidad"], [
     ["E1", "Al colgar, el pedido de \"no llamar\" o la disputa se pueden perder (prueba 7)",
      "agent_conversation.py, hang_up(): le dice al modelo \"Call end_call\", y end_call no acepta do_not_call "
@@ -158,7 +160,9 @@ S.append(table(["#", "Error", "Dónde y por qué", "Consecuencia", "Corrección 
 # --- 3. negocio ---------------------------------------------------------------------------
 S.append(PageBreak())
 S.append(p("3. Observaciones de negocio", H1))
-S.append(p("Están ordenadas por impacto."))
+S.append(p("Decisiones sobre cómo debe actuar el agente con los deudores y qué ofrece la empresa. Cada fila "
+           "explica la situación que se vio en las pruebas y plantea las opciones posibles. Están ordenadas por impacto: "
+           "las primeras afectan a más llamadas o detienen el avance."))
 S.append(obs_table([
     ["N1", "Medio de pago a futuro",
      "No hay forma definida de que el deudor pague un pago agendado: el único medio previsto es el IVR PCI "
@@ -170,7 +174,7 @@ S.append(obs_table([
      "para que el deudor diga sí o no. Revela datos personales a quien conteste, no verifica nada (cualquiera dice "
      "\"sí\") y no es posible con el diseño actual (los datos se guardan como hash). Propuesta: quitar el nombre, "
      "pero que el deudor siga diciendo los dos datos", "1"],
-    ["N3", "Saludo y aviso de grabación en salientes (pedido del desarrollador)",
+    ["N3", "Saludo y aviso de grabación en salientes",
      "Se pidió que el saludo solo pregunte por el deudor y que el aviso de grabación vaya después de verificar. "
      "Propuesta intermedia, ya probada en las llamadas 4, 6 y 7: aviso cuando la persona confirma ser el deudor, "
      "antes de verificar, y sin grabar hasta su \"sí\"", "3, 4, 6, 7"],
@@ -217,6 +221,9 @@ S.append(obs_table([
 # --- 4. backend ---------------------------------------------------------------------------
 S.append(PageBreak())
 S.append(p("4. Observaciones de backend: código y herramientas", H1))
+S.append(p("Cambios en el código y en las herramientas que usa el agente. La mayoría son técnicos y se pueden hacer "
+           "sin esperar decisiones; los que dependen de una observación de negocio lo indican (por ejemplo, B10 depende "
+           "de N1). Algunos, como B1 y B5, cambian el modelo de datos y necesitan aprobación antes de construirse."))
 S.append(obs_table([
     ["B1", "Continuidad entre llamadas",
      "Las Hardship Questions quedan atadas a la llamada y las ofertas rechazadas viven en memoria. Si el deudor "
@@ -270,6 +277,9 @@ S.append(obs_table([
 S.append(PageBreak())
 S.append(p("5. Observaciones del prompt del agente y temas legales", H1))
 S.append(p("5.1 Prompt del agente", H2))
+S.append(p("Ajustes a las instrucciones que sigue el agente durante la llamada: frases fijas, qué hacer en situaciones "
+           "que hoy no están previstas y qué nunca debe decir. No cambian el costo por llamada y reducen el riesgo de "
+           "que el modelo improvise (ver sección 6). Las frases exactas se pueden revisar antes de aplicarlas."))
 S.append(obs_table([
     ["P1", "Frases fijas al inicio",
      "Presentarse como asistente virtual en el saludo. \"I can share the reason once I confirm I'm speaking with "
@@ -306,6 +316,9 @@ S.append(obs_table([
      "(N12)", "6"],
 ]))
 S.append(p("5.2 Temas legales para revisar con un abogado", H2))
+S.append(p("Temas que conviene revisar con un abogado especializado en cobranza en EE. UU. (FDCPA, Reg F y las leyes "
+           "estatales de grabación) antes de llamar a deudores reales. Algunos cambian cómo se diseña la llamada, así "
+           "que conviene resolverlos antes del piloto."))
 S.append(obs_table([
     ["L1", "Volver a llamar a quien pidió no ser llamado",
      "Es la consecuencia del error E1. Prioritario", "7"],
@@ -322,7 +335,7 @@ S.append(obs_table([
     ["L5", "Disputas",
      "Plazos y formato de la verificación de una deuda disputada; si basta una disputa por teléfono", "4"],
     ["L6", "Aviso \"This communication is from a debt collector\"",
-     "El desarrollador pidió quitarlo por repetido; la frase no se había dicho antes en la llamada. Confirmar el "
+     "Se propuso quitarlo por repetido; la frase no se había dicho antes en la llamada. Confirmar el "
      "texto exacto del aviso", "1"],
     ["L7", "Deudores vulnerables",
      "Obligaciones con deudores en situación vulnerable (pérdida de empleo, angustia)", "5"],
