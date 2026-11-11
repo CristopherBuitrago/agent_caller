@@ -65,6 +65,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] Función 7: disputas y "no llamar" (`RecordDispute`, `MarkDoNotCall`). 166 pruebas
 - [x] Cambio a solo NSF probado (2026-11-08): 166 pruebas pasan
 - [x] Paso 8: chat de prueba con Claude (2026-11-10). El sistema elige cada oferta (`ProposeNextOffer`) y el acuerdo se crea con la propuesta guardada (`RecordOfferResponse`). 11 herramientas, prompt del agente y respaldo con Sonnet. 197 pruebas, incluida una llamada completa contra PostgreSQL con un modelo guionado
+- [x] Pruebas de casos borde de `ProposeNextOffer`, `ProposePartialPayment` y `RecordOfferResponse`, y 5 llamadas más por chat contra PostgreSQL: Hardship → 4 cuotas, pago parcial, disputa, "no llamar" y saliente (2026-11-11). 228 pruebas pasan
 - [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 
 Correr las pruebas: `cd backend && docker compose run --rm --build app`

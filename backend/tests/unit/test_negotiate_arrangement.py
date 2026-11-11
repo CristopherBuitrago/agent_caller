@@ -351,3 +351,172 @@ def test_rejections_count_per_call_and_account():
     log.mark_rejected("c2", log.save("c2", "ACC-1", 3, None).id)
     log.mark_rejected("c1", log.save("c1", "ACC-1", None, None).id)  # parcial: no es oferta de cuotas
     assert log.rejected_offer_numbers("c1", "ACC-1") == {1}
+
+
+# --- casos borde de ProposeNextOffer, ProposePartialPayment y RecordOfferResponse (2026-11-11)
+
+def _log_size(log, call_id="c1"):
+    return len(log._by_call.get(call_id, {}))
+
+
+def test_next_offer_uses_the_requested_first_date_up_to_eight_days():
+    next_offer, _, _ = _offer_flow()
+    offer = next_offer.execute("c1", "ACC-1", TODAY + timedelta(days=8))
+    assert offer.proposal.payments[0].due_date == TODAY + timedelta(days=8)
+
+
+def test_next_offer_with_a_date_out_of_range_logs_nothing():
+    log = InMemoryNegotiationLog()
+    next_offer = ProposeNextOffer(_use_cases(log=log)[0], log)
+    assert _violation(next_offer.execute, "c1", "ACC-1",
+                      TODAY + timedelta(days=9)) is R.FIRST_PAYMENT_DATE_OUT_OF_RANGE
+    assert _violation(next_offer.execute, "c1", "ACC-1",
+                      TODAY - timedelta(days=1)) is R.FIRST_PAYMENT_DATE_OUT_OF_RANGE
+    assert _log_size(log) == 0
+
+
+@pytest.mark.parametrize("calls, violation", [
+    (FakeCalls(consent=False), R.RECORDING_CONSENT_MISSING),
+    (FakeCalls(verified=False), R.IDENTITY_NOT_VERIFIED),
+])
+def test_next_offer_needs_recording_and_verification_and_logs_nothing(calls, violation):
+    log = InMemoryNegotiationLog()
+    next_offer = ProposeNextOffer(_use_cases(calls=calls, log=log)[0], log)
+    assert _violation(next_offer.execute, "c1", "ACC-1") is violation
+    assert _log_size(log) == 0
+
+
+def test_next_offer_does_not_advance_until_the_debtor_answers():
+    next_offer, _, _ = _offer_flow()
+    first = next_offer.execute("c1", "ACC-1")
+    again = next_offer.execute("c1", "ACC-1")
+    assert first.offer_number == again.offer_number == 1
+    assert first.id != again.id
+
+
+def test_next_offer_after_hardship_continues_with_four_installments():
+    log = InMemoryNegotiationLog()
+    hardships = FakeHardships()
+    arrangements = FakeArrangements()
+    gate = _ArrangementGate(FakeCalls(), arrangements,
+                            GetDebtorByAccount(FakeDebtors(_debtor()), PhonenumbersPhoneService()),
+                            FixedClock(), hardships)
+    next_offer = ProposeNextOffer(ProposeArrangement(gate), log)
+    respond = RecordOfferResponse(log, CreateArrangement(gate, arrangements))
+    for _ in range(3):
+        respond.execute("c1", next_offer.execute("c1", "ACC-1").id, accepted=False)
+    assert _violation(next_offer.execute, "c1", "ACC-1") is R.HARDSHIP_REQUIRED
+    hardships.done = True
+    fourth = next_offer.execute("c1", "ACC-1")
+    assert fourth.offer_number == 4 and len(fourth.proposal.payments) == 4
+    assert respond.execute("c1", fourth.id, accepted=True) == "arr-1"
+
+
+def test_no_more_offers_once_an_arrangement_exists():
+    log = InMemoryNegotiationLog()
+    arrangements = FakeArrangements()
+    propose, _, create, _, _ = _use_cases(arrangements=arrangements, log=log)
+    next_offer, respond = ProposeNextOffer(propose, log), RecordOfferResponse(log, create)
+    respond.execute("c1", next_offer.execute("c1", "ACC-1").id, accepted=True)
+    arrangements.active = True  # lo que queda en la base después de guardar
+    assert _violation(next_offer.execute, "c1", "ACC-1") is R.ACTIVE_ARRANGEMENT_EXISTS
+
+
+def test_partial_of_exactly_ten_percent_needs_no_hardship():
+    partial = _use_cases()[1].execute("c1", "ACC-1", 10000)
+    assert partial.offer_number is None
+    assert [p.amount_cents for p in partial.proposal.payments] == [10000, 90000]
+
+
+def test_partial_just_below_ten_percent_needs_hardship_first():
+    assert _violation(_use_cases()[1].execute, "c1", "ACC-1", 9999) is R.HARDSHIP_REQUIRED
+
+
+def test_partial_between_five_and_ten_percent_needs_all_offers_rejected():
+    assert _violation(_use_cases(hardship_done=True)[1].execute, "c1", "ACC-1", 5000) is R.OFFERS_NOT_EXHAUSTED
+    partial = _use_cases(hardship_done=True, log=_all_rejected_log())[1].execute("c1", "ACC-1", 5000)
+    assert partial.proposal.payments[0].amount_cents == 5000
+
+
+def test_partial_for_the_whole_balance_is_not_a_partial():
+    assert _violation(_use_cases()[1].execute, "c1", "ACC-1", 100000) is R.AMOUNT_NOT_PARTIAL
+
+
+def test_partial_remainder_defaults_to_thirty_days_after_the_first_payment():
+    first_due = TODAY + timedelta(days=5)
+    partial = _use_cases()[1].execute("c1", "ACC-1", 20000, first_due=first_due)
+    assert [p.due_date for p in partial.proposal.payments] == [first_due, first_due + timedelta(days=30)]
+
+
+def test_partial_remainder_cannot_go_past_thirty_days():
+    use = _use_cases()[1]
+    ok = use.execute("c1", "ACC-1", 20000, remainder_due=TODAY + timedelta(days=15))
+    assert ok.proposal.payments[1].due_date == TODAY + timedelta(days=15)
+    assert _violation(use.execute, "c1", "ACC-1", 20000,
+                      remainder_due=TODAY + timedelta(days=31)) is R.REMAINDER_DATE_OUT_OF_RANGE
+
+
+def test_partial_first_payment_cannot_go_past_eight_days():
+    assert _violation(_use_cases()[1].execute, "c1", "ACC-1", 20000,
+                      first_due=TODAY + timedelta(days=9)) is R.FIRST_PAYMENT_DATE_OUT_OF_RANGE
+
+
+def test_rejected_partial_does_not_count_as_a_rejected_offer():
+    log = InMemoryNegotiationLog()
+    propose, partial_uc, create, _, _ = _use_cases(log=log)
+    RecordOfferResponse(log, create).execute("c1", partial_uc.execute("c1", "ACC-1", 20000).id, accepted=False)
+    assert ProposeNextOffer(propose, log).execute("c1", "ACC-1").offer_number == 1
+
+
+def test_accepting_a_partial_saves_it_and_moves_the_account_to_ptp():
+    log = InMemoryNegotiationLog()
+    _, partial_uc, create, _, arrangements = _use_cases(log=log)
+    partial = partial_uc.execute("c1", "ACC-1", 20000)
+    assert RecordOfferResponse(log, create).execute("c1", partial.id, accepted=True) == "arr-1"
+    assert arrangements.created == [("c1", "acc-1", partial.proposal, "PTP")]
+
+
+def test_accepting_the_same_proposal_twice_creates_only_one_arrangement():
+    log = InMemoryNegotiationLog()
+    arrangements = FakeArrangements()
+    propose, _, create, _, _ = _use_cases(arrangements=arrangements, log=log)
+    offer = ProposeNextOffer(propose, log).execute("c1", "ACC-1")
+    respond = RecordOfferResponse(log, create)
+    respond.execute("c1", offer.id, accepted=True)
+    arrangements.active = True
+    assert _violation(respond.execute, "c1", offer.id, accepted=True) is R.ACTIVE_ARRANGEMENT_EXISTS
+    assert len(arrangements.created) == 1
+
+
+def test_cannot_accept_after_the_call_ended():
+    log = InMemoryNegotiationLog()
+    calls = FakeCalls()
+    propose, _, create, _, arrangements = _use_cases(calls=calls, log=log)
+    offer = ProposeNextOffer(propose, log).execute("c1", "ACC-1")
+    calls.record = FakeCalls(open_call=False).record
+    with pytest.raises(ValueError):
+        RecordOfferResponse(log, create).execute("c1", offer.id, accepted=True)
+    assert arrangements.created == []
+
+
+def test_cannot_accept_if_the_balance_changed_after_the_offer():
+    log = InMemoryNegotiationLog()
+    propose, _, create, debtors, arrangements = _use_cases(log=log)
+    offer = ProposeNextOffer(propose, log).execute("c1", "ACC-1")
+    debtors.debtor = _debtor(balance=90000)
+    assert _violation(RecordOfferResponse(log, create).execute, "c1", offer.id,
+                      accepted=True) is R.TOTAL_DIFFERS_FROM_BALANCE
+    assert arrangements.created == []
+
+
+def test_a_rejected_offer_cannot_be_accepted_later_but_the_new_one_can():
+    log = InMemoryNegotiationLog()
+    propose, _, create, _, arrangements = _use_cases(log=log)
+    next_offer, respond = ProposeNextOffer(propose, log), RecordOfferResponse(log, create)
+    first = next_offer.execute("c1", "ACC-1")
+    respond.execute("c1", first.id, accepted=False)
+    second = next_offer.execute("c1", "ACC-1")
+    with pytest.raises(ValueError):
+        respond.execute("c1", first.id, accepted=True)
+    assert respond.execute("c1", second.id, accepted=True) == "arr-1"
+    assert arrangements.created[0][2] is second.proposal

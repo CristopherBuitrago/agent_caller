@@ -130,3 +130,81 @@ def test_cannot_negotiate_without_verification(use_cases, started_calls):
     with pytest.raises(ArrangementRuleError) as e:
         use_cases.propose_arrangement.execute(call, "ACC-T001", 1)
     assert e.value.violation is R.IDENTITY_NOT_VERIFIED
+
+
+# --- ProposeNextOffer, ProposePartialPayment y RecordOfferResponse contra PostgreSQL (2026-11-11)
+
+def _account_status(pool):
+    with pool.connection() as conn:
+        return conn.execute("SELECT status FROM accounts WHERE external_id = 'ACC-T001'").fetchone()[0]
+
+
+def _due_dates(pool, arrangement_id):
+    with pool.connection() as conn:
+        return [r[0] for r in conn.execute(
+            "SELECT due_date FROM scheduled_payments WHERE arrangement_id = %s ORDER BY sequence",
+            (arrangement_id,)).fetchall()]
+
+
+def test_next_offer_then_accept_saves_a_monthly_plan(use_cases, verified_jane, pool):
+    first = use_cases.propose_next_offer.execute(verified_jane, "ACC-T001")
+    assert first.offer_number == 1 and first.proposal.type is ArrangementType.FULL
+    assert use_cases.record_offer_response.execute(verified_jane, first.id, accepted=False) is None
+    assert _account_status(pool) == "NSF"  # rechazar no cambia la cuenta
+
+    second = use_cases.propose_next_offer.execute(verified_jane, "ACC-T001")
+    assert second.offer_number == 2
+    arrangement_id = use_cases.record_offer_response.execute(verified_jane, second.id, accepted=True)
+    arrangement, payments = _saved(pool, arrangement_id)
+    assert arrangement == ("plan", 48500, "active")
+    assert payments == [(1, 24250, "pending"), (2, 24250, "pending")]
+    dates = _due_dates(pool, arrangement_id)
+    assert dates == [p.due_date for p in second.proposal.payments]
+    assert _account_status(pool) == "PTP"
+
+
+def test_accepting_twice_leaves_a_single_arrangement(use_cases, verified_jane, pool):
+    offer = use_cases.propose_next_offer.execute(verified_jane, "ACC-T001")
+    use_cases.record_offer_response.execute(verified_jane, offer.id, accepted=True)
+    with pytest.raises(ArrangementRuleError) as e:
+        use_cases.record_offer_response.execute(verified_jane, offer.id, accepted=True)
+    assert e.value.violation is R.ACTIVE_ARRANGEMENT_EXISTS
+    with pool.connection() as conn:
+        count = conn.execute("SELECT count(*) FROM payment_arrangements WHERE call_id = %s",
+                             (verified_jane,)).fetchone()[0]
+    assert count == 1
+
+
+def test_regular_partial_is_saved_with_the_remainder_at_thirty_days(use_cases, verified_jane, pool):
+    partial = use_cases.propose_partial_payment.execute(verified_jane, "ACC-T001", 10000)
+    arrangement_id = use_cases.record_offer_response.execute(verified_jane, partial.id, accepted=True)
+    arrangement, payments = _saved(pool, arrangement_id)
+    assert arrangement == ("partial", 48500, "active")
+    assert [p[1] for p in payments] == [10000, 38500]
+    first, rest = _due_dates(pool, arrangement_id)
+    assert (rest - first).days == 30
+    assert _account_status(pool) == "PTP"
+
+
+def test_partial_below_ten_percent_is_refused_before_hardship(use_cases, verified_jane, pool):
+    with pytest.raises(ArrangementRuleError) as e:
+        use_cases.propose_partial_payment.execute(verified_jane, "ACC-T001", 4800)  # ~9,9%
+    assert e.value.violation is R.HARDSHIP_REQUIRED
+    assert _account_status(pool) == "NSF"
+
+
+def test_partial_below_ten_percent_needs_every_offer_rejected(use_cases, verified_jane):
+    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
+        situation_description="Lost job", duration_type=HardshipDuration.TEMPORARY))
+    with pytest.raises(ArrangementRuleError) as e:
+        use_cases.propose_partial_payment.execute(verified_jane, "ACC-T001", 2500)
+    assert e.value.violation is R.OFFERS_NOT_EXHAUSTED
+
+
+def test_proposal_cannot_be_answered_from_another_call(use_cases, verified_jane, started_calls):
+    from cobranza.application.use_cases.negotiate_arrangement import UnknownProposalError
+    offer = use_cases.propose_next_offer.execute(verified_jane, "ACC-T001")
+    other = use_cases.start_call.execute(CallDirection.INBOUND, "+13055550001")
+    started_calls.append(other)
+    with pytest.raises(UnknownProposalError):
+        use_cases.record_offer_response.execute(other, offer.id, accepted=True)
