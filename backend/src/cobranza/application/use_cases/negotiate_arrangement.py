@@ -8,6 +8,7 @@ from cobranza.application.interfaces.arrangement_repository import ArrangementRe
 from cobranza.application.interfaces.call_repository import CallRepository
 from cobranza.application.interfaces.clock import Clock
 from cobranza.application.interfaces.hardship_repository import HardshipRepository
+from cobranza.application.interfaces.negotiation_log import LoggedProposal, NegotiationLog
 from cobranza.application.use_cases.lookup_debtor import GetDebtorByAccount
 from cobranza.domain.arrangement import (
     LAST_INSTALLMENTS_BEFORE_HARDSHIP,
@@ -110,19 +111,44 @@ class ProposeArrangement:
         return build_plan(balance, offer_number, first_due, context.today)
 
 
+class ProposeNextOffer:
+    """La siguiente oferta que le toca al deudor: la más rápida que todavía no rechazó.
+
+    El sistema elige el número de oferta y la guarda en el registro de la llamada, así la IA
+    solo puede presentar lo que devuelve esta función.
+    """
+
+    def __init__(self, propose: ProposeArrangement, log: NegotiationLog):
+        self._propose = propose
+        self._log = log
+
+    def execute(self, call_id: str, account_external_id: str,
+                first_due: date | None = None) -> LoggedProposal | None:
+        """Devuelve None cuando el deudor ya rechazó todas las ofertas de cuotas."""
+        rejected = self._log.rejected_offer_numbers(call_id, account_external_id)
+        offer_number = next((n for n in range(1, MAX_INSTALLMENTS + 1) if n not in rejected), None)
+        if offer_number is None:
+            return None
+        proposal = self._propose.execute(call_id, account_external_id, offer_number, first_due)
+        if proposal is None:
+            return None
+        return self._log.save(call_id, account_external_id, offer_number, proposal)
+
+
 class ProposePartialPayment:
     """Pago parcial con el monto que dijo el deudor.
 
     Desde 10% se acepta en cualquier momento. Menos del 10% es el último recurso: exige las
-    Hardship Questions y que el deudor ya haya rechazado todas las ofertas de cuotas.
+    Hardship Questions y que el deudor ya haya rechazado todas las ofertas de cuotas, según
+    el registro de la llamada (no lo decide quien llama a esta función).
     """
 
-    def __init__(self, gate: _ArrangementGate):
+    def __init__(self, gate: _ArrangementGate, log: NegotiationLog):
         self._gate = gate
+        self._log = log
 
     def execute(self, call_id: str, account_external_id: str, amount_cents: int,
-                first_due: date | None = None, remainder_due: date | None = None,
-                all_offers_rejected: bool = False) -> ArrangementProposal:
+                first_due: date | None = None, remainder_due: date | None = None) -> LoggedProposal:
         context = self._gate.check(call_id, account_external_id)
         proposal = build_partial(
             context.account.current_balance_cents, amount_cents,
@@ -130,9 +156,10 @@ class ProposePartialPayment:
         )
         if is_last_resort_partial(proposal):
             self._gate.check_hardship_done(call_id)
-            if not all_offers_rejected:
+            rejected = self._log.rejected_offer_numbers(call_id, account_external_id)
+            if not set(range(1, MAX_INSTALLMENTS + 1)) <= rejected:
                 raise ArrangementRuleError(RuleViolation.OFFERS_NOT_EXHAUSTED)
-        return proposal
+        return self._log.save(call_id, account_external_id, None, proposal)
 
 
 class RecordHardshipAssessment:
@@ -160,3 +187,30 @@ class CreateArrangement:
         if requires_hardship(proposal):
             self._gate.check_hardship_done(call_id)
         return self._arrangements.create(call_id, context.account.id, proposal, STATUS_AFTER_ARRANGEMENT)
+
+
+class UnknownProposalError(ValueError):
+    """El id no corresponde a una propuesta presentada en esta llamada."""
+
+
+class RecordOfferResponse:
+    """El deudor acepta o rechaza una propuesta presentada en la llamada.
+
+    Aceptar crea el acuerdo con la propuesta guardada, nunca con montos que envíe la IA.
+    """
+
+    def __init__(self, log: NegotiationLog, create: CreateArrangement):
+        self._log = log
+        self._create = create
+
+    def execute(self, call_id: str, proposal_id: str, accepted: bool) -> str | None:
+        """Devuelve el id del acuerdo si se aceptó; None si se rechazó."""
+        logged = self._log.get(call_id, proposal_id)
+        if logged is None:
+            raise UnknownProposalError(proposal_id)
+        if logged.rejected:
+            raise ValueError(f"La propuesta {proposal_id} ya fue rechazada")
+        if not accepted:
+            self._log.mark_rejected(call_id, proposal_id)
+            return None
+        return self._create.execute(call_id, logged.account_external_id, logged.proposal)

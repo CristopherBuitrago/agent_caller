@@ -8,8 +8,11 @@ from cobranza.application.use_cases.lookup_debtor import GetDebtorByAccount
 from cobranza.application.use_cases.negotiate_arrangement import (
     CreateArrangement,
     ProposeArrangement,
+    ProposeNextOffer,
     ProposePartialPayment,
     RecordHardshipAssessment,
+    RecordOfferResponse,
+    UnknownProposalError,
     _ArrangementGate,
 )
 from cobranza.domain.arrangement import ArrangementRuleError, ArrangementType, RuleViolation as R
@@ -17,6 +20,7 @@ from cobranza.domain.call import CallDirection, CallRecord
 from cobranza.domain.debtor import AccountSummary, DebtorSummary
 from cobranza.domain.hardship import HARDSHIP_QUESTIONS, HardshipAnswers, HardshipDuration
 from cobranza.domain.identity import CallVerificationState
+from cobranza.infrastructure.repositories.in_memory_negotiation_log import InMemoryNegotiationLog
 from cobranza.infrastructure.services.phonenumbers_phone_service import PhonenumbersPhoneService
 
 NOW = datetime(2026, 11, 2, 15, 0, tzinfo=timezone.utc)
@@ -90,13 +94,21 @@ class FakeHardships:
         return self.done
 
 
-def _use_cases(debtor=None, calls=None, arrangements=None, clock=None, hardship_done=False):
+def _all_rejected_log():
+    """Registro de una llamada donde el deudor ya rechazó las 10 ofertas de cuotas."""
+    log = InMemoryNegotiationLog()
+    for offer_number in range(1, 11):
+        log.mark_rejected("c1", log.save("c1", "ACC-1", offer_number, None).id)
+    return log
+
+
+def _use_cases(debtor=None, calls=None, arrangements=None, clock=None, hardship_done=False, log=None):
     debtors = FakeDebtors(debtor or _debtor())
     arrangements = arrangements or FakeArrangements()
     gate = _ArrangementGate(calls or FakeCalls(), arrangements,
                             GetDebtorByAccount(debtors, PhonenumbersPhoneService()), clock or FixedClock(),
                             FakeHardships(hardship_done))
-    return (ProposeArrangement(gate), ProposePartialPayment(gate),
+    return (ProposeArrangement(gate), ProposePartialPayment(gate, log or InMemoryNegotiationLog()),
             CreateArrangement(gate, arrangements), debtors, arrangements)
 
 
@@ -137,20 +149,21 @@ def test_regular_partial_can_be_offered_at_any_time():
 
 
 def test_last_resort_partial_needs_hardship():
-    assert _violation(_use_cases()[1].execute, "c1", "ACC-1", 9999,
-                      all_offers_rejected=True) is R.HARDSHIP_REQUIRED
+    assert _violation(_use_cases(log=_all_rejected_log())[1].execute,
+                      "c1", "ACC-1", 9999) is R.HARDSHIP_REQUIRED
 
 
-def test_last_resort_partial_needs_all_offers_rejected():
-    partial = _use_cases(hardship_done=True)[1]
-    assert _violation(partial.execute, "c1", "ACC-1", 9999) is R.OFFERS_NOT_EXHAUSTED
-    assert partial.execute("c1", "ACC-1", 9999, all_offers_rejected=True) is not None
+def test_last_resort_partial_needs_all_offers_rejected_in_the_call_log():
+    assert _violation(_use_cases(hardship_done=True)[1].execute,
+                      "c1", "ACC-1", 9999) is R.OFFERS_NOT_EXHAUSTED
+    partial = _use_cases(hardship_done=True, log=_all_rejected_log())[1]
+    assert partial.execute("c1", "ACC-1", 9999) is not None
 
 
 def test_create_also_checks_hardship():
-    allowed = _use_cases(hardship_done=True)
+    allowed = _use_cases(hardship_done=True, log=_all_rejected_log())
     long_plan = allowed[0].execute("c1", "ACC-1", 4)
-    last_resort = allowed[1].execute("c1", "ACC-1", 5000, all_offers_rejected=True)
+    last_resort = allowed[1].execute("c1", "ACC-1", 5000).proposal
     without_hardship = _use_cases()
     assert _violation(without_hardship[2].execute, "c1", "ACC-1", long_plan) is R.HARDSHIP_REQUIRED
     assert _violation(without_hardship[2].execute, "c1", "ACC-1", last_resort) is R.HARDSHIP_REQUIRED
@@ -251,7 +264,7 @@ def test_unknown_or_closed_call_and_unknown_account_raise():
 # --- pago parcial y guardado --------------------------------------------------
 
 def test_partial_uses_the_amount_of_the_debtor():
-    partial = _use_cases()[1].execute("c1", "ACC-1", 70000)
+    partial = _use_cases()[1].execute("c1", "ACC-1", 70000).proposal
     assert partial.type is ArrangementType.PARTIAL
     assert [p.amount_cents for p in partial.payments] == [70000, 30000]
 
@@ -278,3 +291,63 @@ def test_proposal_is_not_saved_if_the_balance_changed_after_offering_it():
     debtors.debtor = _debtor(balance=90000)
     assert _violation(create.execute, "c1", "ACC-1", proposal) is R.TOTAL_DIFFERS_FROM_BALANCE
     assert arrangements.created == []
+
+
+# --- el sistema elige la oferta y guarda lo que se presentó (paso 8) ------------
+
+def _offer_flow(hardship_done=False):
+    log = InMemoryNegotiationLog()
+    propose, _, create, _, arrangements = _use_cases(hardship_done=hardship_done, log=log)
+    return ProposeNextOffer(propose, log), RecordOfferResponse(log, create), arrangements
+
+
+def test_next_offer_is_the_fastest_one_not_yet_rejected():
+    next_offer, respond, _ = _offer_flow()
+    first = next_offer.execute("c1", "ACC-1")
+    assert first.offer_number == 1 and first.proposal.type is ArrangementType.FULL
+    assert respond.execute("c1", first.id, accepted=False) is None
+    second = next_offer.execute("c1", "ACC-1")
+    assert second.offer_number == 2 and len(second.proposal.payments) == 2
+
+
+def test_next_offer_after_three_rejections_needs_hardship():
+    next_offer, respond, _ = _offer_flow()
+    for _ in range(3):
+        respond.execute("c1", next_offer.execute("c1", "ACC-1").id, accepted=False)
+    assert _violation(next_offer.execute, "c1", "ACC-1") is R.HARDSHIP_REQUIRED
+
+
+def test_no_offer_left_after_rejecting_all_ten():
+    next_offer, respond, _ = _offer_flow(hardship_done=True)
+    for _ in range(10):
+        respond.execute("c1", next_offer.execute("c1", "ACC-1").id, accepted=False)
+    assert next_offer.execute("c1", "ACC-1") is None
+
+
+def test_accepting_creates_the_arrangement_with_the_saved_proposal():
+    next_offer, respond, arrangements = _offer_flow()
+    offer = next_offer.execute("c1", "ACC-1")
+    assert respond.execute("c1", offer.id, accepted=True) == "arr-1"
+    assert arrangements.created == [("c1", "acc-1", offer.proposal, "PTP")]
+
+
+def test_unknown_or_already_rejected_proposals_cannot_be_answered():
+    next_offer, respond, arrangements = _offer_flow()
+    with pytest.raises(UnknownProposalError):
+        respond.execute("c1", "P-made-up", accepted=True)
+    offer = next_offer.execute("c1", "ACC-1")
+    with pytest.raises(UnknownProposalError):
+        respond.execute("other-call", offer.id, accepted=True)  # de otra llamada
+    respond.execute("c1", offer.id, accepted=False)
+    with pytest.raises(ValueError):
+        respond.execute("c1", offer.id, accepted=True)
+    assert arrangements.created == []
+
+
+def test_rejections_count_per_call_and_account():
+    log = InMemoryNegotiationLog()
+    log.mark_rejected("c1", log.save("c1", "ACC-1", 1, None).id)
+    log.mark_rejected("c1", log.save("c1", "ACC-2", 2, None).id)
+    log.mark_rejected("c2", log.save("c2", "ACC-1", 3, None).id)
+    log.mark_rejected("c1", log.save("c1", "ACC-1", None, None).id)  # parcial: no es oferta de cuotas
+    assert log.rejected_offer_numbers("c1", "ACC-1") == {1}

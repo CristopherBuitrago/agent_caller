@@ -62,9 +62,13 @@ def test_full_order_ends_in_a_last_resort_partial(use_cases, verified_jane, pool
     assert saved == ("in October", "temporary", True, 2500)
     assert len(use_cases.propose_arrangement.execute(verified_jane, "ACC-T001", 4).payments) == 4
 
-    proposal = use_cases.propose_partial_payment.execute(  # ~5,15%
-        verified_jane, "ACC-T001", 2500, all_offers_rejected=True)
-    arrangement_id = use_cases.create_arrangement.execute(verified_jane, "ACC-T001", proposal)
+    # El deudor rechaza las 10 ofertas de cuotas; el sistema lo lleva en el registro de la llamada.
+    while (offer := use_cases.propose_next_offer.execute(verified_jane, "ACC-T001")) is not None:
+        use_cases.record_offer_response.execute(verified_jane, offer.id, accepted=False)
+    assert offer is None
+
+    partial = use_cases.propose_partial_payment.execute(verified_jane, "ACC-T001", 2500)  # ~5,15%
+    arrangement_id = use_cases.record_offer_response.execute(verified_jane, partial.id, accepted=True)
     arrangement, payments = _saved(pool, arrangement_id)
     assert arrangement == ("partial", 48500, "active")
     assert [p[1] for p in payments] == [2500, 46000]

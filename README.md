@@ -122,6 +122,37 @@ Sin pendientes.
 - Una disputa no cancela un acuerdo que ya está en `PTP`.
 - Si el deudor rechazó la grabación y pide "no llamar", se guarda la marca y la llamada se cierra como `recording_refused`.
 
+### Paso 8: chat de prueba con Claude (2026-11-10)
+
+Una persona escribe en la terminal como si fuera el deudor y Claude responde como el agente. Es el mismo "cerebro" que tendrá la llamada de voz: Claude solo conversa y pide herramientas, y cada herramienta llama a un caso de uso que aplica las reglas.
+
+| Pregunta | Respuesta | Origen |
+| --- | --- | --- |
+| ¿Qué modelo conversa? | Claude Haiku 5.5; si un turno falla o se rechaza, lo responde Claude Sonnet 5.5 | Desarrollador |
+| ¿Aviso legal de cobranza? | Sí, justo después de verificar la identidad ("This is an attempt to collect a debt...") | Desarrollador |
+| ¿Herramientas nuevas y quitar `all_offers_rejected`? | "Aprobado": el sistema elige la oferta (`ProposeNextOffer`) y el acuerdo se crea con la propuesta guardada (`RecordOfferResponse`), nunca con montos que envíe la IA | Desarrollador |
+
+Herramientas: `record_recording_consent`, `verify_identity`, `get_account_details`, `propose_offer`, `record_offer_response`, `propose_partial_payment`, `record_hardship_answers`, `record_dispute`, `mark_do_not_call`, `transfer_to_human` y `end_call`. Cada respuesta trae `next_step`, una instrucción corta de qué hacer después.
+
+**Cómo correrlo** (desde `backend/`, con la base levantada y la key en la terminal o en `backend/.env`):
+
+```
+docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --entrante +13055550001
+docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --saliente ACC-T001
+```
+
+Datos para verificar a TEST-001: Jane Carter, últimos 4 del SSN 1234, nacida el 14 de marzo de 1985 (saldo USD 485, ACC-T001). Los demás casos están en `backend/db/init/002_seed_mock.sql`. El chat muestra en gris cada herramienta que pide Claude y lo que respondió el backend; `--sin-herramientas` las oculta y `--debug` muestra los avisos internos. `/colgar` termina la llamada.
+
+**Supuestos:**
+- La empresa se llama "Lakeside Recovery Services" en el chat (nombre ficticio; se cambia con `--empresa`).
+- Claude responde con esfuerzo bajo (`effort: low`) para que sea rápido; el flujo y las reglas los fijan el prompt y las herramientas.
+- Si Claude no responde, o pide más de 8 herramientas en un solo turno, la llamada pasa a una persona.
+- Si el deudor cuelga y Claude no elige un resultado, la llamada se cierra como `callback_requested`.
+- Las ofertas presentadas en cada llamada se guardan en memoria. Si se necesita auditarlas después, se guardan en una tabla (requiere aprobar el modelo de datos).
+- Con un teléfono compartido, se verifica a quien coincide con el nombre que dijo el deudor.
+
+**Pendiente:** probar con la API real (falta `ANTHROPIC_API_KEY`) y ajustar el prompt con lo que salga de esas pruebas.
+
 ### Para todo el proyecto
 
 - Revisión legal del guion y de los avisos.
@@ -130,7 +161,7 @@ Sin pendientes.
 ### Bloqueantes reales
 
 1. El proveedor del IVR PCI: detiene la Función 6.
-2. La `ANTHROPIC_API_KEY`: hace falta para probar el resumen y la conversación con Claude (paso 8).
+2. La `ANTHROPIC_API_KEY`: hace falta para probar el resumen y el chat de prueba con Claude (paso 8, ya construido).
 3. El EER, la base de datos real y cómo entrega el job sus resultados: no detienen el desarrollo, pero se necesitan antes de conectar con el sistema real.
 
 ## 1. Decisiones iniciales (2026-10-28)

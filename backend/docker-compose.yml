@@ -21,12 +21,16 @@ services:
   # Backend en Python. No arranca con `docker compose up`; se usa con:
   #   docker compose run --rm app            -> corre las pruebas
   #   docker compose run --rm app bash       -> consola dentro del contenedor
+  #   docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --entrante +13055550001
+  #                                          -> chat de prueba con Claude (necesita ANTHROPIC_API_KEY)
   app:
     build: .
     profiles: ["tools"]
     environment:
       DATABASE_URL: postgresql://cobranza:cobranza_dev@db:5432/cobranza
       PII_HMAC_KEY: dev-only-pii-key
+      # Se toma de la terminal o de un archivo .env en backend/ (no se sube al repositorio).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy

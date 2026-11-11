@@ -65,8 +65,12 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [ ] Función 6: transferir al IVR PCI y registrar el resultado del pago. **Bloqueada:** falta elegir proveedor; se deja para después de las demás funciones
 - [x] Función 7: disputas y "no llamar" (`RecordDispute`, `MarkDoNotCall`). 166 pruebas
 - [x] Cambio a solo NSF probado (2026-11-08): 166 pruebas pasan
+- [x] Paso 8: chat de prueba con Claude (2026-11-10). El sistema elige cada oferta (`ProposeNextOffer`) y el acuerdo se crea con la propuesta guardada (`RecordOfferResponse`). 11 herramientas, prompt del agente y respaldo con Sonnet. 197 pruebas, incluida una llamada completa contra PostgreSQL con un modelo guionado
+- [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 
 Correr las pruebas: `cd agente-cobranza/backend && docker compose run --rm --build app`
+
+Chat de prueba: `cd agente-cobranza/backend && docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --entrante +13055550001` (necesita `ANTHROPIC_API_KEY`; ver README, paso 8)
 
 Levantar la base: `cd agente-cobranza/backend && docker compose up -d` (puerto 5433, usuario `cobranza`, clave `cobranza_dev`).
 Recrear desde cero: `docker compose down -v && docker compose up -d`.

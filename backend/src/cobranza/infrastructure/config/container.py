@@ -9,17 +9,23 @@ import anthropic
 from psycopg_pool import ConnectionPool
 
 from cobranza.application.interfaces.call_summarizer import CallSummarizer
+from cobranza.application.interfaces.conversation_model import ConversationModel
+from cobranza.application.use_cases.agent_conversation import StartAgentConversation
+from cobranza.application.use_cases.agent_tools import AgentUseCases
 from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
 from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
 from cobranza.application.use_cases.negotiate_arrangement import (
     CreateArrangement,
     ProposeArrangement,
+    ProposeNextOffer,
     ProposePartialPayment,
     RecordHardshipAssessment,
+    RecordOfferResponse,
     _ArrangementGate,
 )
 from cobranza.application.use_cases.register_call import EndCall, RecordRecordingConsent, StartCall
 from cobranza.application.use_cases.verify_identity import VerifyIdentity
+from cobranza.infrastructure.repositories.in_memory_negotiation_log import InMemoryNegotiationLog
 from cobranza.infrastructure.repositories.postgres_arrangement_repository import PostgresArrangementRepository
 from cobranza.infrastructure.repositories.postgres_call_repository import PostgresCallRepository
 from cobranza.infrastructure.repositories.postgres_debtor_repository import PostgresDebtorRepository
@@ -30,6 +36,7 @@ from cobranza.infrastructure.services.claude_call_summarizer import (
     PRIMARY_MODEL,
     ClaudeCallSummarizer,
 )
+from cobranza.infrastructure.services.claude_conversation_model import ClaudeConversationModel
 from cobranza.infrastructure.services.fallback_call_summarizer import FallbackCallSummarizer
 from cobranza.infrastructure.services.hmac_pii_hasher import HmacSha256PiiHasher
 from cobranza.infrastructure.services.phonenumbers_phone_service import PhonenumbersPhoneService
@@ -45,7 +52,9 @@ class UseCases:
     record_recording_consent: RecordRecordingConsent
     end_call: EndCall
     propose_arrangement: ProposeArrangement
+    propose_next_offer: ProposeNextOffer
     propose_partial_payment: ProposePartialPayment
+    record_offer_response: RecordOfferResponse
     create_arrangement: CreateArrangement
     record_hardship_assessment: RecordHardshipAssessment
     record_dispute: RecordDispute
@@ -74,12 +83,18 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
     hardships = PostgresHardshipRepository(pool)
     end_call = EndCall(calls, summarizer, clock)
     gate = _ArrangementGate(calls, arrangements, get_debtor_by_account, clock, hardships)
+    # Las ofertas de cada llamada viven en memoria: basta mientras la llamada viva en este proceso.
+    negotiation_log = InMemoryNegotiationLog()
+    propose_arrangement = ProposeArrangement(gate)
+    create_arrangement = CreateArrangement(gate, arrangements)
     return UseCases(
         find_debtors_by_phone=FindDebtorsByPhone(debtors, phones),
         get_debtor_by_account=get_debtor_by_account,
-        propose_arrangement=ProposeArrangement(gate),
-        propose_partial_payment=ProposePartialPayment(gate),
-        create_arrangement=CreateArrangement(gate, arrangements),
+        propose_arrangement=propose_arrangement,
+        propose_next_offer=ProposeNextOffer(propose_arrangement, negotiation_log),
+        propose_partial_payment=ProposePartialPayment(gate, negotiation_log),
+        record_offer_response=RecordOfferResponse(negotiation_log, create_arrangement),
+        create_arrangement=create_arrangement,
         record_hardship_assessment=RecordHardshipAssessment(gate, hardships),
         verify_identity=VerifyIdentity(
             PostgresIdentityRepository(pool), calls, HmacSha256PiiHasher(pii_hmac_key), clock,
@@ -89,4 +104,33 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         end_call=end_call,
         record_dispute=RecordDispute(calls, debtors, end_call),
         mark_do_not_call=MarkDoNotCall(calls, debtors, end_call),
+    )
+
+
+DEFAULT_COMPANY_NAME = "Lakeside Recovery Services"  # nombre ficticio para el chat de prueba
+
+
+def build_agent(use_cases: UseCases, model: ConversationModel | None = None,
+                company_name: str = DEFAULT_COMPANY_NAME) -> StartAgentConversation:
+    """Arma el agente conversacional sobre los casos de uso.
+
+    `model` se puede reemplazar (p. ej. en pruebas). Por defecto: Claude Haiku 5.5 y, si un
+    turno falla o se rechaza, Claude Sonnet 5.5.
+    """
+    agent_use_cases = AgentUseCases(
+        find_debtors_by_phone=use_cases.find_debtors_by_phone,
+        get_debtor_by_account=use_cases.get_debtor_by_account,
+        record_recording_consent=use_cases.record_recording_consent,
+        verify_identity=use_cases.verify_identity,
+        end_call=use_cases.end_call,
+        propose_next_offer=use_cases.propose_next_offer,
+        propose_partial_payment=use_cases.propose_partial_payment,
+        record_offer_response=use_cases.record_offer_response,
+        record_hardship_assessment=use_cases.record_hardship_assessment,
+        record_dispute=use_cases.record_dispute,
+        mark_do_not_call=use_cases.mark_do_not_call,
+    )
+    return StartAgentConversation(
+        agent_use_cases, use_cases.start_call,
+        model or ClaudeConversationModel(anthropic.Anthropic()), SystemClock(), company_name,
     )
