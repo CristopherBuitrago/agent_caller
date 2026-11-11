@@ -349,3 +349,44 @@ def test_claude_raises_when_no_model_answers():
     conversation, _ = _conversation(_api_error(), _api_error())
     with pytest.raises(ConversationModelError):
         conversation.send_user_text("hi")
+
+
+# --- error E1 (simulación 7): al colgar no se pierde "no llamar" ni una disputa ------------
+
+def test_hang_up_event_tells_the_model_to_save_do_not_call_and_disputes():
+    tools, _ = _tools()
+    model = ScriptedModel(_say(""))
+    AgentSession(tools, model).hang_up()
+    event = model.received[-1]
+    assert "mark_do_not_call" in event and "record_dispute" in event and "end_call" in event
+
+
+def test_do_not_call_asked_right_before_hanging_up_is_saved():
+    tools, uc = _tools(direction=CallDirection.OUTBOUND)
+    model = ScriptedModel(
+        _say("I understand."),                                 # el modelo solo contesta...
+        _say("", ("mark_do_not_call", {})),                    # ...y guarda el pedido al colgar
+        _say(""),
+    )
+    session = AgentSession(tools, model)
+    session.debtor_says("Do not call me again!")
+    session.hang_up()
+    assert session.outcome is CallOutcome.DO_NOT_CALL
+    assert len(uc.mark_do_not_call.calls) == 1
+
+
+def test_dispute_said_right_before_hanging_up_is_saved():
+    tools, uc = _tools()
+    model = ScriptedModel(
+        _say("", ("record_recording_consent", {"accepted": True}), ("verify_identity", VERIFY_JANE)),
+        _say("Thank you, Ms. Carter."),
+        _say("I'm sorry to hear that."),
+        _say("", ("record_dispute", {"account_ref": "ACC-deb-1"})),
+        _say(""),
+    )
+    session = AgentSession(tools, model)
+    session.debtor_says("Yes. Jane Carter, 1234, March 14 1985")
+    session.debtor_says("I already paid that, it was the bank's fault")
+    session.hang_up()
+    assert session.outcome is CallOutcome.DISPUTE
+    assert len(uc.record_dispute.calls) == 1

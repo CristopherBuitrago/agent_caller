@@ -30,6 +30,14 @@ PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "agent_system_pr
 # Si el modelo pide más herramientas que esto en un solo turno, algo anda mal: pasa a una persona.
 MAX_TOOL_ROUNDS_PER_TURN = 8
 FALLBACK_TEXT = "I'm sorry, I'm having trouble on my end. Let me transfer you to a representative."
+# Al colgar, un pedido de "no llamar" o una disputa no se puede perder: end_call no acepta esos
+# resultados, solo sus propias herramientas (error E1 de las simulaciones).
+HANG_UP_EVENT = (
+    "The caller hung up. Do not speak. If at any point in this call the caller asked not to be "
+    "called again, call mark_do_not_call. If they said they already paid, that the bank made a "
+    "mistake, or that the debt is not theirs, call record_dispute. Otherwise call end_call with "
+    "the outcome that fits best."
+)
 
 
 def render_system_prompt(company_name: str) -> str:
@@ -93,8 +101,7 @@ class AgentSession:
     def hang_up(self) -> None:
         """El deudor colgó. El modelo elige el resultado; si no cierra, se cierra como volver a llamar."""
         if not self.ended:
-            self.call_event("The caller hung up. Do not speak. Call end_call with the outcome "
-                            "that fits best.")
+            self.call_event(HANG_UP_EVENT)
         self._tools.close_without_model(CallOutcome.CALLBACK_REQUESTED)
 
     def _send(self, user_text: str) -> AgentReply:

@@ -280,3 +280,19 @@ def test_chat_outbound_call_pays_in_full(use_cases, started_calls, pool):
     with pool.connection() as conn:
         direction = conn.execute("SELECT direction FROM calls WHERE id = %s", (session.call_id,)).fetchone()[0]
     assert direction == "outbound"
+
+
+def test_chat_do_not_call_then_hang_up_is_saved(use_cases, started_calls, pool):
+    """Error E1 (simulación 7): la deudora pide no ser llamada y cuelga antes de que el agente actúe."""
+    model = GuionModel(
+        say("Hi, may I speak with Jane Carter, please?"),
+        say("I'm sorry for the inconvenience."),           # el modelo no guarda nada en este turno
+        say("", ("mark_do_not_call", {})),                 # lo guarda con el aviso de cuelgue
+        say(""),
+    )
+    session, _ = _start(use_cases, started_calls, model, CallDirection.OUTBOUND, "ACC-T001")
+    session.debtor_says("Please do not call me again!")
+    session.hang_up()
+    assert session.outcome is CallOutcome.DO_NOT_CALL
+    assert _jane_flags(pool)[2] is True
+    assert _call_row(pool, session.call_id)[0] == "do_not_call"

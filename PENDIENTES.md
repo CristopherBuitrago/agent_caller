@@ -66,6 +66,10 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] Cambio a solo NSF probado (2026-11-08): 166 pruebas pasan
 - [x] Paso 8: chat de prueba con Claude (2026-11-10). El sistema elige cada oferta (`ProposeNextOffer`) y el acuerdo se crea con la propuesta guardada (`RecordOfferResponse`). 11 herramientas, prompt del agente y respaldo con Sonnet. 197 pruebas, incluida una llamada completa contra PostgreSQL con un modelo guionado
 - [x] Pruebas de casos borde de `ProposeNextOffer`, `ProposePartialPayment` y `RecordOfferResponse`, y 5 llamadas más por chat contra PostgreSQL: Hardship → 4 cuotas, pago parcial, disputa, "no llamar" y saliente (2026-11-11). 228 pruebas pasan
+- [x] 7 simulaciones del agente sin API (Claude hizo de agente con las herramientas reales). Informe para el jefe: `docs/Informe_Simulaciones_Agente_Cobranza_NSF.pdf`; detalle en `docs/` (2026-11-11)
+- [x] Error E1 corregido: al colgar, el aviso al modelo indica usar `mark_do_not_call` o `record_dispute` si el deudor lo pidió; antes solo mandaba `end_call` y el pedido se podía perder (2026-11-11)
+- [x] Error E2 corregido: guardar las Hardship Questions de a una ya no borra las respuestas anteriores (`COALESCE` en el repositorio). 233 pruebas pasan (2026-11-11)
+- [ ] Aplicar las observaciones de backend y prompt del informe, en orden de las pruebas
 - [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 
 Correr las pruebas: `cd backend && docker compose run --rm --build app`

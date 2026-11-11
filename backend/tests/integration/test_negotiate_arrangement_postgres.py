@@ -208,3 +208,24 @@ def test_proposal_cannot_be_answered_from_another_call(use_cases, verified_jane,
     started_calls.append(other)
     with pytest.raises(UnknownProposalError):
         use_cases.record_offer_response.execute(other, offer.id, accepted=True)
+
+
+def test_hardship_answers_saved_one_at_a_time_are_all_kept(use_cases, verified_jane, pool):
+    """Error E2 (simulación 5): guardar de a una respuesta borraba las anteriores."""
+    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
+        situation_description="Lost her job last month", situation_started="last month"))
+    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(household_support=True))
+    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
+        offered_amount_cents=3000, notes="Husband works part-time"))
+    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
+        duration_type=HardshipDuration.LONG_TERM, situation_started="six weeks ago"))
+    with pool.connection() as conn:
+        saved = conn.execute(
+            """SELECT situation_description, situation_started, duration_type, household_support,
+                      offered_amount_cents, notes
+               FROM hardship_assessments WHERE call_id = %s""",
+            (verified_jane,),
+        ).fetchone()
+    # Lo nuevo reemplaza (situation_started); lo que no vino se conserva.
+    assert saved == ("Lost her job last month", "six weeks ago", "long_term", True, 3000,
+                     "Husband works part-time")
