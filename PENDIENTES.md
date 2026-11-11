@@ -1,15 +1,14 @@
 # Agente de voz de cobranza NSF: pendientes
 
-Actualizado: 2026-11-08
+Actualizado: 2026-11-11
 Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 
-## Para mañana
+## Siguientes pasos
 
-- [ ] Traer las respuestas a las preguntas 1 a 9 (abajo)
+- [ ] Revisar con el jefe el documento `docs/Backend_Agente_Cobranza_NSF_v3.pdf` y aplicar sus correcciones
+- [ ] Conseguir la `ANTHROPIC_API_KEY` y probar el chat de prueba y el resumen con la API real
+- [ ] Aprobar los proveedores (README, sección 9); Telnyx Pay over Voice desbloquea la Función 6
 - [ ] Traer el diagrama EER de la base de datos real (del jefe)
-- [ ] Ajustar el modelo de datos con las respuestas y el EER, y aprobarlo
-- [ ] Aprobar la Función 1 (consultar deudor) antes de escribir código
-- [ ] Empezar el backend: modelo en PostgreSQL + interfaz `DebtorRepository` + datos simulados
 
 ## Decisiones ya tomadas
 
@@ -68,11 +67,11 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] Paso 8: chat de prueba con Claude (2026-11-10). El sistema elige cada oferta (`ProposeNextOffer`) y el acuerdo se crea con la propuesta guardada (`RecordOfferResponse`). 11 herramientas, prompt del agente y respaldo con Sonnet. 197 pruebas, incluida una llamada completa contra PostgreSQL con un modelo guionado
 - [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 
-Correr las pruebas: `cd agente-cobranza/backend && docker compose run --rm --build app`
+Correr las pruebas: `cd backend && docker compose run --rm --build app`
 
-Chat de prueba: `cd agente-cobranza/backend && docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --entrante +13055550001` (necesita `ANTHROPIC_API_KEY`; ver README, paso 8)
+Chat de prueba: `cd backend && docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --entrante +13055550001` (necesita `ANTHROPIC_API_KEY`; ver README, paso 8)
 
-Levantar la base: `cd agente-cobranza/backend && docker compose up -d` (puerto 5433, usuario `cobranza`, clave `cobranza_dev`).
+Levantar la base: `cd backend && docker compose up -d` (puerto 5433, usuario `cobranza`, clave `cobranza_dev`).
 Recrear desde cero: `docker compose down -v && docker compose up -d`.
 
 ## Borrador del modelo de datos (por ajustar)

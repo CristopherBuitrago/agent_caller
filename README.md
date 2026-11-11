@@ -1,10 +1,12 @@
 # Agente de voz de cobranza NSF: registro de decisiones
 
-Actualizado: 2026-11-08
+Actualizado: 2026-11-11
 
 Este documento registra cada decisión de negocio, quién la tomó y las palabras con las que se respondió. Las respuestas están citadas tal como se escribieron, con sus errores de tipeo.
 
 Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
+
+Documento enviado al jefe para revisión (versión 3, 2026-11-10): `docs/Backend_Agente_Cobranza_NSF_v3.pdf`. Diagrama EER del modelo actual: `docs/diagrama_eer_modelo_actual.jpg`. El PDF se escribió antes de terminar el paso 8: donde dice "en construcción" o "sin probar", vale lo de este README.
 
 Cómo leer la columna **Origen**:
 
@@ -289,8 +291,6 @@ Ninguna de estas alertas fue revisada por un abogado.
 
 ## 6. Pendientes de decidir
 
-| Tema | Estado |
-| --- | --- |
 Estos temas no tienen ni una respuesta provisional.
 
 | Tema | Estado |
@@ -307,7 +307,7 @@ Estos temas no tienen ni una respuesta provisional.
 Estas cifras son estimaciones de Claude, todavía sin medir en un piloto:
 
 - ~0,95 segundos de respuesta por turno de conversación.
-- ~USD 600–1.000 diarios de costo variable de la operación.
+- ~USD 309 diarios (~USD 9.256 mensuales) de costo de la operación, calculado con precios de lista el 2026-11-10 (sección 9). Reemplaza la estimación anterior de USD 600–1.000 diarios.
 - ~USD 24 mensuales por los resúmenes con Claude Haiku 5.5. El resumen aún no se ha probado contra la API real.
 
 ## 8. Preguntas de Hardship entregadas por el jefe (2026-11-04)
@@ -321,3 +321,37 @@ Texto tal como lo entregó. La traducción al inglés de `backend/src/cobranza/d
 5. «¿Qué acuerdo realista podemos fijar para los próximos 30 o 60 días que le permita cumplir sin ahogarse?»
 
 Registro de una promesa de pago: "Si, basta con anotarla, y que la fecha y el monto queden tambien en scheduled_payments".
+
+## 9. Proveedores y costos (2026-11-10)
+
+Recuperado del documento enviado al jefe (`docs/Backend_Agente_Cobranza_NSF_v3.pdf`, sección 6). Son los servicios externos que necesita el agente para una llamada real. En cada uno se eligió la opción más económica que cumple con lo que pide una llamada en vivo: baja demora y certificación PCI donde aplica. Todos quedan detrás de una interfaz, así que cambiar de proveedor solo cambia la implementación.
+
+**Base del cálculo:** 2.000 llamadas diarias × 30 días = 60.000 llamadas al mes, de 4 minutos en promedio = 240.000 minutos al mes. Precios de lista en dólares, pago por uso, consultados el 2026-11-10.
+
+| Para qué | Proveedor | Estado | Costo mensual (USD) | Por qué se necesita |
+| --- | --- | --- | --- | --- |
+| Conversación con el deudor | Anthropic: Claude Haiku 5.5 | Elegido | ~330 (USD 0,10 / 0,50 por millón de tokens de entrada / salida, con caché del prompt) | Es el cerebro de la llamada: entiende al deudor, responde y pide las herramientas del backend. Haiku es el más rápido y barato, y en voz la rapidez importa |
+| Resumen de cada llamada | Anthropic: Claude Haiku 5.5 | Elegido | ~24 (~USD 0,0004 por resumen) | Resume la transcripción en inglés para el equipo |
+| Respaldo de la IA | Anthropic: Claude Sonnet 5.5 | Elegido | ~60 (USD 2 / 10 por millón de tokens; solo si Haiku falla, ~1% de las llamadas) | Si Haiku falla o rechaza, responde Sonnet y la llamada no se cae |
+| Telefonía, grabación y números | Telnyx Voice API | Recomendado, sin aprobar | ~2.794 (USD 0,0116 por minuto: control 0,002 + línea 0,0041 + audio en vivo 0,0035 + grabación 0,002; y 10 números a USD 1) | Da los números, conecta la llamada, graba (obligatorio) y envía el audio en vivo al agente. Twilio costaría ~USD 4.260 por lo mismo |
+| Pago con tarjeta (IVR PCI) | Telnyx Pay over Voice | Recomendado, sin aprobar. **Bloquea la Función 6** | ~1.200 (USD 0,20 por pago, precio de Twilio Pay; el de Telnyx está por confirmar; 6.000 pagos al mes) | El deudor teclea la tarjeta en un sistema certificado PCI DSS; la IA y las grabaciones nunca ven el número. Al ser el mismo proveedor de la telefonía, no hace falta transferir a otra empresa |
+| Voz a texto (STT) | Deepgram Nova-3 (streaming) | Recomendado, sin aprobar | ~1.848 (USD 0,0077 por minuto) | Convierte lo que dice el deudor en texto para Claude, en tiempo real |
+| Texto a voz (TTS) | Deepgram Aura-2 | Recomendado, sin aprobar | ~2.700 (USD 30 por millón de caracteres; ~1.500 caracteres por llamada) | Convierte la respuesta de Claude en voz natural en inglés. Más barato que Cartesia (~USD 3.400) y ElevenLabs (~USD 3.600), y es el mismo proveedor del STT |
+| Orquestación de voz | Pipecat (código abierto) | Recomendado, sin aprobar | 0 (sin licencia; corre en los servidores) | Une telefonía, STT, Claude y TTS, y maneja turnos e interrupciones |
+| Servidores y base de datos | AWS, región este de EE. UU. (Fargate ARM + PostgreSQL) | Recomendado, sin aprobar | ~300 (4 contenedores de voz de 2 vCPU, 1 de backend, base de datos y balanceador) | Donde corren el backend y la voz, cerca de los deudores para tener menos demora. Si se usa la base real de la empresa, la base no suma costo |
+| **Total mensual estimado** | | | **~9.256** | ~USD 309 diarios, ~USD 0,15 por llamada, ~USD 0,04 por minuto |
+
+**Supuestos del costo:**
+- Los USD 24 de Haiku son solo los resúmenes. Que Haiku converse en la llamada cuesta más (~USD 330), porque en cada turno vuelve a leer las instrucciones y lo que va de la llamada; con caché del prompt esa relectura cuesta la décima parte.
+- Conversación: ~20 pedidos al modelo por llamada, ~6.500 tokens de entrada y ~300 de salida por pedido. Sin caché costaría ~USD 960 al mes.
+- Llamadas mitad entrantes y mitad salientes. Si todas fueran salientes, la telefonía sube ~USD 220.
+- Pagos con tarjeta en el 10% de las llamadas. Las comisiones del procesador de pagos (Stripe u otro) no están incluidas: se cobran sobre el dinero recaudado.
+- Voz a texto con la tarifa normal de Deepgram; con la promoción actual (USD 0,0048 por minuto) bajaría a ~USD 1.152.
+- Si en la prueba suena bien Deepgram Aura-1 (USD 15 por millón de caracteres), el texto a voz baja a ~USD 1.350.
+- Son precios de lista. Con 2.000 llamadas diarias se pueden negociar descuentos con Telnyx y Deepgram.
+
+Precios de referencia: twilio.com/voice/pricing/us, telnyx.com/pricing/call-control, twilio.com/en-us/voice/pay-connectors/pricing, deepgram.com/pricing, aws.amazon.com/fargate/pricing y la tabla de precios de Anthropic.
+
+**Bloqueantes por proveedor:**
+- Aprobar Telnyx Pay over Voice y confirmar su precio por pago: bloquea la Función 6.
+- Aprobar telefonía, voz y servidores: no detiene el desarrollo, pero hace falta antes de pasar del chat de prueba a llamadas reales.
