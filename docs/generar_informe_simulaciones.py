@@ -157,16 +157,16 @@ S.append(table(["#", "Error", "Dónde y por qué", "Consecuencia", "Corrección 
 
 # --- 3. negocio ---------------------------------------------------------------------------
 S.append(PageBreak())
-S.append(p("3. Observaciones de negocio: preguntas para el jefe", H1))
-S.append(p("Son decisiones que no puede tomar el desarrollo. Están ordenadas por impacto."))
+S.append(p("3. Observaciones de negocio", H1))
+S.append(p("Están ordenadas por impacto."))
 S.append(obs_table([
     ["N1", "Medio de pago a futuro",
      "No hay forma definida de que el deudor pague un pago agendado: el único medio previsto es el IVR PCI "
      "durante la llamada (Función 6, bloqueada). El agente promete \"payment instructions\" que hoy no existen, y "
      "la deudora preguntó dos veces cómo pagaría. ¿Link por SMS, correo, débito, volver a llamar? La empresa ya "
      "tiene una campaña de SMS, así que podría usar ese proveedor", "1, 2"],
-    ["N2", "Verificación de identidad (pedido del jefe)",
-     "El jefe pidió quitar el nombre completo y que el agente lea los últimos 4 del SSN y la fecha de nacimiento "
+    ["N2", "Verificación de identidad",
+     "Se pidió quitar el nombre completo y que el agente lea los últimos 4 del SSN y la fecha de nacimiento "
      "para que el deudor diga sí o no. Revela datos personales a quien conteste, no verifica nada (cualquiera dice "
      "\"sí\") y no es posible con el diseño actual (los datos se guardan como hash). Propuesta: quitar el nombre, "
      "pero que el deudor siga diciendo los dos datos", "1"],
@@ -302,8 +302,8 @@ S.append(obs_table([
      "Si la respuesta no dice claramente temporal o permanente, dejar duration_type vacío y usar notes. Adaptar la "
      "pregunta 4 (\"on your next pay date\") cuando el deudor dijo que no tiene trabajo", "5"],
     ["P11", "Verificación fallida",
-     "Tras un fallo, \"please double-check the numbers\". Al cerrar, dar un número de contacto si el jefe lo "
-     "aprueba (N12)", "6"],
+     "Tras un fallo, \"please double-check the numbers\". Al cerrar, dar un número de contacto si se aprueba "
+     "(N12)", "6"],
 ]))
 S.append(p("5.2 Temas legales para revisar con un abogado", H2))
 S.append(obs_table([
@@ -404,16 +404,6 @@ S += bullets([
     "(menos de USD 1) y con Sonnet (unos pocos dólares).",
     "Decidir con datos: si Haiku con esfuerzo bajo falla, probar primero la opción B y luego la C, antes de D. "
     "Medir también la demora por turno.",
-])
-
-# --- 7. siguientes pasos ------------------------------------------------------------------
-S.append(p("7. Siguientes pasos", H1))
-S += bullets([
-    "Corregir los errores E1 y E2, cada uno con su prueba automática.",
-    "Aplicar las observaciones de backend (sección 4) y del prompt (sección 5.1).",
-    "Llevar al jefe las preguntas de negocio (sección 3).",
-    "Llevar los temas legales (sección 5.2) a un abogado antes del piloto.",
-    "Conseguir la ANTHROPIC_API_KEY y probar Haiku y Sonnet con los casos difíciles de la sección 6.",
 ])
 
 doc = SimpleDocTemplate(OUT, pagesize=letter, leftMargin=1.8 * cm, rightMargin=1.8 * cm, topMargin=1.7 * cm,
