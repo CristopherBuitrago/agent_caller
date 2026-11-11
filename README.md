@@ -355,3 +355,31 @@ Precios de referencia: twilio.com/voice/pricing/us, telnyx.com/pricing/call-cont
 **Bloqueantes por proveedor:**
 - Aprobar Telnyx Pay over Voice y confirmar su precio por pago: bloquea la Función 6.
 - Aprobar telefonía, voz y servidores: no detiene el desarrollo, pero hace falta antes de pasar del chat de prueba a llamadas reales.
+
+### 9.1 Novedades del jefe (2026-11-11, contadas por el desarrollador)
+
+| Tema | Lo que dijo el jefe | Origen |
+| --- | --- | --- |
+| Volumen | "probablemente" 800 llamadas diarias, ya no 2.000 | Jefe (sin confirmar) |
+| SMS | La empresa ya tiene una campaña de SMS: consulta una lista de deudores y les envía mensajes. Por lo tanto ya tiene un proveedor de telefonía y SMS | Jefe |
+
+**Recálculo con 800 llamadas diarias** (24.000 llamadas y 96.000 minutos al mes, mismos supuestos y precios de la tabla anterior). Lo que se paga por uso baja en la misma proporción (40%); los números y los servidores bajan menos.
+
+| Para qué | Con 2.000 diarias (USD/mes) | Con 800 diarias (USD/mes) |
+| --- | --- | --- |
+| Conversación (Claude Haiku 5.5) | ~330 | ~132 |
+| Resúmenes (Claude Haiku 5.5) | ~24 | ~10 |
+| Respaldo (Claude Sonnet 5.5) | ~60 | ~24 |
+| Telefonía (Telnyx) | ~2.794 | ~1.124 |
+| Pago con tarjeta (IVR PCI) | ~1.200 | ~480 |
+| Voz a texto (Deepgram Nova-3) | ~1.848 | ~739 |
+| Texto a voz (Deepgram Aura-2) | ~2.700 | ~1.080 |
+| Servidores (AWS) | ~300 | ~200 (2 contenedores de voz en vez de 4; estimado) |
+| **Total** | **~9.256** | **~3.789** |
+
+Por llamada sigue costando ~USD 0,16 (antes ~0,15): los costos fijos se reparten entre menos llamadas, y con menos volumen hay menos margen para negociar descuentos.
+
+**Lo que cambia con el proveedor de SMS que ya tiene la empresa:**
+- Si ese proveedor también da llamadas de voz con audio en vivo (necesario para el agente), conviene usarlo en vez de Telnyx: ya tiene contrato, números y la lista de deudores. Su precio reemplaza la fila de telefonía.
+- Puede servir para enviar el link o las instrucciones de pago por SMS (pendiente de negocio de la simulación 2).
+- **Preguntas para el jefe:** ¿qué proveedor es (Twilio, Telnyx, Vonage, otro)? ¿Las llamadas de los cobradores van por el mismo proveedor? ¿Qué programa usan los cobradores para recibir llamadas (marcador o CRM)? De eso depende cómo se transfiere la llamada y cómo le llega al cobrador el motivo.
