@@ -27,7 +27,11 @@ from cobranza.application.use_cases.outbound_list import (
     GetOutboundCalls,
     MarkOutboundCalled,
 )
-from cobranza.application.use_cases.payment_schedule import ListNewArrangements, ListPaymentsDue
+from cobranza.application.use_cases.payment_schedule import (
+    ListNewArrangements,
+    ListPaymentsDue,
+    ListPaymentsDueOn,
+)
 from cobranza.application.use_cases.register_call import EndCall, RecordRecordingConsent, StartCall
 from cobranza.application.use_cases.verify_identity import VerifyIdentity
 from cobranza.infrastructure.repositories.in_memory_negotiation_log import InMemoryNegotiationLog
@@ -68,6 +72,7 @@ class UseCases:
     mark_do_not_call: MarkDoNotCall
     list_new_arrangements: ListNewArrangements
     list_payments_due: ListPaymentsDue
+    list_payments_due_on: ListPaymentsDueOn
     build_daily_outbound_list: BuildDailyOutboundList
     get_outbound_calls: GetOutboundCalls
     mark_outbound_called: MarkOutboundCalled
@@ -120,6 +125,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         mark_do_not_call=MarkDoNotCall(calls, debtors, end_call),
         list_new_arrangements=ListNewArrangements(schedule),
         list_payments_due=ListPaymentsDue(schedule),
+        list_payments_due_on=ListPaymentsDueOn(schedule),
         build_daily_outbound_list=BuildDailyOutboundList(outbound, clock),
         get_outbound_calls=GetOutboundCalls(outbound),
         mark_outbound_called=MarkOutboundCalled(outbound),

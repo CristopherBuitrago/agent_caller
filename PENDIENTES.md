@@ -82,7 +82,9 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] N7: ante una aceptación con duda, el agente pregunta cuánto puede pagar cómodo al mes y vuelve a pedir la oferta; solo cierra si el deudor dice que puede cumplir. Pendiente de aplicar en el cambio de prompt (2026-11-12)
 - [x] N8: el primer pago puede ir hasta fin de este mes (si faltan menos de 8 días, primero se ofrece fin de este mes y después fin del mes siguiente); siempre se intenta hoy. `propose_offer` devuelve la fecha límite (también resuelve B7). 319 pruebas pasan (2026-11-12)
 - [x] N9: el seguimiento sin acuerdo lo hace la lista diaria (con las reglas de Reg F); una hora pedida por el deudor se respeta cuando se construya B2 (2026-11-12)
-- [ ] Preguntar al jefe: proveedor de SMS ("empieza por V"), página de pago del procesador, estado de la cuenta cuando se pagan todas las cuotas o una no se paga, y si aprueba que el primer pago vaya hasta fin de mes en vez de 8 días (N8)
+- [x] N10: SMS solo de aviso 3 días antes de cada cuota (`SendPaymentReminders`, tipo `payment_reminder` en `sms_messages`), además del link el día de la cuota. 323 pruebas pasan (2026-11-12)
+- [ ] N10, pendiente: a los 5 días sin pago, acuerdo `broken` y alerta por Teams (o el canal de la empresa) sin cambiar el estado de la cuenta. Falta confirmarlo con el jefe y el aviso de pago del procesador
+- [ ] Preguntar al jefe: proveedor de SMS ("empieza por V"), página de pago del procesador, estado de la cuenta cuando se pagan todas las cuotas, si aprueba que el primer pago vaya hasta fin de mes en vez de 8 días (N8), y si a los 5 días sin pago se puede marcar `broken` y avisar por Teams (u otro canal) sin cambiar el estado (N10)
 - [ ] Resolver una por una las observaciones del informe: S2, después negocio (N1–N15), backend (B1–B15) y prompt (P1–P12, en un solo cambio). Lo legal (L1–L7) se anota como supuesto
 - [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 

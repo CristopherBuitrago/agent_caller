@@ -43,16 +43,22 @@ class PostgresPaymentScheduleReader:
         ]
 
     def pending_payments_due(self, as_of: date) -> list[PaymentDue]:
+        return self._pending("sp.due_date <= %s", as_of)
+
+    def pending_payments_due_on(self, day: date) -> list[PaymentDue]:
+        return self._pending("sp.due_date = %s", day)
+
+    def _pending(self, due_condition: str, day: date) -> list[PaymentDue]:
         with self._pool.connection() as conn:
             rows = conn.execute(
-                """SELECT sp.id::text, pa.id::text, a.debtor_id::text, d.phone_primary,
-                          sp.sequence, sp.amount_cents, sp.due_date
-                   FROM scheduled_payments sp
-                   JOIN payment_arrangements pa ON pa.id = sp.arrangement_id
-                   JOIN accounts a ON a.id = pa.account_id
-                   JOIN debtors d ON d.id = a.debtor_id
-                   WHERE sp.status = 'pending' AND pa.status = 'active' AND sp.due_date <= %s
-                   ORDER BY sp.due_date, pa.id, sp.sequence""",
-                (as_of,),
+                f"""SELECT sp.id::text, pa.id::text, a.debtor_id::text, d.phone_primary,
+                           sp.sequence, sp.amount_cents, sp.due_date
+                    FROM scheduled_payments sp
+                    JOIN payment_arrangements pa ON pa.id = sp.arrangement_id
+                    JOIN accounts a ON a.id = pa.account_id
+                    JOIN debtors d ON d.id = a.debtor_id
+                    WHERE sp.status = 'pending' AND pa.status = 'active' AND {due_condition}
+                    ORDER BY sp.due_date, pa.id, sp.sequence""",
+                (day,),
             ).fetchall()
         return [PaymentDue(*row) for row in rows]

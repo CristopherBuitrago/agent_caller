@@ -6,8 +6,12 @@ import pytest
 
 from cobranza.application.interfaces.payment_schedule import ArrangementView, PaymentDue, ScheduledPaymentView
 from cobranza.messaging.application.ports import SmsKind, SmsSendError
-from cobranza.messaging.application.send_sms import SendArrangementConfirmations, SendDuePaymentLinks
-from cobranza.messaging.application.texts import confirmation_text, money, payment_link_text
+from cobranza.messaging.application.send_sms import (
+    SendArrangementConfirmations,
+    SendDuePaymentLinks,
+    SendPaymentReminders,
+)
+from cobranza.messaging.application.texts import confirmation_text, money, payment_link_text, payment_reminder_text
 
 NOW = datetime(2026, 11, 12, 15, 0, tzinfo=timezone.utc)
 COMPANY = "Lakeside Recovery Services"
@@ -150,3 +154,29 @@ def test_payment_link_is_sent_once_per_installment():
     assert use_case.execute(date(2026, 12, 12)).skipped == 1
     assert listing.calls == [date(2026, 12, 12)] * 2
     assert "https://pay.test/sp-2" in sender.sent[0][1] and "is due today" in sender.sent[0][1]
+
+
+# --- N10: aviso 3 días antes, solo informativo -------------------------------------------
+
+def test_reminder_text_has_no_link():
+    text = payment_reminder_text(COMPANY, 39500, date(2026, 12, 12))
+    assert text == (f"{COMPANY}: reminder: your payment of $395.00 is due on Dec 12. "
+                    "We'll text you a secure payment link that day. Reply STOP to opt out.")
+    assert "http" not in text
+
+
+def test_reminder_goes_three_days_before_and_only_once():
+    sms, sender = FakeSms(), FakeSender()
+    listing = FakeList([_due()])
+    use_case = SendPaymentReminders(listing, sms, sender, FakeClock(), COMPANY)
+    assert use_case.execute(date(2026, 12, 9)).sent == 1
+    assert use_case.execute(date(2026, 12, 9)).skipped == 1
+    assert listing.calls == [date(2026, 12, 12)] * 2          # busca las cuotas del 12 (9 + 3)
+    assert sms.rows[(SmsKind.PAYMENT_REMINDER, "sp-2")]["status"] == "sent"
+
+
+def test_reminder_and_link_of_the_same_installment_are_different_messages():
+    sms, sender = FakeSms(), FakeSender()
+    SendPaymentReminders(FakeList([_due()]), sms, sender, FakeClock(), COMPANY).execute(date(2026, 12, 9))
+    SendDuePaymentLinks(FakeList([_due()]), sms, sender, FakeLinks(), FakeClock(), COMPANY).execute(date(2026, 12, 12))
+    assert len(sender.sent) == 2 and "reminder" in sender.sent[0][1] and "https://" in sender.sent[1][1]

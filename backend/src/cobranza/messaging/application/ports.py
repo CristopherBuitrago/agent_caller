@@ -8,6 +8,7 @@ from typing import Protocol
 class SmsKind(Enum):
     ARRANGEMENT_CONFIRMATION = "arrangement_confirmation"
     PAYMENT_LINK = "payment_link"
+    PAYMENT_REMINDER = "payment_reminder"  # N10: aviso 3 días antes, sin link
 
 
 class SmsSendError(Exception):

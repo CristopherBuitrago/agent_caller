@@ -40,3 +40,9 @@ def payment_link_text(company: str, amount_cents: int, due: date, today: date, l
     when = "today" if due == today else f"on {short_date(due)}"
     verb = "is due" if due >= today else "was due"
     return f"{company}: your payment of {money(amount_cents)} {verb} {when}. Pay securely here: {link} {OPT_OUT}"
+
+
+def payment_reminder_text(company: str, amount_cents: int, due: date) -> str:
+    """N10: aviso 3 días antes de la cuota. Solo avisa; el link llega el día del pago."""
+    return (f"{company}: reminder: your payment of {money(amount_cents)} is due on {short_date(due)}. "
+            f"We'll text you a secure payment link that day. {OPT_OUT}")

@@ -27,3 +27,13 @@ class ListPaymentsDue:
 
     def execute(self, as_of: date) -> list[PaymentDue]:
         return self._reader.pending_payments_due(as_of)
+
+
+class ListPaymentsDueOn:
+    """Cuotas pendientes de acuerdos activos que vencen exactamente en `day` (N10: aviso previo)."""
+
+    def __init__(self, reader: PaymentScheduleReader):
+        self._reader = reader
+
+    def execute(self, day: date) -> list[PaymentDue]:
+        return self._reader.pending_payments_due_on(day)

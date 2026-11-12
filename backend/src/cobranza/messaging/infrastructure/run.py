@@ -1,4 +1,5 @@
-"""Tarea programada de la mensajería: confirmaciones de acuerdos nuevos y links de las cuotas que vencen.
+"""Tarea programada de la mensajería: confirmaciones de acuerdos nuevos, avisos 3 días antes de cada
+cuota (N10) y links de las cuotas que vencen.
 
 Se puede correr varias veces al día sin repetir mensajes (cada SMS se envía una sola vez).
 
@@ -34,8 +35,10 @@ def main() -> int:
     with ConnectionPool(os.environ["DATABASE_URL"], min_size=1, max_size=2) as pool:
         messaging = build_messaging(pool, build_use_cases(pool, os.environ["PII_HMAC_KEY"]))
         confirmations = messaging.send_confirmations.execute()
+        reminders = messaging.send_payment_reminders.execute(args.fecha)
         links = messaging.send_due_payment_links.execute(args.fecha)
     print(f"Confirmaciones: {confirmations}")
+    print(f"Avisos 3 días antes ({args.fecha}): {reminders}")
     print(f"Links de pago ({args.fecha}): {links}")
     return 0
 

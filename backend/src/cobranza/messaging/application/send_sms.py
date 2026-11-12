@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from cobranza.application.interfaces.clock import Clock
-from cobranza.application.use_cases.payment_schedule import ListNewArrangements, ListPaymentsDue
+from cobranza.application.use_cases.payment_schedule import ListNewArrangements, ListPaymentsDue, ListPaymentsDueOn
 from cobranza.messaging.application.ports import (
     PaymentLinkProvider,
     SmsKind,
@@ -21,7 +21,7 @@ from cobranza.messaging.application.ports import (
     SmsSender,
     SmsSendError,
 )
-from cobranza.messaging.application.texts import confirmation_text, payment_link_text
+from cobranza.messaging.application.texts import confirmation_text, payment_link_text, payment_reminder_text
 
 log = logging.getLogger(__name__)
 
@@ -101,5 +101,27 @@ class SendDuePaymentLinks:
             link = self._links.link_for(payment.scheduled_payment_id, payment.amount_cents)
             body = payment_link_text(self._company, payment.amount_cents, payment.due_date, as_of, link)
             self._delivery.deliver(report, SmsKind.PAYMENT_LINK, payment.debtor_id, payment.arrangement_id,
+                                   payment.scheduled_payment_id, payment.phone, body)
+        return report
+
+
+# N10 (2026-11-12): aviso solo informativo, 3 días antes de cada cuota.
+REMINDER_DAYS_BEFORE = 3
+
+
+class SendPaymentReminders:
+    """Avisa las cuotas pendientes que vencen dentro de 3 días (una sola vez por cuota, sin link)."""
+
+    def __init__(self, list_payments_due_on: ListPaymentsDueOn, sms: SmsRepository, sender: SmsSender,
+                 clock: Clock, company_name: str):
+        self._list = list_payments_due_on
+        self._delivery = _Delivery(sms, sender, clock)
+        self._company = company_name
+
+    def execute(self, as_of: date) -> SendReport:
+        report = SendReport()
+        for payment in self._list.execute(as_of + timedelta(days=REMINDER_DAYS_BEFORE)):
+            body = payment_reminder_text(self._company, payment.amount_cents, payment.due_date)
+            self._delivery.deliver(report, SmsKind.PAYMENT_REMINDER, payment.debtor_id, payment.arrangement_id,
                                    payment.scheduled_payment_id, payment.phone, body)
         return report

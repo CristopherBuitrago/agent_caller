@@ -192,7 +192,8 @@ CREATE TABLE sms_messages (
     debtor_id            uuid NOT NULL REFERENCES debtors (id),
     arrangement_id       uuid NOT NULL REFERENCES payment_arrangements (id),
     scheduled_payment_id uuid REFERENCES scheduled_payments (id),   -- vacío en la confirmación
-    kind                 text NOT NULL CHECK (kind IN ('arrangement_confirmation', 'payment_link')),
+    kind                 text NOT NULL CHECK (kind IN ('arrangement_confirmation', 'payment_link',
+                                                       'payment_reminder')),  -- N10: aviso 3 días antes
     to_phone             text NOT NULL,
     body                 text NOT NULL,
     status               text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
@@ -200,14 +201,17 @@ CREATE TABLE sms_messages (
     error                text,                                       -- motivo, si falló
     created_at           timestamptz NOT NULL DEFAULT now(),
     sent_at              timestamptz,
-    CHECK ((kind = 'payment_link') = (scheduled_payment_id IS NOT NULL))
+    CONSTRAINT sms_messages_check
+        CHECK ((kind IN ('payment_link', 'payment_reminder')) = (scheduled_payment_id IS NOT NULL))
 );
 
--- Nunca dos veces el mismo mensaje: una confirmación por acuerdo y un link por cuota.
+-- Nunca dos veces el mismo mensaje: una confirmación por acuerdo, un link y un aviso por cuota.
 CREATE UNIQUE INDEX sms_messages_one_confirmation_idx ON sms_messages (arrangement_id)
     WHERE kind = 'arrangement_confirmation';
 CREATE UNIQUE INDEX sms_messages_one_link_per_payment_idx ON sms_messages (scheduled_payment_id)
     WHERE kind = 'payment_link';
+CREATE UNIQUE INDEX sms_messages_one_reminder_per_payment_idx ON sms_messages (scheduled_payment_id)
+    WHERE kind = 'payment_reminder';
 
 -- ---------------------------------------------------------------------------
 -- outbound_call_list: lista diaria de llamadas salientes (aprobada el 2026-11-12).

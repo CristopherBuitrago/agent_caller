@@ -10,6 +10,7 @@ from cobranza.messaging.application.ports import SmsKind
 _CONFLICT_TARGET = {
     SmsKind.ARRANGEMENT_CONFIRMATION: "(arrangement_id) WHERE kind = 'arrangement_confirmation'",
     SmsKind.PAYMENT_LINK: "(scheduled_payment_id) WHERE kind = 'payment_link'",
+    SmsKind.PAYMENT_REMINDER: "(scheduled_payment_id) WHERE kind = 'payment_reminder'",
 }
 
 

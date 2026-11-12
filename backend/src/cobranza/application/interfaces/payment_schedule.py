@@ -45,3 +45,7 @@ class PaymentScheduleReader(Protocol):
     def pending_payments_due(self, as_of: date) -> list[PaymentDue]:
         """Cuotas `pending` de acuerdos `active` con `due_date <= as_of`."""
         ...
+
+    def pending_payments_due_on(self, day: date) -> list[PaymentDue]:
+        """Cuotas `pending` de acuerdos `active` que vencen exactamente `day` (para avisar antes)."""
+        ...

@@ -7,7 +7,11 @@ from psycopg_pool import ConnectionPool
 from cobranza.infrastructure.config.container import UseCases
 from cobranza.infrastructure.services.system_clock import SystemClock
 from cobranza.messaging.application.ports import PaymentLinkProvider, SmsSender
-from cobranza.messaging.application.send_sms import SendArrangementConfirmations, SendDuePaymentLinks
+from cobranza.messaging.application.send_sms import (
+    SendArrangementConfirmations,
+    SendDuePaymentLinks,
+    SendPaymentReminders,
+)
 from cobranza.messaging.infrastructure.dev_services import LoggingSmsSender, PlaceholderPaymentLinkProvider
 from cobranza.messaging.infrastructure.postgres_sms_repository import PostgresSmsRepository
 
@@ -18,6 +22,7 @@ DEFAULT_COMPANY_NAME = "Lakeside Recovery Services"  # nombre ficticio, igual qu
 class Messaging:
     send_confirmations: SendArrangementConfirmations
     send_due_payment_links: SendDuePaymentLinks
+    send_payment_reminders: SendPaymentReminders
 
 
 def build_messaging(pool: ConnectionPool, use_cases: UseCases, sender: SmsSender | None = None,
@@ -33,4 +38,6 @@ def build_messaging(pool: ConnectionPool, use_cases: UseCases, sender: SmsSender
         send_due_payment_links=SendDuePaymentLinks(
             use_cases.list_payments_due, sms, sender, links or PlaceholderPaymentLinkProvider(), clock,
             company_name),
+        send_payment_reminders=SendPaymentReminders(
+            use_cases.list_payments_due_on, sms, sender, clock, company_name),
     )

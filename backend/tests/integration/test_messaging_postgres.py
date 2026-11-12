@@ -81,3 +81,15 @@ def test_do_not_call_still_gets_payment_texts(use_cases, pool, jane_arrangement)
     messaging = build_messaging(pool, use_cases, sender=RecordingSender())
     messaging.send_due_payment_links.execute(first_due)
     assert [r[0] for r in _sms_rows(pool, arrangement_id)] == ["payment_link"]
+
+
+def test_reminder_three_days_before_the_second_installment(use_cases, pool, jane_arrangement):
+    """N10: aviso informativo 3 días antes; el link llega el día de la cuota."""
+    from datetime import timedelta
+    arrangement_id, (_, second_due) = jane_arrangement
+    messaging = build_messaging(pool, use_cases, sender=RecordingSender())
+    messaging.send_payment_reminders.execute(second_due - timedelta(days=3))
+    messaging.send_payment_reminders.execute(second_due - timedelta(days=3))   # no repite
+    reminders = [r for r in _sms_rows(pool, arrangement_id) if r[0] == "payment_reminder"]
+    assert len(reminders) == 1 and reminders[0][1] == "sent"
+    assert "$395.00 is due on" in reminders[0][5] and "http" not in reminders[0][5]
