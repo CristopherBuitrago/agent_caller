@@ -25,6 +25,8 @@ services:
   #                                          -> chat de prueba con Claude (necesita ANTHROPIC_API_KEY)
   #   docker compose run --rm app python -m cobranza.messaging.infrastructure.run
   #                                          -> tarea diaria de SMS (confirmaciones y links de pago)
+  #   docker compose run --rm app python -m cobranza.infrastructure.controllers.build_outbound_list
+  #                                          -> tarea diaria: lista de llamadas salientes del día
   app:
     build: .
     profiles: ["tools"]

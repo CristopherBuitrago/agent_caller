@@ -22,6 +22,11 @@ from cobranza.application.use_cases.negotiate_arrangement import (
     RecordOfferResponse,
     _ArrangementGate,
 )
+from cobranza.application.use_cases.outbound_list import (
+    BuildDailyOutboundList,
+    GetOutboundCalls,
+    MarkOutboundCalled,
+)
 from cobranza.application.use_cases.payment_schedule import ListNewArrangements, ListPaymentsDue
 from cobranza.application.use_cases.register_call import EndCall, RecordRecordingConsent, StartCall
 from cobranza.application.use_cases.verify_identity import VerifyIdentity
@@ -31,6 +36,7 @@ from cobranza.infrastructure.repositories.postgres_call_repository import Postgr
 from cobranza.infrastructure.repositories.postgres_debtor_repository import PostgresDebtorRepository
 from cobranza.infrastructure.repositories.postgres_hardship_repository import PostgresHardshipRepository
 from cobranza.infrastructure.repositories.postgres_identity_repository import PostgresIdentityRepository
+from cobranza.infrastructure.repositories.postgres_outbound_list_repository import PostgresOutboundListRepository
 from cobranza.infrastructure.repositories.postgres_payment_schedule_reader import PostgresPaymentScheduleReader
 from cobranza.infrastructure.services.claude_call_summarizer import (
     BACKUP_MODEL,
@@ -61,6 +67,9 @@ class UseCases:
     mark_do_not_call: MarkDoNotCall
     list_new_arrangements: ListNewArrangements
     list_payments_due: ListPaymentsDue
+    build_daily_outbound_list: BuildDailyOutboundList
+    get_outbound_calls: GetOutboundCalls
+    mark_outbound_called: MarkOutboundCalled
 
 
 def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
@@ -84,6 +93,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
     arrangements = PostgresArrangementRepository(pool)
     hardships = PostgresHardshipRepository(pool)
     schedule = PostgresPaymentScheduleReader(pool)
+    outbound = PostgresOutboundListRepository(pool)
     end_call = EndCall(calls, summarizer, clock)
     gate = _ArrangementGate(calls, arrangements, get_debtor_by_account, clock, hardships)
     # Las ofertas de cada llamada viven en memoria: basta mientras la llamada viva en este proceso.
@@ -100,7 +110,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         create_arrangement=create_arrangement,
         record_hardship_assessment=RecordHardshipAssessment(gate, hardships),
         verify_identity=VerifyIdentity(
-            PostgresIdentityRepository(pool), calls, HmacSha256PiiHasher(pii_hmac_key), clock,
+            PostgresIdentityRepository(pool), calls, HmacSha256PiiHasher(pii_hmac_key), clock, outbound,
         ),
         start_call=StartCall(calls, debtors, phones, clock),
         record_recording_consent=RecordRecordingConsent(calls),
@@ -109,4 +119,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         mark_do_not_call=MarkDoNotCall(calls, debtors, end_call),
         list_new_arrangements=ListNewArrangements(schedule),
         list_payments_due=ListPaymentsDue(schedule),
+        build_daily_outbound_list=BuildDailyOutboundList(outbound, clock),
+        get_outbound_calls=GetOutboundCalls(outbound),
+        mark_outbound_called=MarkOutboundCalled(outbound),
     )

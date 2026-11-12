@@ -36,10 +36,8 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | Pregunta | Respuesta |
 | --- | --- |
 | ¿Cómo se identifica a quien llama? | "agente recibe num y busca" (por el teléfono) |
-| ¿Cómo entrega el resultado el job de NSF (salientes)? | "Por definir" |
+| ¿Cómo entrega el resultado el job de NSF (salientes)? | Primero "Por definir". Respondido el 2026-11-12: no hay job externo; el sistema consulta la base cada día y arma la lista de salientes del día. Si un deudor de la lista llama antes y verifica su identidad, se le saca (ver "Lista diaria de llamadas salientes") |
 | Saliente sin ubicación | "Se hace la cobranza normal y se deduce por el codigo de area" |
-
-**Pendiente (no impide avanzar):** cómo entrega el job sus resultados. Hoy se busca por ID de cuenta.
 
 ### Función 2: verificar identidad
 
@@ -197,7 +195,28 @@ Ejemplo de confirmación: *"Lakeside Recovery Services: your payment arrangement
 - Los SMS no dicen "debt" ni el acreedor, por si otra persona ve el teléfono.
 - Legal: enviar SMS a deudores requiere su consentimiento y una forma de darse de baja; el texto de los SMS lo debe revisar el abogado.
 
-**Pendiente:** conectar el proveedor de SMS ("V") y el link del procesador; recibir el aviso de pago del procesador (`RecordPaymentResult` y `payment_results`) y definir el estado de la cuenta cuando se pagan todas las cuotas o una no se paga.
+**Pendiente de N1:** conectar el proveedor de SMS ("V") y el link del procesador; recibir el aviso de pago del procesador (`RecordPaymentResult` y `payment_results`) y definir el estado de la cuenta cuando se pagan todas las cuotas o una no se paga.
+
+### Lista diaria de llamadas salientes (2026-11-12)
+
+| Pregunta | Respuesta | Origen |
+| --- | --- | --- |
+| ¿Cómo se sabe a quién llamar cada día? | "Es mejor que nosotros consultemos a la base de manera diaria para saber cuales son las llamadas salientes del dia y si hay una entrante que corresponde a la lista de saliente removerlo" | Jefe, contado por el desarrollador |
+| ¿Cuándo se saca de la lista al deudor que llama? | Cuando la llamada entrante verifica su identidad (opción A). Si alguien llama desde su teléfono y no se verifica, el deudor sigue en la lista: un impostor no puede evitar que lo llamen | Desarrollador |
+| ¿Se aprueba la tabla `outbound_call_list` y sus criterios? | "Si, me parece bien la lista" | Desarrollador |
+| ¿Qué llamadas entrantes atiende el agente? | El jefe propondrá al dueño de la empresa que las entrantes de deudores en NSF pasen directo al agente; el agente solo llama y contesta. Las de otros estados ya se transfieren a una persona | Jefe (por confirmar con el dueño) |
+
+Cómo quedó construido:
+- Tabla `outbound_call_list`: una fila por cuenta y día (`pending`, `called` o `removed`, con el motivo y la llamada que la sacó).
+- Tarea diaria: `python -m cobranza.infrastructure.controllers.build_outbound_list [--fecha AAAA-MM-DD]`. Se puede correr varias veces sin repetir cuentas. En la base simulada agrega 323 de las 329 cuentas en NSF.
+- Entran las cuentas en NSF, sin disputa, de deudores sin "no llamar", sin acuerdo activo y con teléfono.
+- Reg F: quedan fuera las cuentas con 7 llamadas salientes en los últimos 7 días y los deudores con una conversación (identidad verificada) en los últimos 7 días.
+- `VerifyIdentity` saca de la lista las cuentas pendientes del deudor cuando una entrante lo verifica. `GetOutboundCalls` y `MarkOutboundCalled` quedan para quien marque las salientes.
+
+**Supuestos:**
+- La lista se arma en la mañana con la fecha del este de EE. UU.
+- Solo se cuentan las llamadas de esta base; las de los cobradores se sumarán cuando se conozca la base real. La regla de no llamar 7 días después de una conversación sale de la Reg F; se agregó al filtro de 7 en 7 aprobado.
+- La consulta se hace sobre la base de prueba; con la base real y su EER solo cambia esa consulta.
 
 ### Para todo el proyecto
 
@@ -208,7 +227,7 @@ Ejemplo de confirmación: *"Lakeside Recovery Services: your payment arrangement
 
 1. El proveedor del IVR PCI: detiene la Función 6.
 2. La `ANTHROPIC_API_KEY`: hace falta para probar el resumen y el chat de prueba con Claude (paso 8, ya construido).
-3. El EER, la base de datos real y cómo entrega el job sus resultados: no detienen el desarrollo, pero se necesitan antes de conectar con el sistema real.
+3. El EER y la base de datos real: no detienen el desarrollo, pero se necesitan antes de conectar con el sistema real (por ejemplo, para la consulta de la lista diaria de salientes).
 
 ## 1. Decisiones iniciales (2026-10-28)
 
@@ -339,7 +358,6 @@ Estos temas no tienen ni una respuesta provisional.
 
 | Tema | Estado |
 | --- | --- |
-| Cómo entrega el resultado el job de NSF | Por definir |
 | Insertar o actualizar el resultado de la llamada | Por definir |
 | Diagrama EER y base de datos real | Pendiente de entrega |
 | Proveedor del IVR PCI y cómo devuelve el resultado del pago | Por elegir; **bloquea la Función 6** |

@@ -208,3 +208,26 @@ CREATE UNIQUE INDEX sms_messages_one_confirmation_idx ON sms_messages (arrangeme
     WHERE kind = 'arrangement_confirmation';
 CREATE UNIQUE INDEX sms_messages_one_link_per_payment_idx ON sms_messages (scheduled_payment_id)
     WHERE kind = 'payment_link';
+
+-- ---------------------------------------------------------------------------
+-- outbound_call_list: lista diaria de llamadas salientes (aprobada el 2026-11-12).
+-- Se arma consultando la base cada día (decisión del jefe). Si el deudor llama antes
+-- (entrante) y verifica su identidad, sus cuentas pendientes se sacan de la lista.
+-- ---------------------------------------------------------------------------
+CREATE TABLE outbound_call_list (
+    id                 uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    list_date          date NOT NULL,
+    account_id         uuid NOT NULL REFERENCES accounts (id),
+    debtor_id          uuid NOT NULL REFERENCES debtors (id),
+    phone              text NOT NULL,
+    status             text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'called', 'removed')),
+    removed_reason     text CHECK (removed_reason IN ('inbound_call', 'arrangement_made', 'dispute', 'do_not_call')),
+    removed_by_call_id uuid REFERENCES calls (id),   -- la llamada entrante que lo sacó
+    called_call_id     uuid REFERENCES calls (id),   -- la llamada saliente que se le hizo
+    created_at         timestamptz NOT NULL DEFAULT now(),
+    updated_at         timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (list_date, account_id),
+    CHECK ((status = 'removed') = (removed_reason IS NOT NULL))
+);
+
+CREATE INDEX outbound_call_list_pending_debtor_idx ON outbound_call_list (debtor_id) WHERE status = 'pending';

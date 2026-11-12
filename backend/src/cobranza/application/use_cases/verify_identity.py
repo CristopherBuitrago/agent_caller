@@ -7,7 +7,10 @@ from datetime import date
 from cobranza.application.interfaces.call_repository import CallRepository
 from cobranza.application.interfaces.clock import Clock
 from cobranza.application.interfaces.identity_repository import IdentityRepository
+from cobranza.application.interfaces.outbound_list_repository import OutboundListRepository
 from cobranza.application.interfaces.pii_hasher import PiiHasher
+from cobranza.application.use_cases.outbound_list import REMOVED_BY_INBOUND_CALL
+from cobranza.domain.call import CallDirection
 from cobranza.domain.identity import (
     LOCKOUT_WINDOW,
     MAX_FAILED_ATTEMPTS_IN_WINDOW,
@@ -22,11 +25,12 @@ from cobranza.domain.identity import (
 
 class VerifyIdentity:
     def __init__(self, identities: IdentityRepository, calls: CallRepository,
-                 hasher: PiiHasher, clock: Clock):
+                 hasher: PiiHasher, clock: Clock, outbound: OutboundListRepository | None = None):
         self._identities = identities
         self._calls = calls
         self._hasher = hasher
         self._clock = clock
+        self._outbound = outbound
 
     def execute(self, call_id: str, debtor_id: str, full_name: str, ssn_last4: str,
                 dob: date, name_was_spelled: bool = False,
@@ -77,9 +81,22 @@ class VerifyIdentity:
         self._calls.record_verification_attempt(call_id, debtor_id, verified)
 
         if verified:
+            self._remove_from_outbound_list_if_inbound(call_id, debtor_id)
             return VerificationOutcome.VERIFIED
         if recent_failures + 1 >= MAX_FAILED_ATTEMPTS_IN_WINDOW:
             return VerificationOutcome.LOCKED
         if state.failed_attempts + 1 >= MAX_FAILED_ATTEMPTS_PER_CALL:
             return VerificationOutcome.MAX_ATTEMPTS_REACHED
         return VerificationOutcome.FAILED
+
+    def _remove_from_outbound_list_if_inbound(self, call_id: str, debtor_id: str) -> None:
+        """El deudor llamó y verificó su identidad: ya no hay que llamarlo (decisión del 2026-11-12).
+
+        Solo con identidad verificada: si alguien llama desde su teléfono y no se verifica,
+        el deudor sigue en la lista (un impostor no puede evitar que lo llamen).
+        """
+        if self._outbound is None:
+            return
+        call = self._calls.get(call_id)
+        if call is not None and call.direction is CallDirection.INBOUND:
+            self._outbound.remove_debtor(debtor_id, REMOVED_BY_INBOUND_CALL, call_id)
