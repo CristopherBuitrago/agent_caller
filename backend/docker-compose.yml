@@ -21,7 +21,7 @@ services:
   # Backend en Python. No arranca con `docker compose up`; se usa con:
   #   docker compose run --rm app            -> corre las pruebas
   #   docker compose run --rm app bash       -> consola dentro del contenedor
-  #   docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --entrante +13055550001
+  #   docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --entrante +13055550001
   #                                          -> chat de prueba con Claude (necesita ANTHROPIC_API_KEY)
   app:
     build: .

@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from cobranza.application.interfaces.conversation_model import ToolCall, ToolResult, ToolSpec
+from cobranza.agent.application.conversation_model import ToolCall, ToolResult, ToolSpec
 from cobranza.application.interfaces.negotiation_log import LoggedProposal
 from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
 from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount

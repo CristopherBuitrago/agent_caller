@@ -143,8 +143,8 @@ Herramientas: `record_recording_consent`, `verify_identity`, `get_account_detail
 **Cómo correrlo** (desde `backend/`, con la base levantada y la key en la terminal o en `backend/.env`):
 
 ```
-docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --entrante +13055550001
-docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --saliente ACC-T001
+docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --entrante +13055550001
+docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --saliente ACC-T001
 ```
 
 Datos para verificar a TEST-001: Jane Carter, últimos 4 del SSN 1234, nacida el 14 de marzo de 1985 (saldo USD 485, ACC-T001). Los demás casos están en `backend/db/init/002_seed_mock.sql`. El chat muestra en gris cada herramienta que pide Claude y lo que respondió el backend; `--sin-herramientas` las oculta y `--debug` muestra los avisos internos. `/colgar` termina la llamada.
@@ -158,6 +158,20 @@ Datos para verificar a TEST-001: Jane Carter, últimos 4 del SSN 1234, nacida el
 - Con un teléfono compartido, se verifica a quien coincide con el nombre que dijo el deudor.
 
 **Pendiente:** probar con la API real (falta `ANTHROPIC_API_KEY`) y ajustar el prompt con lo que salga de esas pruebas.
+
+### Arquitectura: 3 módulos (2026-11-12)
+
+| Pregunta | Respuesta | Origen |
+| --- | --- | --- |
+| ¿Separar las reglas de negocio, el agente y la campaña de SMS? | Un solo repositorio con 3 módulos y 3 programas que arrancan por su cuenta, compartiendo la base. Opción A, elegida por el desarrollador ("veo que todo queda demasiado amontonado") | Desarrollador |
+
+| Módulo | Carpeta | Qué hace | Cómo corre |
+| --- | --- | --- | --- |
+| Núcleo de cobranza | `domain/`, `application/`, `infrastructure/` | Reglas, casos de uso, base de datos y avisos de pago | Servidor siempre encendido (API, pendiente) |
+| Agente de voz | `agent/` | Conversación con Claude, prompt (`agent/application/prompts/`) y herramientas | Un proceso por llamada |
+| Mensajería | `messaging/` | SMS de confirmación y links de pago | Tarea programada diaria |
+
+Reglas (las vigila `tests/unit/test_architecture.py`): el núcleo no conoce al agente ni a la mensajería; el agente y la mensajería no se conocen entre sí y usan los casos de uso del núcleo, nunca sus repositorios. Si algún día hacen falta servicios separados, ya están divididos.
 
 ### Para todo el proyecto
 

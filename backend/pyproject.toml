@@ -21,7 +21,7 @@ build-backend = "setuptools.build_meta"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"cobranza.application" = ["prompts/*.md"]
+"cobranza.agent.application" = ["prompts/*.md"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

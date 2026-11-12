@@ -2,8 +2,8 @@
 como el agente, con las mismas reglas y la misma base que tendrá la llamada de voz.
 
 Uso (desde backend/):
-    docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --entrante +13055550001
-    docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --saliente ACC-T001
+    docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --entrante +13055550001
+    docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --saliente ACC-T001
 
 Comandos durante el chat: /colgar (el deudor cuelga) y /salir.
 Necesita ANTHROPIC_API_KEY, DATABASE_URL y PII_HMAC_KEY.
@@ -18,9 +18,10 @@ import textwrap
 
 from psycopg_pool import ConnectionPool
 
-from cobranza.application.interfaces.conversation_model import ToolCall, ToolResult
+from cobranza.agent.application.conversation_model import ToolCall, ToolResult
 from cobranza.domain.call import CallDirection
-from cobranza.infrastructure.config.container import DEFAULT_COMPANY_NAME, build_agent, build_use_cases
+from cobranza.agent.infrastructure.container import DEFAULT_COMPANY_NAME, build_agent
+from cobranza.infrastructure.config.container import build_use_cases
 
 GREY, CYAN, YELLOW, RESET = "\033[90m", "\033[36m", "\033[33m", "\033[0m"
 

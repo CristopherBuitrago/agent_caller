@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from cobranza.application.interfaces.clock import Clock
-from cobranza.application.interfaces.conversation_model import (
+from cobranza.agent.application.conversation_model import (
     ConversationModel,
     ConversationModelError,
     ModelConversation,
@@ -19,14 +19,14 @@ from cobranza.application.interfaces.conversation_model import (
     ToolCall,
     ToolResult,
 )
-from cobranza.application.use_cases.agent_tools import DISCLOSURE, TOOL_SPECS, AgentUseCases, CallTools
+from cobranza.agent.application.tools import DISCLOSURE, TOOL_SPECS, AgentUseCases, CallTools
 from cobranza.application.use_cases.register_call import StartCall
 from cobranza.domain.call import CallDirection, CallOutcome
 from cobranza.domain.hardship import HARDSHIP_QUESTIONS
 
 log = logging.getLogger(__name__)
 
-PROMPT_PATH = Path(__file__).resolve().parents[1] / "prompts" / "agent_system_prompt.md"
+PROMPT_PATH = Path(__file__).resolve().parent / "prompts" / "agent_system_prompt.md"
 # Si el modelo pide más herramientas que esto en un solo turno, algo anda mal: pasa a una persona.
 MAX_TOOL_ROUNDS_PER_TURN = 8
 FALLBACK_TEXT = "I'm sorry, I'm having trouble on my end. Let me transfer you to a representative."

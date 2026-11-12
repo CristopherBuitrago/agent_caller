@@ -71,12 +71,13 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] Error E2 corregido: guardar las Hardship Questions de a una ya no borra las respuestas anteriores (`COALESCE` en el repositorio). 233 pruebas pasan (2026-11-11)
 - [x] S1 (simulación 8, verificación por tanteo): si quien llama cambia el nombre de pila entre intentos, `VerifyIdentity` devuelve `identity_mismatch` sin revisar los datos, cuenta un intento fallido y la llamada se cierra con el resultado nuevo `identity_mismatch` (agregado al CHECK de `calls.outcome`). 242 pruebas pasan (2026-11-12)
 - [x] S2 (simulación 8): se pide deletrear el apellido solo si el SSN, la fecha y el nombre de pila coinciden y solo falla el apellido; si no, es un intento fallido normal (`only_last_name_differs`). 251 pruebas pasan (2026-11-12)
+- [x] Arquitectura en 3 módulos (núcleo, `agent/`, `messaging/`) en el mismo repositorio, con reglas en `test_architecture.py`. Sin cambios de comportamiento; 256 pruebas pasan (2026-11-12)
 - [ ] Resolver una por una las observaciones del informe: S2, después negocio (N1–N15), backend (B1–B15) y prompt (P1–P12, en un solo cambio). Lo legal (L1–L7) se anota como supuesto
 - [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 
 Correr las pruebas: `cd backend && docker compose run --rm --build app`
 
-Chat de prueba: `cd backend && docker compose run --rm app python -m cobranza.infrastructure.controllers.chat_cli --entrante +13055550001` (necesita `ANTHROPIC_API_KEY`; ver README, paso 8)
+Chat de prueba: `cd backend && docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --entrante +13055550001` (necesita `ANTHROPIC_API_KEY`; ver README, paso 8)
 
 Levantar la base: `cd backend && docker compose up -d` (puerto 5433, usuario `cobranza`, clave `cobranza_dev`).
 Recrear desde cero: `docker compose down -v && docker compose up -d`.

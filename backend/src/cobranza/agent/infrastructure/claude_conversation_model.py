@@ -9,7 +9,7 @@ import logging
 
 import anthropic
 
-from cobranza.application.interfaces.conversation_model import (
+from cobranza.agent.application.conversation_model import (
     ConversationModelError,
     ModelTurn,
     ToolCall,

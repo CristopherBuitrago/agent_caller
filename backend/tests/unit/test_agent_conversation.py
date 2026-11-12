@@ -7,20 +7,20 @@ from types import SimpleNamespace
 import anthropic
 import pytest
 
-from cobranza.application.interfaces.conversation_model import (
+from cobranza.agent.application.conversation_model import (
     ConversationModelError,
     ModelTurn,
     ToolCall,
     ToolSpec,
 )
 from cobranza.application.interfaces.negotiation_log import LoggedProposal
-from cobranza.application.use_cases.agent_conversation import (
+from cobranza.agent.application.conversation import (
     FALLBACK_TEXT,
     MAX_TOOL_ROUNDS_PER_TURN,
     AgentSession,
     render_system_prompt,
 )
-from cobranza.application.use_cases.agent_tools import DISCLOSURE, TOOL_SPECS, AgentUseCases, CallTools
+from cobranza.agent.application.tools import DISCLOSURE, TOOL_SPECS, AgentUseCases, CallTools
 from cobranza.domain.arrangement import (
     ArrangementProposal,
     ArrangementRuleError,
@@ -32,7 +32,7 @@ from cobranza.domain.call import CallDirection, CallOutcome
 from cobranza.domain.debtor import AccountSummary, DebtorSummary
 from cobranza.domain.hardship import HARDSHIP_QUESTIONS
 from cobranza.domain.identity import VerificationOutcome
-from cobranza.infrastructure.services.claude_conversation_model import ClaudeConversationModel
+from cobranza.agent.infrastructure.claude_conversation_model import ClaudeConversationModel
 
 
 # --- datos y dobles ---------------------------------------------------------------------
@@ -338,7 +338,7 @@ def test_claude_uses_the_backup_when_the_primary_fails_or_refuses():
 def test_claude_tool_results_go_back_together_in_one_message():
     conversation, messages = _conversation(_response("end_turn", _text("a")), _response("end_turn", _text("b")))
     conversation.send_user_text("hi")
-    from cobranza.application.interfaces.conversation_model import ToolResult
+    from cobranza.agent.application.conversation_model import ToolResult
     conversation.send_tool_results([ToolResult("t1", "{}"), ToolResult("t2", "{}", is_error=True)])
     last_user = messages.last_request["messages"][-2]
     assert last_user["role"] == "user" and [b["tool_use_id"] for b in last_user["content"]] == ["t1", "t2"]

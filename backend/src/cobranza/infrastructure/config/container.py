@@ -1,6 +1,8 @@
-"""Contenedor: el único lugar que conecta cada caso de uso con las implementaciones de sus interfaces.
+"""Contenedor del núcleo: conecta cada caso de uso con las implementaciones de sus interfaces.
 
-Para cambiar a la base real se cambian los repositorios aquí, y nada más.
+Para cambiar a la base real se cambian los repositorios aquí, y nada más. El agente de voz
+(cobranza.agent) y la mensajería (cobranza.messaging) tienen sus propios contenedores y usan
+los casos de uso que arma este.
 """
 
 from dataclasses import dataclass
@@ -9,9 +11,6 @@ import anthropic
 from psycopg_pool import ConnectionPool
 
 from cobranza.application.interfaces.call_summarizer import CallSummarizer
-from cobranza.application.interfaces.conversation_model import ConversationModel
-from cobranza.application.use_cases.agent_conversation import StartAgentConversation
-from cobranza.application.use_cases.agent_tools import AgentUseCases
 from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
 from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
 from cobranza.application.use_cases.negotiate_arrangement import (
@@ -36,7 +35,6 @@ from cobranza.infrastructure.services.claude_call_summarizer import (
     PRIMARY_MODEL,
     ClaudeCallSummarizer,
 )
-from cobranza.infrastructure.services.claude_conversation_model import ClaudeConversationModel
 from cobranza.infrastructure.services.fallback_call_summarizer import FallbackCallSummarizer
 from cobranza.infrastructure.services.hmac_pii_hasher import HmacSha256PiiHasher
 from cobranza.infrastructure.services.phonenumbers_phone_service import PhonenumbersPhoneService
@@ -104,33 +102,4 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         end_call=end_call,
         record_dispute=RecordDispute(calls, debtors, end_call),
         mark_do_not_call=MarkDoNotCall(calls, debtors, end_call),
-    )
-
-
-DEFAULT_COMPANY_NAME = "Lakeside Recovery Services"  # nombre ficticio para el chat de prueba
-
-
-def build_agent(use_cases: UseCases, model: ConversationModel | None = None,
-                company_name: str = DEFAULT_COMPANY_NAME) -> StartAgentConversation:
-    """Arma el agente conversacional sobre los casos de uso.
-
-    `model` se puede reemplazar (p. ej. en pruebas). Por defecto: Claude Haiku 5.5 y, si un
-    turno falla o se rechaza, Claude Sonnet 5.5.
-    """
-    agent_use_cases = AgentUseCases(
-        find_debtors_by_phone=use_cases.find_debtors_by_phone,
-        get_debtor_by_account=use_cases.get_debtor_by_account,
-        record_recording_consent=use_cases.record_recording_consent,
-        verify_identity=use_cases.verify_identity,
-        end_call=use_cases.end_call,
-        propose_next_offer=use_cases.propose_next_offer,
-        propose_partial_payment=use_cases.propose_partial_payment,
-        record_offer_response=use_cases.record_offer_response,
-        record_hardship_assessment=use_cases.record_hardship_assessment,
-        record_dispute=use_cases.record_dispute,
-        mark_do_not_call=use_cases.mark_do_not_call,
-    )
-    return StartAgentConversation(
-        agent_use_cases, use_cases.start_call,
-        model or ClaudeConversationModel(anthropic.Anthropic()), SystemClock(), company_name,
     )

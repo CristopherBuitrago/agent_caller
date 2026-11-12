@@ -6,9 +6,9 @@ verificación, oferta rechazada, oferta aceptada y cierre. Las reglas y lo guard
 
 import json
 
-from cobranza.application.interfaces.conversation_model import ModelTurn, ToolCall
+from cobranza.agent.application.conversation_model import ModelTurn, ToolCall
 from cobranza.domain.call import CallDirection, CallOutcome
-from cobranza.infrastructure.config.container import build_agent
+from cobranza.agent.infrastructure.container import build_agent
 
 
 class GuionModel:
