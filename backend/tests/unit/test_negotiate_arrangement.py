@@ -95,9 +95,9 @@ class FakeHardships:
 
 
 def _all_rejected_log():
-    """Registro de una llamada donde el deudor ya rechazó las 10 ofertas de cuotas."""
+    """Registro de una llamada donde el deudor ya rechazó las 11 ofertas (hasta el pago inicial + 12 cuotas)."""
     log = InMemoryNegotiationLog()
-    for offer_number in range(1, 11):
+    for offer_number in range(1, 12):
         log.mark_rejected("c1", log.save("c1", "ACC-1", offer_number, None).id)
     return log
 
@@ -131,7 +131,19 @@ def test_offers_go_from_the_fastest_to_the_slowest():
 
 
 def test_after_the_last_offer_there_is_nothing_left():
-    assert _use_cases(hardship_done=True)[0].execute("c1", "ACC-1", 11) is None
+    assert _use_cases(hardship_done=True)[0].execute("c1", "ACC-1", 12) is None
+
+
+def test_offer_eleven_is_ten_percent_down_and_twelve_equal_monthly_payments():
+    """N5: saldo de USD 1.000 -> 100 hoy y 12 cuotas de 75 (la primera lleva los centavos que sobran)."""
+    plan = _use_cases(hardship_done=True)[0].execute("c1", "ACC-1", 11)
+    assert plan.type is ArrangementType.PLAN and plan.total_amount_cents == 100000
+    assert [p.amount_cents for p in plan.payments] == [10000] + [7500] * 12
+    assert plan.payments[-1].due_date == TODAY.replace(year=TODAY.year + 1)   # justo 1 año
+
+
+def test_offer_eleven_needs_hardship():
+    assert _violation(_use_cases()[0].execute, "c1", "ACC-1", 11) is R.HARDSHIP_REQUIRED
 
 
 @pytest.mark.parametrize("offer_number", [1, 2, 3])
@@ -317,10 +329,13 @@ def test_next_offer_after_three_rejections_needs_hardship():
     assert _violation(next_offer.execute, "c1", "ACC-1") is R.HARDSHIP_REQUIRED
 
 
-def test_no_offer_left_after_rejecting_all_ten():
+def test_no_offer_left_after_rejecting_all_eleven():
     next_offer, respond, _ = _offer_flow(hardship_done=True)
     for _ in range(10):
         respond.execute("c1", next_offer.execute("c1", "ACC-1").id, accepted=False)
+    last = next_offer.execute("c1", "ACC-1")
+    assert last.offer_number == 11 and len(last.proposal.payments) == 13   # N5: pago inicial + 12
+    respond.execute("c1", last.id, accepted=False)
     assert next_offer.execute("c1", "ACC-1") is None
 
 
@@ -554,12 +569,12 @@ def test_after_hardship_the_amount_picks_the_fastest_plan_that_fits():
     assert next_offer.execute("c1", "ACC-1", stated_max_payment_cents=15000).offer_number == 7  # 7 de ~143
 
 
-def test_after_hardship_ten_payments_are_never_skipped_and_then_the_last_resort_partial_opens():
+def test_after_hardship_the_down_payment_plan_is_never_skipped_and_then_the_last_resort_partial_opens():
     next_offer, respond, partial, _ = _skip_flow(hardship_done=True)
     respond.execute("c1", next_offer.execute("c1", "ACC-1", stated_max_payment_cents=3000).id, accepted=False)
-    ten = next_offer.execute("c1", "ACC-1", stated_max_payment_cents=3000)
-    assert ten.offer_number == 10                                   # 10 de 100 aunque dijo 30
-    respond.execute("c1", ten.id, accepted=False)
+    last = next_offer.execute("c1", "ACC-1", stated_max_payment_cents=3000)
+    assert last.offer_number == 11          # 4 a 10 se saltan; 100 hoy y 12 de 75 aunque dijo 30
+    respond.execute("c1", last.id, accepted=False)
     assert next_offer.execute("c1", "ACC-1") is None
     assert partial.execute("c1", "ACC-1", 5000).proposal.payments[0].amount_cents == 5000  # 5%: último recurso
 

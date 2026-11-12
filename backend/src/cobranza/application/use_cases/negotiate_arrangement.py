@@ -11,12 +11,15 @@ from cobranza.application.interfaces.hardship_repository import HardshipReposito
 from cobranza.application.interfaces.negotiation_log import LoggedProposal, NegotiationLog
 from cobranza.application.use_cases.lookup_debtor import GetDebtorByAccount
 from cobranza.domain.arrangement import (
+    DOWN_PAYMENT_OFFER,
     LAST_INSTALLMENTS_BEFORE_HARDSHIP,
+    LAST_OFFER,
     MAX_INSTALLMENTS,
     STATUS_AFTER_ARRANGEMENT,
     ArrangementProposal,
     ArrangementRuleError,
     RuleViolation,
+    build_down_payment_plan,
     build_full,
     build_partial,
     build_plan,
@@ -86,7 +89,8 @@ class _ArrangementGate:
 
 
 class ProposeArrangement:
-    """La oferta que le toca al agente: 1 = todo de una, 2 = 2 cuotas, 3 = 3 cuotas...
+    """La oferta que le toca al agente: 1 = todo de una, 2 = 2 cuotas, ..., 10 = 10 cuotas y
+    11 = primer pago del 10% más 12 cuotas mensuales (N5).
 
     Desde la oferta 4 exige que las Hardship Questions ya estén registradas en la llamada.
     """
@@ -102,17 +106,19 @@ class ProposeArrangement:
         context = self._gate.check(call_id, account_external_id)
         if offer_number > LAST_INSTALLMENTS_BEFORE_HARDSHIP:
             self._gate.check_hardship_done(call_id)
-        if offer_number > MAX_INSTALLMENTS:
+        if offer_number > LAST_OFFER:
             return None
         balance = context.account.current_balance_cents
         first_due = first_due or context.today
         if offer_number == 1:
             return build_full(balance, first_due, context.today)
+        if offer_number == DOWN_PAYMENT_OFFER:
+            return build_down_payment_plan(balance, first_due, context.today)
         return build_plan(balance, offer_number, first_due, context.today)
 
 
 # La oferta más baja antes de las Hardship Questions y la más baja de todas: nunca se saltan.
-_LAST_OFFER_OF_STAGE = frozenset({LAST_INSTALLMENTS_BEFORE_HARDSHIP, MAX_INSTALLMENTS})
+_LAST_OFFER_OF_STAGE = frozenset({LAST_INSTALLMENTS_BEFORE_HARDSHIP, LAST_OFFER})
 
 
 class ProposeNextOffer:
@@ -136,7 +142,7 @@ class ProposeNextOffer:
         Hardship Questions y 10 después): decir un monto bajo no evita esas preguntas.
         """
         rejected = self._log.rejected_offer_numbers(call_id, account_external_id)
-        for offer_number in (n for n in range(1, MAX_INSTALLMENTS + 1) if n not in rejected):
+        for offer_number in (n for n in range(1, LAST_OFFER + 1) if n not in rejected):
             proposal = self._propose.execute(call_id, account_external_id, offer_number, first_due)
             if proposal is None:
                 return None
@@ -172,7 +178,7 @@ class ProposePartialPayment:
         if is_last_resort_partial(proposal):
             self._gate.check_hardship_done(call_id)
             rejected = self._log.rejected_offer_numbers(call_id, account_external_id)
-            if not set(range(1, MAX_INSTALLMENTS + 1)) <= rejected:
+            if not set(range(1, LAST_OFFER + 1)) <= rejected:
                 raise ArrangementRuleError(RuleViolation.OFFERS_NOT_EXHAUSTED)
         return self._log.save(call_id, account_external_id, None, proposal)
 

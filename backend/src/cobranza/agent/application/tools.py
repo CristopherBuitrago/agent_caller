@@ -28,10 +28,11 @@ from cobranza.application.use_cases.verify_identity import VerifyIdentity
 from cobranza.domain.arrangement import (
     LAST_INSTALLMENTS_BEFORE_HARDSHIP,
     MAX_DAYS_TO_FIRST_PAYMENT,
-    MAX_INSTALLMENTS,
+    LAST_OFFER,
     REGULAR_MIN_PARTIAL_PAYMENT_PCT,
     ArrangementRuleError,
     ArrangementType,
+    is_down_payment_plan,
     RuleViolation,
 )
 from cobranza.domain.call import CallDirection, CallOutcome
@@ -62,8 +63,9 @@ class AgentUseCases:
 
 # --- definición de las herramientas (lo que ve el modelo) ---------------------------------
 
-# Las ofertas más bajas de cada etapa: 3 cuotas antes de las Hardship Questions y 10 después (N4).
-_LOWEST_OFFER_OF_STAGE = frozenset({LAST_INSTALLMENTS_BEFORE_HARDSHIP, MAX_INSTALLMENTS})
+# Las ofertas más bajas de cada etapa: 3 cuotas antes de las Hardship Questions y, después, el pago
+# inicial más 12 cuotas (N4 y N5).
+_LOWEST_OFFER_OF_STAGE = frozenset({LAST_INSTALLMENTS_BEFORE_HARDSHIP, LAST_OFFER})
 
 _DATE = {"type": "string", "description": "Date as YYYY-MM-DD."}
 _ACCOUNT_REF = {"type": "string", "description": "account_ref returned by get_account_details."}
@@ -198,6 +200,9 @@ def _describe(logged: LoggedProposal) -> dict[str, Any]:
     proposal = logged.proposal
     if proposal.type is ArrangementType.FULL:
         option = "pay the full balance"
+    elif is_down_payment_plan(proposal):
+        option = (f"a first payment now and then {len(proposal.payments) - 1} equal monthly "
+                  "payments")
     elif proposal.type is ArrangementType.PLAN:
         option = f"{len(proposal.payments)} equal monthly payments"
     else:
@@ -313,8 +318,9 @@ class CallTools:
         logged = self._uc.propose_next_offer.execute(
             self.call_id, account_ref, _parse_date(first_payment_date, "first_payment_date"), max_cents)
         if logged is None:
-            return {"offers_exhausted": True, "next_step": "There are no more installment options. "
-                    "Ask if they could pay part of it now (propose_partial_payment); if not, use "
+            # N5: si tampoco puede con el plan de pago inicial más 12 cuotas, lo atiende una persona.
+            return {"offers_exhausted": True, "next_step": "There are no more payment options. "
+                    "Tell the debtor a representative will help them find a solution, and call "
                     "transfer_to_human."}
         self._proposals[logged.id] = logged
         if logged.offer_number in _LOWEST_OFFER_OF_STAGE:

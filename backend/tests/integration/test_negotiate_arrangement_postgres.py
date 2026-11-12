@@ -229,3 +229,18 @@ def test_hardship_answers_saved_one_at_a_time_are_all_kept(use_cases, verified_j
     # Lo nuevo reemplaza (situation_started); lo que no vino se conserva.
     assert saved == ("Lost her job last month", "six weeks ago", "long_term", True, 3000,
                      "Husband works part-time")
+
+
+def test_down_payment_plan_is_saved_with_thirteen_payments(use_cases, verified_jane, pool):
+    """N5: Jane (USD 485) acepta 48,50 hoy y 12 cuotas mensuales."""
+    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
+        situation_description="Lost her job", offered_amount_cents=3000))
+    offer = None
+    while (candidate := use_cases.propose_next_offer.execute(verified_jane, "ACC-T001",
+                                                             stated_max_payment_cents=3000)).offer_number != 11:
+        use_cases.record_offer_response.execute(verified_jane, candidate.id, accepted=False)
+    offer = candidate
+    arrangement_id = use_cases.record_offer_response.execute(verified_jane, offer.id, accepted=True)
+    arrangement, payments = _saved(pool, arrangement_id)
+    assert arrangement == ("plan", 48500, "active")
+    assert [p[1] for p in payments] == [4850, 3643] + [3637] * 11

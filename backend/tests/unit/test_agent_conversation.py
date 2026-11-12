@@ -415,3 +415,22 @@ def test_regular_offers_are_not_flagged_as_lowest():
     _run(tools, "verify_identity", **VERIFY_JANE)
     result, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
     assert "lowest_option_available_now" not in result
+
+
+def test_down_payment_plan_is_described_as_first_payment_and_monthly_payments():
+    from cobranza.domain.arrangement import build_down_payment_plan
+    plan = build_down_payment_plan(48500, date(2026, 11, 13), date(2026, 11, 13))
+    tools, _ = _tools(next_offer=lambda *a: LoggedProposal("P11", "c1", a[1], 11, plan))
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    result, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
+    assert result["option"] == "a first payment now and then 12 equal monthly payments"
+    assert result["payments"][0]["amount"] == "$48.50" and result["lowest_option_available_now"] is True
+
+
+def test_no_offers_left_transfers_to_a_person():
+    tools, _ = _tools(next_offer=lambda *a: None)
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    result, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
+    assert result["offers_exhausted"] is True and "transfer_to_human" in result["next_step"]

@@ -164,3 +164,42 @@ def test_plan_that_is_not_monthly_on_a_fixed_date_is_rejected():
 def test_partial_with_a_single_payment_is_rejected():
     partial = ArrangementProposal(ArrangementType.PARTIAL, BALANCE, (ScheduledPayment(1, BALANCE, TODAY),))
     assert _violation(validate_proposal, partial, BALANCE, TODAY) is R.INVALID_SCHEDULE
+
+
+# --- N5: primer pago del 10% y el resto en 12 cuotas mensuales iguales -----------
+
+from cobranza.domain.arrangement import build_down_payment_plan, is_down_payment_plan  # noqa: E402
+
+
+def test_down_payment_plan_for_485():
+    plan = build_down_payment_plan(48500, TODAY, TODAY)
+    amounts = [p.amount_cents for p in plan.payments]
+    assert amounts[0] == 4850 and amounts[1:] == [3643] + [3637] * 11   # 48,50; 36,43 y 11 de 36,37
+    assert sum(amounts) == 48500 and is_down_payment_plan(plan)
+    assert plan.payments[-1].due_date == date(2027, 11, 2)
+
+
+def test_down_payment_rounds_ten_percent_up():
+    assert build_down_payment_plan(48505, TODAY, TODAY).payments[0].amount_cents == 4851
+
+
+def test_one_year_limit_works_across_a_leap_day():
+    plan = build_down_payment_plan(48500, date(2027, 3, 1), date(2027, 3, 1))
+    assert plan.payments[-1].due_date == date(2028, 3, 1)   # 366 días, pero es 1 año
+
+
+@pytest.mark.parametrize("change", ["lower_down_payment", "unequal_installments", "longer"])
+def test_altered_down_payment_plans_are_rejected(change):
+    plan = build_down_payment_plan(48500, TODAY, TODAY)
+    payments = list(plan.payments)
+    if change == "lower_down_payment":      # 9% de entrada y lo demás repartido
+        payments[0] = replace(payments[0], amount_cents=4365)
+        payments[1] = replace(payments[1], amount_cents=payments[1].amount_cents + 485)
+    elif change == "unequal_installments":
+        payments[1] = replace(payments[1], amount_cents=payments[1].amount_cents + 100)
+        payments[2] = replace(payments[2], amount_cents=payments[2].amount_cents - 100)
+    else:                                   # una cuota más allá del año
+        payments.append(ScheduledPayment(14, 1, add_months(TODAY, 13)))
+        payments[1] = replace(payments[1], amount_cents=payments[1].amount_cents - 1)
+    altered = ArrangementProposal(ArrangementType.PLAN, 48500, tuple(payments))
+    assert _violation(validate_proposal, altered, 48500, TODAY) is R.INVALID_SCHEDULE

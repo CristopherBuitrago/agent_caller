@@ -84,11 +84,13 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿Se acepta menos del 10%? | "en cos muy específicos" → piso de 5%, como último recurso |
 | ¿Qué estado queda tras el acuerdo? | `PTP`; `RCC` queda fuera del alcance |
 | ¿Qué pasa después de `PTP`? | La llamada de recordatorio la hace un cobrador; ahí termina el trabajo del agente |
-| ¿Hay que recorrer ofertas que el deudor ya descartó? (N4) | Opción A', elegida por el desarrollador el 2026-11-12: si el deudor dice cuánto puede pagar por cuota, el sistema salta las ofertas con cuotas mayores y lo deja en el registro de la llamada con el motivo. Nunca salta la oferta de 3 cuotas antes de las Hardship Questions ni la de 10 después: decir "solo puedo 30" no evita las preguntas. El agente presenta esas ofertas como "la opción más baja disponible ahora", sin mencionar mínimos |
+| ¿Hay que recorrer ofertas que el deudor ya descartó? (N4) | Opción A', elegida por el desarrollador el 2026-11-12: si el deudor dice cuánto puede pagar por cuota, el sistema salta las ofertas con cuotas mayores y lo deja en el registro de la llamada con el motivo. Nunca salta la oferta de 3 cuotas antes de las Hardship Questions ni la última después (desde N5, el pago inicial más 12 cuotas): decir "solo puedo 30" no evita las preguntas. El agente presenta esas ofertas como "la opción más baja disponible ahora", sin mencionar mínimos |
 | ¿El agente puede decir que "la normativa exige al menos el 20%" para presionar? | No. Lo propuso el desarrollador para que nadie se escude en un monto bajo. Se descartó porque afirmar una regla que no existe es una práctica engañosa que prohíbe la FDCPA (sección 1692e) y contradice la decisión inicial de negociar sin presionar. La opción A' logra el mismo efecto diciendo la verdad. La idea de "10% en el primer pago y luego cuotas normales" se verá con N5 y N6 |
+| ¿Qué pasa si lo que puede pagar el deudor no alcanza ni para 10 cuotas? (N5) | Opción A, la idea del desarrollador dentro de las reglas vigentes (plazo de 1 año y mínimo del 10%), elegida el 2026-11-12: después de las Hardship Questions, la última oferta es un primer pago del 10% y el resto en 12 cuotas mensuales iguales (13 pagos en 1 año). Con USD 485: 48,50 hoy, 36,43 y luego 11 de 36,37. Si tampoco puede, se transfiere a una persona. Reemplaza el supuesto de "máximo 10 cuotas" |
 
 **Supuestos:**
-- Máximo de 10 cuotas.
+- Planes: de 2 a 10 cuotas iguales, o (después de las Hardship Questions) un primer pago del 10% más 12 cuotas mensuales iguales. El 10% se redondea hacia arriba al centavo; los centavos que sobran de la división van en la primera de las 12 cuotas.
+- "Máximo un año" se mide en meses del calendario: el último pago cae, como mucho, el mismo día del mes 12 meses después del primero (antes eran 365 días, que fallaba con años bisiestos).
 - Los 30 días del resto se cuentan desde el primer pago.
 - Si el mes no tiene el día fijado, se usa su último día.
 - Un solo acuerdo activo por cuenta.
