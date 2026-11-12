@@ -390,3 +390,28 @@ def test_dispute_said_right_before_hanging_up_is_saved():
     session.hang_up()
     assert session.outcome is CallOutcome.DISPUTE
     assert len(uc.record_dispute.calls) == 1
+
+
+# --- N4, opción A': monto que dice el deudor y "opción más baja disponible" ---------------
+
+PLAN3 = ArrangementProposal(ArrangementType.PLAN, 48500, (
+    ScheduledPayment(1, 16168, date(2026, 11, 13)), ScheduledPayment(2, 16166, date(2026, 12, 13)),
+    ScheduledPayment(3, 16166, date(2027, 1, 13))))
+
+
+def test_propose_offer_passes_the_stated_amount_and_flags_the_lowest_option():
+    tools, uc = _tools(next_offer=lambda *a: LoggedProposal("P3", "c1", a[1], 3, PLAN3))
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    result, is_error = _run(tools, "propose_offer", account_ref="ACC-deb-1", max_payment_dollars=30)
+    assert not is_error and result["lowest_option_available_now"] is True
+    assert "Do not mention any minimum percentage" in result["next_step"]
+    assert uc.propose_next_offer.calls[-1][-1] == 3000
+
+
+def test_regular_offers_are_not_flagged_as_lowest():
+    tools, _ = _tools()                                  # el doble devuelve la oferta de 2 cuotas
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    result, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
+    assert "lowest_option_available_now" not in result

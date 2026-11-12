@@ -520,3 +520,53 @@ def test_a_rejected_offer_cannot_be_accepted_later_but_the_new_one_can():
         respond.execute("c1", first.id, accepted=True)
     assert respond.execute("c1", second.id, accepted=True) == "arr-1"
     assert arrangements.created[0][2] is second.proposal
+
+
+# --- N4, opción A': el monto que dice el deudor salta ofertas, nunca las más bajas de cada etapa
+# Saldo de prueba: USD 1.000 -> 1 pago de 1.000, 2 de 500, 3 de ~333, 4 de 250 ... 10 de 100.
+
+def _skip_flow(hardship_done=False):
+    log = InMemoryNegotiationLog()
+    propose, partial, create, _, _ = _use_cases(hardship_done=hardship_done, log=log)
+    return ProposeNextOffer(propose, log), RecordOfferResponse(log, create), partial, log
+
+
+def test_offers_above_the_stated_amount_are_skipped_and_logged():
+    next_offer, _, _, log = _skip_flow()
+    offer = next_offer.execute("c1", "ACC-1", stated_max_payment_cents=60000)
+    assert offer.offer_number == 2                                  # 1.000 se saltó; 500 cabe
+    skipped = [p for p in log._by_call["c1"].values() if p.skip_reason]
+    assert [p.offer_number for p in skipped] == [1] and "60000" in skipped[0].skip_reason
+    assert log.rejected_offer_numbers("c1", "ACC-1") == {1}
+
+
+def test_a_low_amount_never_skips_three_payments_or_the_hardship_questions():
+    next_offer, respond, _, _ = _skip_flow()
+    offer = next_offer.execute("c1", "ACC-1", stated_max_payment_cents=3000)   # "solo puedo $30"
+    assert offer.offer_number == 3                                  # la más baja antes de Hardship
+    respond.execute("c1", offer.id, accepted=False)
+    assert _violation(next_offer.execute, "c1", "ACC-1", stated_max_payment_cents=3000) is R.HARDSHIP_REQUIRED
+
+
+def test_after_hardship_the_amount_picks_the_fastest_plan_that_fits():
+    next_offer, respond, _, _ = _skip_flow(hardship_done=True)
+    respond.execute("c1", next_offer.execute("c1", "ACC-1", stated_max_payment_cents=3000).id, accepted=False)
+    assert next_offer.execute("c1", "ACC-1", stated_max_payment_cents=15000).offer_number == 7  # 7 de ~143
+
+
+def test_after_hardship_ten_payments_are_never_skipped_and_then_the_last_resort_partial_opens():
+    next_offer, respond, partial, _ = _skip_flow(hardship_done=True)
+    respond.execute("c1", next_offer.execute("c1", "ACC-1", stated_max_payment_cents=3000).id, accepted=False)
+    ten = next_offer.execute("c1", "ACC-1", stated_max_payment_cents=3000)
+    assert ten.offer_number == 10                                   # 10 de 100 aunque dijo 30
+    respond.execute("c1", ten.id, accepted=False)
+    assert next_offer.execute("c1", "ACC-1") is None
+    assert partial.execute("c1", "ACC-1", 5000).proposal.payments[0].amount_cents == 5000  # 5%: último recurso
+
+
+def test_a_skipped_offer_cannot_be_accepted():
+    next_offer, respond, _, log = _skip_flow()
+    next_offer.execute("c1", "ACC-1", stated_max_payment_cents=60000)
+    skipped = next(p for p in log._by_call["c1"].values() if p.skip_reason)
+    with pytest.raises(ValueError):
+        respond.execute("c1", skipped.id, accepted=True)

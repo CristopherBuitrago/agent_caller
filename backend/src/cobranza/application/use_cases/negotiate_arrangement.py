@@ -111,6 +111,10 @@ class ProposeArrangement:
         return build_plan(balance, offer_number, first_due, context.today)
 
 
+# La oferta más baja antes de las Hardship Questions y la más baja de todas: nunca se saltan.
+_LAST_OFFER_OF_STAGE = frozenset({LAST_INSTALLMENTS_BEFORE_HARDSHIP, MAX_INSTALLMENTS})
+
+
 class ProposeNextOffer:
     """La siguiente oferta que le toca al deudor: la más rápida que todavía no rechazó.
 
@@ -122,17 +126,28 @@ class ProposeNextOffer:
         self._propose = propose
         self._log = log
 
-    def execute(self, call_id: str, account_external_id: str,
-                first_due: date | None = None) -> LoggedProposal | None:
-        """Devuelve None cuando el deudor ya rechazó todas las ofertas de cuotas."""
+    def execute(self, call_id: str, account_external_id: str, first_due: date | None = None,
+                stated_max_payment_cents: int | None = None) -> LoggedProposal | None:
+        """Devuelve None cuando el deudor ya rechazó todas las ofertas de cuotas.
+
+        `stated_max_payment_cents` (N4, opción A'): lo máximo que el deudor dijo poder pagar por
+        cuota. Las ofertas con una cuota mayor se saltan y quedan en el registro como rechazadas,
+        con el motivo. Nunca se salta la última oferta de cada etapa (3 cuotas antes de las
+        Hardship Questions y 10 después): decir un monto bajo no evita esas preguntas.
+        """
         rejected = self._log.rejected_offer_numbers(call_id, account_external_id)
-        offer_number = next((n for n in range(1, MAX_INSTALLMENTS + 1) if n not in rejected), None)
-        if offer_number is None:
-            return None
-        proposal = self._propose.execute(call_id, account_external_id, offer_number, first_due)
-        if proposal is None:
-            return None
-        return self._log.save(call_id, account_external_id, offer_number, proposal)
+        for offer_number in (n for n in range(1, MAX_INSTALLMENTS + 1) if n not in rejected):
+            proposal = self._propose.execute(call_id, account_external_id, offer_number, first_due)
+            if proposal is None:
+                return None
+            if (stated_max_payment_cents is not None and offer_number not in _LAST_OFFER_OF_STAGE
+                    and proposal.payments[0].amount_cents > stated_max_payment_cents):
+                self._log.save_skipped(call_id, account_external_id, offer_number, proposal,
+                                       f"payment above the {stated_max_payment_cents} cents the debtor "
+                                       "said they can pay")
+                continue
+            return self._log.save(call_id, account_external_id, offer_number, proposal)
+        return None
 
 
 class ProposePartialPayment:

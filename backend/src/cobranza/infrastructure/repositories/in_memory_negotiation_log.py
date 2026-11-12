@@ -19,10 +19,17 @@ class InMemoryNegotiationLog:
 
     def save(self, call_id: str, account_external_id: str, offer_number: int | None,
              proposal: ArrangementProposal) -> LoggedProposal:
-        logged = LoggedProposal(f"P{uuid.uuid4().hex[:8]}", call_id, account_external_id,
-                                offer_number, proposal)
+        return self._store(LoggedProposal(f"P{uuid.uuid4().hex[:8]}", call_id, account_external_id,
+                                          offer_number, proposal))
+
+    def save_skipped(self, call_id: str, account_external_id: str, offer_number: int,
+                     proposal: ArrangementProposal, reason: str) -> LoggedProposal:
+        return self._store(LoggedProposal(f"S{uuid.uuid4().hex[:8]}", call_id, account_external_id,
+                                          offer_number, proposal, rejected=True, skip_reason=reason))
+
+    def _store(self, logged: LoggedProposal) -> LoggedProposal:
         with self._lock:
-            self._by_call.setdefault(call_id, {})[logged.id] = logged
+            self._by_call.setdefault(logged.call_id, {})[logged.id] = logged
         return logged
 
     def get(self, call_id: str, proposal_id: str) -> LoggedProposal | None:

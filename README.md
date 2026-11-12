@@ -84,6 +84,8 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿Se acepta menos del 10%? | "en cos muy específicos" → piso de 5%, como último recurso |
 | ¿Qué estado queda tras el acuerdo? | `PTP`; `RCC` queda fuera del alcance |
 | ¿Qué pasa después de `PTP`? | La llamada de recordatorio la hace un cobrador; ahí termina el trabajo del agente |
+| ¿Hay que recorrer ofertas que el deudor ya descartó? (N4) | Opción A', elegida por el desarrollador el 2026-11-12: si el deudor dice cuánto puede pagar por cuota, el sistema salta las ofertas con cuotas mayores y lo deja en el registro de la llamada con el motivo. Nunca salta la oferta de 3 cuotas antes de las Hardship Questions ni la de 10 después: decir "solo puedo 30" no evita las preguntas. El agente presenta esas ofertas como "la opción más baja disponible ahora", sin mencionar mínimos |
+| ¿El agente puede decir que "la normativa exige al menos el 20%" para presionar? | No. Lo propuso el desarrollador para que nadie se escude en un monto bajo. Se descartó porque afirmar una regla que no existe es una práctica engañosa que prohíbe la FDCPA (sección 1692e) y contradice la decisión inicial de negociar sin presionar. La opción A' logra el mismo efecto diciendo la verdad. La idea de "10% en el primer pago y luego cuotas normales" se verá con N5 y N6 |
 
 **Supuestos:**
 - Máximo de 10 cuotas.

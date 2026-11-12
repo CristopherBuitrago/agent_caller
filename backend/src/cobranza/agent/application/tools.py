@@ -26,7 +26,9 @@ from cobranza.application.use_cases.negotiate_arrangement import (
 from cobranza.application.use_cases.register_call import EndCall, RecordRecordingConsent
 from cobranza.application.use_cases.verify_identity import VerifyIdentity
 from cobranza.domain.arrangement import (
+    LAST_INSTALLMENTS_BEFORE_HARDSHIP,
     MAX_DAYS_TO_FIRST_PAYMENT,
+    MAX_INSTALLMENTS,
     REGULAR_MIN_PARTIAL_PAYMENT_PCT,
     ArrangementRuleError,
     ArrangementType,
@@ -59,6 +61,9 @@ class AgentUseCases:
 
 
 # --- definición de las herramientas (lo que ve el modelo) ---------------------------------
+
+# Las ofertas más bajas de cada etapa: 3 cuotas antes de las Hardship Questions y 10 después (N4).
+_LOWEST_OFFER_OF_STAGE = frozenset({LAST_INSTALLMENTS_BEFORE_HARDSHIP, MAX_INSTALLMENTS})
 
 _DATE = {"type": "string", "description": "Date as YYYY-MM-DD."}
 _ACCOUNT_REF = {"type": "string", "description": "account_ref returned by get_account_details."}
@@ -96,7 +101,10 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
           "Get the next payment option the system allows. Present exactly what it returns.",
           {"account_ref": _ACCOUNT_REF,
            "first_payment_date": {**_DATE, "description": "Optional date the debtor wants for "
-                                  "the first payment. Omit it to use today."}},
+                                  "the first payment. Omit it to use today."},
+           "max_payment_dollars": {"type": "number", "description": "Optional. The most the debtor "
+                                   "said they can pay per payment. Options above it are skipped, "
+                                   "but the system always keeps its lowest options."}},
           ("account_ref",)),
     _spec("record_offer_response",
           "Record whether the debtor accepted or declined a proposal. Accepting creates the "
@@ -298,15 +306,24 @@ class CallTools:
             "You cannot handle these accounts. Transfer with transfer_to_human.")
         return result
 
-    def _tool_propose_offer(self, account_ref: str, first_payment_date: str | None = None) -> dict:
+    def _tool_propose_offer(self, account_ref: str, first_payment_date: str | None = None,
+                            max_payment_dollars: float | None = None) -> dict:
         self._require_own_account(account_ref)
+        max_cents = round(float(max_payment_dollars) * 100) if max_payment_dollars is not None else None
         logged = self._uc.propose_next_offer.execute(
-            self.call_id, account_ref, _parse_date(first_payment_date, "first_payment_date"))
+            self.call_id, account_ref, _parse_date(first_payment_date, "first_payment_date"), max_cents)
         if logged is None:
             return {"offers_exhausted": True, "next_step": "There are no more installment options. "
                     "Ask if they could pay part of it now (propose_partial_payment); if not, use "
                     "transfer_to_human."}
         self._proposals[logged.id] = logged
+        if logged.offer_number in _LOWEST_OFFER_OF_STAGE:
+            # Es cierto decir que es la opción más baja disponible ahora; nunca se inventa una regla.
+            return {**_describe(logged), "lowest_option_available_now": True, "next_step":
+                    "Present this as the lowest option you have available right now. Do not mention "
+                    "any minimum percentage or rule. If the debtor accepts, call record_offer_response "
+                    "with accepted true; if they say it is not possible, call it with accepted false "
+                    "and then call propose_offer again."}
         return {**_describe(logged), "next_step": "Present this option as the fastest way to "
                 "resolve it. If the debtor accepts, call record_offer_response with accepted true; "
                 "if they say it is not possible, call it with accepted false."}
