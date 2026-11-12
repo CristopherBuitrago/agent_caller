@@ -13,7 +13,8 @@ LOCKOUT_WINDOW = timedelta(hours=24)
 
 class VerificationOutcome(Enum):
     VERIFIED = "verified"
-    # El nombre no coincidió: el agente pide deletrear el apellido. No cuenta como intento.
+    # SSN, fecha y nombre de pila coinciden; solo el apellido no (error típico al transcribir):
+    # el agente pide deletrear el apellido. No cuenta como intento.
     NAME_RETRY = "name_retry"
     # Falló; puede volver a intentarlo en esta llamada. No se dice qué dato falló.
     FAILED = "failed"
@@ -63,6 +64,19 @@ def names_match(spoken_full_name: str, first_name: str, last_name: str) -> bool:
     if not spoken or not first or not last or len(spoken) < len(first) + len(last):
         return False
     return spoken[: len(first)] == first and spoken[-len(last):] == last
+
+
+def only_last_name_differs(spoken_full_name: str, first_name: str, last_name: str) -> bool:
+    """El nombre de pila coincide y el apellido no: suele ser un error al transcribir la voz.
+
+    Es el único caso en que tiene sentido pedir que deletree el apellido (S2).
+    "Jane Karter" -> True; "Paul Carter" -> False (lo que falla es el nombre de pila).
+    """
+    spoken = _name_tokens(spoken_full_name)
+    first = _name_tokens(first_name)
+    if not spoken or not first or len(spoken) <= len(first) or spoken[: len(first)] != first:
+        return False
+    return not names_match(spoken_full_name, first_name, last_name)
 
 
 def is_valid_ssn_last4(value: str) -> bool:

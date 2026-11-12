@@ -16,6 +16,7 @@ from cobranza.domain.identity import (
     first_name_changed,
     is_valid_ssn_last4,
     names_match,
+    only_last_name_differs,
 )
 
 
@@ -61,15 +62,18 @@ class VerifyIdentity:
             raise ValueError(f"Deudor desconocido: {debtor_id}")
 
         name_ok = names_match(full_name, identity.first_name, identity.last_name)
-        if not name_ok and not name_was_spelled:
-            return VerificationOutcome.NAME_RETRY
-
-        verified = (
-            name_ok
-            and is_valid_ssn_last4(ssn_last4)
+        data_ok = (
+            is_valid_ssn_last4(ssn_last4)
             and hmac.compare_digest(self._hasher.hash(ssn_last4), identity.ssn_last4_hash)
             and hmac.compare_digest(self._hasher.hash(dob.isoformat()), identity.dob_hash)
         )
+        # S2: deletrear solo cuando todo coincide menos el apellido (error típico al transcribir la voz).
+        # Cualquier otro fallo es un intento fallido normal, sin decir qué dato falló.
+        if (data_ok and not name_was_spelled
+                and only_last_name_differs(full_name, identity.first_name, identity.last_name)):
+            return VerificationOutcome.NAME_RETRY
+
+        verified = name_ok and data_ok
         self._calls.record_verification_attempt(call_id, debtor_id, verified)
 
         if verified:

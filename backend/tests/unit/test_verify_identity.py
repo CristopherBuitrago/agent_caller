@@ -12,6 +12,7 @@ from cobranza.domain.identity import (
     IdentityRecord,
     VerificationOutcome as V,
     first_name_changed,
+    only_last_name_differs,
     names_match,
 )
 
@@ -198,3 +199,30 @@ def test_locked_debtor_stays_locked_even_if_the_name_changes():
     uc, _ = _setup(old=old)
     assert uc.execute("c1", "jane", "Jane Carter", "1234", date(1985, 3, 14),
                       earlier_names=("Paul Carter",)) is V.LOCKED
+
+
+# --- S2: deletrear el apellido solo si es lo único que falla (simulación 8) ------
+
+@pytest.mark.parametrize("spoken, differs", [
+    ("Jane Karter", True),        # solo el apellido: posible error de transcripción
+    ("Jane Marie Karter", True),
+    ("Paul Carter", False),       # falla el nombre de pila
+    ("Paul Karter", False),
+    ("Jane Carter", False),       # todo coincide
+    ("Jane", False),              # no dijo apellido
+])
+def test_only_last_name_differs(spoken, differs):
+    assert only_last_name_differs(spoken, "Jane", "Carter") is differs
+
+
+def test_wrong_first_name_fails_without_asking_to_spell():
+    uc, calls = _setup()
+    assert _verify(uc, name="Paul Carter") is V.FAILED   # con SSN y fecha correctos
+    assert calls.calls["c1"].attempts == 1
+
+
+@pytest.mark.parametrize("ssn, dob", [("9999", date(1985, 3, 14)), ("1234", date(1980, 1, 1))])
+def test_wrong_last_name_with_wrong_data_fails_without_asking_to_spell(ssn, dob):
+    uc, calls = _setup()
+    assert _verify(uc, name="Jane Karter", ssn=ssn, dob=dob) is V.FAILED
+    assert calls.calls["c1"].attempts == 1

@@ -50,6 +50,7 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿Bloquear tras 5 fallos en 24 h? | "Listo si" (propuesta de Claude) |
 | ¿Pedir deletrear el apellido antes de contar un fallo? | "Perfecto" (propuesta de Claude) |
 | ¿Qué pasa si quien llama cambia de nombre entre intentos? (S1, simulación 8: dijo "Paul Carter", falló, y luego "Jane Carter" pasó) | Se cierra la llamada con un resultado nuevo, `identity_mismatch`, sin revisar los datos del segundo nombre, y se le pide llamar de nuevo con sus datos; después se le vuelve a llamar. Decidido por el desarrollador el 2026-11-12 |
+| ¿Cuándo se pide deletrear el apellido? (S2, simulación 8: se pedía aunque fallara el nombre de pila y antes de revisar SSN y fecha) | Solo cuando el SSN, la fecha y el nombre de pila coinciden y lo único que no coincide es el apellido (error típico al transcribir la voz). Cualquier otro fallo es un intento fallido normal, sin decir qué dato falló. Opción A, elegida por el desarrollador el 2026-11-12 |
 
 **Supuestos:**
 - Máximo 2 fallos por llamada.
