@@ -234,3 +234,21 @@ def test_real_claude_pair_falls_back_from_haiku_to_sonnet():
     sonnet = ClaudeCallSummarizer(sonnet_client, "claude-sonnet-5-5")
     assert FallbackCallSummarizer(haiku, sonnet).summarize("t") == "Summary by Sonnet."
     assert sonnet_client.requests[0]["model"] == "claude-sonnet-5-5"
+
+
+# --- N3: la grabación empieza con el "sí" del deudor ----------------------------
+
+class FakeRecorder:
+    def __init__(self):
+        self.started = []
+
+    def start(self, call_id):
+        self.started.append(call_id)
+
+
+@pytest.mark.parametrize("accepted, started", [(True, 1), (False, 0)])
+def test_recording_starts_only_after_consent(accepted, started):
+    calls, recorder = FakeCalls(), FakeRecorder()
+    call_id = _start(calls).execute(CallDirection.INBOUND, "+12125550100")
+    RecordRecordingConsent(calls, recorder).execute(call_id, accepted)
+    assert recorder.started == [call_id] * started

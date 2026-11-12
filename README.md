@@ -64,6 +64,7 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿La IA genera el resumen? | "Si, que lo genere la IA" |
 | ¿Con qué modelo? | Claude Haiku 5.5, con Claude Sonnet 5.5 como respaldo |
 | ¿En qué idioma va el resumen? | Inglés: "todos ahi hablan ingles y el servicio es para estados unidos" (2026-11-08) |
+| ¿Cuándo se avisa de la grabación en las salientes? (N3) | Opción A, elegida por el desarrollador el 2026-11-12: el saludo solo pregunta por el deudor ("Hi, may I speak with Jane Carter, please?"); cuando la persona confirma que es el deudor, el agente se identifica y da el aviso; recién con su "sí" se verifica la identidad. La grabación empieza con ese "sí" (`RecordRecordingConsent` llama a `CallRecorder.start`): a un tercero que conteste no se le dice nada ni se le graba. Se pidió avisar después de verificar, pero la verificación pide SSN y fecha, y estados como Florida exigen el consentimiento de todas las partes antes de grabar. En las entrantes el aviso sigue en el saludo |
 
 **Pendiente:** falta `ANTHROPIC_API_KEY` para probar el resumen con la API real.
 **Alerta:** ninguna ley federal obliga a grabar, hasta donde sabe Claude; falta confirmar de dónde sale esa regla (alerta 2).

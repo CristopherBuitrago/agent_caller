@@ -45,6 +45,7 @@ from cobranza.infrastructure.services.claude_call_summarizer import (
 )
 from cobranza.infrastructure.services.fallback_call_summarizer import FallbackCallSummarizer
 from cobranza.infrastructure.services.hmac_pii_hasher import HmacSha256PiiHasher
+from cobranza.infrastructure.services.logging_call_recorder import LoggingCallRecorder
 from cobranza.infrastructure.services.phonenumbers_phone_service import PhonenumbersPhoneService
 from cobranza.infrastructure.services.system_clock import SystemClock
 
@@ -113,7 +114,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
             PostgresIdentityRepository(pool), calls, HmacSha256PiiHasher(pii_hmac_key), clock, outbound,
         ),
         start_call=StartCall(calls, debtors, phones, clock),
-        record_recording_consent=RecordRecordingConsent(calls),
+        record_recording_consent=RecordRecordingConsent(calls, LoggingCallRecorder()),
         end_call=end_call,
         record_dispute=RecordDispute(calls, debtors, end_call),
         mark_do_not_call=MarkDoNotCall(calls, debtors, end_call),

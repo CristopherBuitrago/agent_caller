@@ -2,6 +2,7 @@
 
 import logging
 
+from cobranza.application.interfaces.call_recorder import CallRecorder
 from cobranza.application.interfaces.call_repository import CallRepository
 from cobranza.application.interfaces.call_summarizer import CallSummarizer, SummarizationError
 from cobranza.application.interfaces.clock import Clock
@@ -37,15 +38,21 @@ class StartCall:
 
 
 class RecordRecordingConsent:
-    def __init__(self, calls: CallRepository):
+    def __init__(self, calls: CallRepository, recorder: CallRecorder | None = None):
         self._calls = calls
+        self._recorder = recorder
 
     def execute(self, call_id: str, accepted: bool) -> bool:
-        """Devuelve si la llamada puede continuar. Si es False, el agente debe cerrar con RECORDING_REFUSED."""
+        """Devuelve si la llamada puede continuar. Si es False, el agente debe cerrar con RECORDING_REFUSED.
+
+        La grabación empieza aquí, con el "sí" del deudor (N3): antes no se graba a nadie.
+        """
         call = self._calls.get(call_id)
         if call is None or not call.is_open:
             raise ValueError(f"Llamada desconocida o cerrada: {call_id}")
         self._calls.set_recording_consent(call_id, accepted)
+        if accepted and self._recorder is not None:
+            self._recorder.start(call_id)
         return accepted
 
 
