@@ -49,6 +49,7 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿Pedir deletrear el apellido antes de contar un fallo? | "Perfecto" (propuesta de Claude) |
 | ¿Qué pasa si quien llama cambia de nombre entre intentos? (S1, simulación 8: dijo "Paul Carter", falló, y luego "Jane Carter" pasó) | Se cierra la llamada con un resultado nuevo, `identity_mismatch`, sin revisar los datos del segundo nombre, y se le pide llamar de nuevo con sus datos; después se le vuelve a llamar. Decidido por el desarrollador el 2026-11-12 |
 | ¿Cuándo se pide deletrear el apellido? (S2, simulación 8: se pedía aunque fallara el nombre de pila y antes de revisar SSN y fecha) | Solo cuando el SSN, la fecha y el nombre de pila coinciden y lo único que no coincide es el apellido (error típico al transcribir la voz). Cualquier otro fallo es un intento fallido normal, sin decir qué dato falló. Opción A, elegida por el desarrollador el 2026-11-12 |
+| ¿Quitar el nombre y que el agente lea el SSN y la fecha para que el deudor confirme? (N2, pedido del jefe) | Se deja como está: el deudor dice nombre completo, últimos 4 del SSN y fecha de nacimiento (opción A). "Ya lo dejamos en un punto intermedio, si luego mi jefe pide pasar a la opcion C, se hace porque son ordenes de mi jefe". Alerta: leerle los datos al deudor los revela a quien conteste y no se puede con el diseño actual (datos guardados como hash) | Desarrollador, 2026-11-12 |
 
 **Supuestos:**
 - Máximo 2 fallos por llamada.
