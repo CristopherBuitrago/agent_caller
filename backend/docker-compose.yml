@@ -35,6 +35,8 @@ services:
       PII_HMAC_KEY: dev-only-pii-key
       # Se toma de la terminal o de un archivo .env en backend/ (no se sube al repositorio).
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # N12: línea de entrada que atiende el agente, para quien no logra verificarse (por confirmar).
+      AGENT_CALLBACK_NUMBER: ${AGENT_CALLBACK_NUMBER:-}
     depends_on:
       db:
         condition: service_healthy

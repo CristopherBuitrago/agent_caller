@@ -85,6 +85,8 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] N10: SMS solo de aviso 3 días antes de cada cuota (`SendPaymentReminders`, tipo `payment_reminder` en `sms_messages`), además del link el día de la cuota. 323 pruebas pasan (2026-11-12)
 - [ ] N10, pendiente: a los 5 días sin pago, acuerdo `broken` y alerta por Teams (o el canal de la empresa) sin cambiar el estado de la cuenta. Falta confirmarlo con el jefe y el aviso de pago del procesador
 - [x] N11 (decisión, sin construir): disputa con alerta al equipo y revisión de un cobrador; el agente busca el pago en la llamada; si no lo encuentra, no acusa y registra la disputa igual (supuesto vigente) (2026-11-12)
+- [x] N12: al cerrar por verificación fallida o cambio de nombre, el agente da el número para devolver la llamada (`AGENT_CALLBACK_NUMBER`; si no está configurado, no se ofrece). 330 pruebas pasan (2026-11-12)
+- [ ] Preguntar al jefe (N12): confirmar la opción y cuál es el número de la línea de entrada que atiende el agente
 - [ ] Preguntar al jefe: proveedor de SMS ("empieza por V"), página de pago del procesador, estado de la cuenta cuando se pagan todas las cuotas, si aprueba que el primer pago vaya hasta fin de mes en vez de 8 días (N8), y si a los 5 días sin pago se puede marcar `broken` y avisar por Teams (u otro canal) sin cambiar el estado (N10)
 - [ ] Preguntar al jefe (N11): qué estado se le pone a la cuenta al marcarse en disputa, qué se hace con el resultado de la revisión (válida o no) y si se puede consultar en su base si un pago entró
 - [ ] Resolver una por una las observaciones del informe: S2, después negocio (N1–N15), backend (B1–B15) y prompt (P1–P12, en un solo cambio). Lo legal (L1–L7) se anota como supuesto

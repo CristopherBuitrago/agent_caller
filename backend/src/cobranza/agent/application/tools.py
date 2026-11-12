@@ -234,9 +234,11 @@ class CallTools:
 
     def __init__(self, uc: AgentUseCases, call_id: str, direction: CallDirection,
                  caller_phone: str, outbound_account: str | None,
-                 transcript: Callable[[], str], clock: Clock | None = None):
+                 transcript: Callable[[], str], clock: Clock | None = None,
+                 callback_number: str | None = None):
         self._uc = uc
         self._clock = clock
+        self._callback_number = callback_number  # N12: línea de entrada que atiende el agente
         self.call_id = call_id
         self._direction = direction
         self._caller_phone = caller_phone
@@ -304,7 +306,12 @@ class CallTools:
             self._debtor = debtor
         elif outcome is VerificationOutcome.IDENTITY_MISMATCH:
             self._close(CallOutcome.IDENTITY_MISMATCH)
-        return {"outcome": outcome.value, "next_step": _VERIFICATION_NEXT_STEP[outcome]}
+        next_step = _VERIFICATION_NEXT_STEP[outcome]
+        if outcome in _OFFER_CALLBACK_NUMBER and self._callback_number:
+            # N12: quien no logra verificarse recibe el número de la línea que atiende el agente.
+            next_step += (f' Before saying goodbye, say: "If you\'d like, you can call us back at '
+                          f'{spoken_phone(self._callback_number)} whenever you have your information handy."')
+        return {"outcome": outcome.value, "next_step": next_step}
 
     def _tool_get_account_details(self) -> dict:
         debtor = self._require_debtor()
@@ -523,3 +530,16 @@ _VERIFICATION_NEXT_STEP = {
         "with their own information. Do not mention any debt and do not say which item did not "
         "match. Then say goodbye.",
 }
+# N12: al cerrar sin verificar, se ofrece el número para devolver la llamada (si está configurado).
+_OFFER_CALLBACK_NUMBER = frozenset({VerificationOutcome.MAX_ATTEMPTS_REACHED,
+                                    VerificationOutcome.IDENTITY_MISMATCH})
+
+
+def spoken_phone(e164: str) -> str:
+    """"+18005550199" -> "1-800-555-0199" (para decirlo en voz). Otros formatos se dejan igual."""
+    digits = "".join(ch for ch in e164 if ch.isdigit())
+    if len(digits) == 11 and digits.startswith("1"):
+        return f"1-{digits[1:4]}-{digits[4:7]}-{digits[7:]}"
+    if len(digits) == 10:
+        return f"{digits[:3]}-{digits[3:6]}-{digits[6:]}"
+    return e164

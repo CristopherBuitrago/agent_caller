@@ -1,5 +1,7 @@
 """Contenedor del agente de voz: arma la conversación sobre los casos de uso del núcleo."""
 
+import os
+
 import anthropic
 
 from cobranza.agent.application.conversation import StartAgentConversation
@@ -13,12 +15,17 @@ DEFAULT_COMPANY_NAME = "Lakeside Recovery Services"  # nombre ficticio para el c
 
 
 def build_agent(use_cases: UseCases, model: ConversationModel | None = None,
-                company_name: str = DEFAULT_COMPANY_NAME) -> StartAgentConversation:
+                company_name: str = DEFAULT_COMPANY_NAME,
+                callback_number: str | None = None) -> StartAgentConversation:
     """Arma el agente conversacional sobre los casos de uso.
 
     `model` se puede reemplazar (p. ej. en pruebas). Por defecto: Claude Haiku 5.5 y, si un
     turno falla o se rechaza, Claude Sonnet 5.5.
+
+    `callback_number` (N12): la línea de entrada que atiende el agente, para quien no logra
+    verificarse. Si no se pasa, se toma de AGENT_CALLBACK_NUMBER; si tampoco existe, no se ofrece.
     """
+    callback_number = callback_number or os.environ.get("AGENT_CALLBACK_NUMBER") or None
     agent_use_cases = AgentUseCases(
         find_debtors_by_phone=use_cases.find_debtors_by_phone,
         get_debtor_by_account=use_cases.get_debtor_by_account,
@@ -35,4 +42,5 @@ def build_agent(use_cases: UseCases, model: ConversationModel | None = None,
     return StartAgentConversation(
         agent_use_cases, use_cases.start_call,
         model or ClaudeConversationModel(anthropic.Anthropic()), SystemClock(), company_name,
+        callback_number,
     )

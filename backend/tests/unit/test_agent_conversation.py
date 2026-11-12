@@ -481,3 +481,40 @@ def test_near_the_end_of_the_month_it_asks_for_this_month_first():
     assert result["latest_first_payment_date"] == "2027-02-28"
     rule = result["first_payment_date_rule"]
     assert rule.index("Sunday, January 31, 2027") < rule.index("Sunday, February 28, 2027")
+
+
+# --- N12: número para devolver la llamada a quien no logra verificarse ---------------------
+
+from cobranza.agent.application.tools import spoken_phone  # noqa: E402
+
+
+@pytest.mark.parametrize("outcome", [VerificationOutcome.MAX_ATTEMPTS_REACHED,
+                                     VerificationOutcome.IDENTITY_MISMATCH])
+def test_failed_verification_offers_the_callback_number(outcome):
+    tools, _ = _tools(verify=outcome)
+    tools._callback_number = "+18005550199"
+    _run(tools, "record_recording_consent", accepted=True)
+    result, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert "call us back at 1-800-555-0199" in result["next_step"]
+    assert "debt" in result["next_step"]                    # sigue diciendo "Do not mention any debt"
+
+
+def test_without_a_configured_number_nothing_is_offered():
+    tools, _ = _tools(verify=VerificationOutcome.MAX_ATTEMPTS_REACHED)
+    _run(tools, "record_recording_consent", accepted=True)
+    result, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert "call us back" not in result["next_step"]
+
+
+def test_other_outcomes_do_not_offer_the_number():
+    tools, _ = _tools(verify=VerificationOutcome.FAILED)
+    tools._callback_number = "+18005550199"
+    _run(tools, "record_recording_consent", accepted=True)
+    result, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert "call us back" not in result["next_step"]
+
+
+@pytest.mark.parametrize("raw, spoken", [("+18005550199", "1-800-555-0199"),
+                                         ("3055550001", "305-555-0001"), ("ext 12", "ext 12")])
+def test_spoken_phone(raw, spoken):
+    assert spoken_phone(raw) == spoken

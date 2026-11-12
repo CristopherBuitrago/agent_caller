@@ -145,20 +145,22 @@ class StartAgentConversation:
     """Abre la llamada y devuelve la sesión con el saludo del agente."""
 
     def __init__(self, uc: AgentUseCases, start_call: StartCall, model: ConversationModel,
-                 clock: Clock, company_name: str):
+                 clock: Clock, company_name: str, callback_number: str | None = None):
         self._uc = uc
         self._start_call = start_call
         self._model = model
         self._clock = clock
         self._system_prompt = render_system_prompt(company_name)
+        self._callback_number = callback_number
 
     def execute(self, direction: CallDirection, caller_phone: str,
                 account_external_id: str | None = None,
                 on_tool: ToolObserver | None = None) -> tuple[AgentSession, AgentReply]:
         call_id = self._start_call.execute(direction, caller_phone, account_external_id)
         session: AgentSession | None = None
-        tools = CallTools(self._uc, call_id, direction, caller_phone, account_external_id, clock=self._clock,
-                          transcript=lambda: session.transcript() if session else "")
+        tools = CallTools(self._uc, call_id, direction, caller_phone, account_external_id,
+                          transcript=lambda: session.transcript() if session else "",
+                          clock=self._clock, callback_number=self._callback_number)
         session = AgentSession(tools, self._model.start(self._system_prompt, list(TOOL_SPECS)), on_tool)
         return session, session.call_event(self._opening_event(direction, account_external_id))
 
