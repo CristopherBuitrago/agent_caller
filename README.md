@@ -214,6 +214,7 @@ Ejemplo de confirmación: *"Lakeside Recovery Services: your payment arrangement
 | ¿Cuándo se saca de la lista al deudor que llama? | Cuando la llamada entrante verifica su identidad (opción A). Si alguien llama desde su teléfono y no se verifica, el deudor sigue en la lista: un impostor no puede evitar que lo llamen | Desarrollador |
 | ¿Se aprueba la tabla `outbound_call_list` y sus criterios? | "Si, me parece bien la lista" | Desarrollador |
 | ¿Qué llamadas entrantes atiende el agente? | El jefe propondrá al dueño de la empresa que las entrantes de deudores en NSF pasen directo al agente; el agente solo llama y contesta. Las de otros estados ya se transfieren a una persona | Jefe (por confirmar con el dueño) |
+| ¿Quién vuelve a llamar si la llamada termina sin acuerdo? (N9) | Opción A, elegida por el desarrollador el 2026-11-12: la lista diaria. Sin una hora pedida, el deudor vuelve solo a la lista cuando la Reg F lo permite (7 días después de una conversación; al día siguiente si contestó un tercero o nadie). Si el deudor pide que lo llamen en un día y una hora, ese día entra a la lista para esa hora (necesita B2: guardar la hora pedida). Si llama antes y verifica su identidad, sale de la lista | Desarrollador |
 
 Cómo quedó construido:
 - Tabla `outbound_call_list`: una fila por cuenta y día (`pending`, `called` o `removed`, con el motivo y la llamada que la sacó).
