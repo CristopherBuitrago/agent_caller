@@ -448,3 +448,36 @@ def test_partial_with_installments_is_described_and_passes_the_limit():
     assert not is_error
     assert result["option"] == "a partial payment now and the rest in 2 equal monthly payments"
     assert uc.propose_partial_payment.calls[-1][-1] == 20000
+
+
+# --- N8: la herramienta dice hasta cuándo puede ir el primer pago --------------------------
+
+class _Clock:
+    def __init__(self, now):
+        self._now = now
+
+    def now(self):
+        return self._now
+
+
+def _tools_on(day):
+    from datetime import datetime, timezone
+    tools, uc = _tools()
+    tools._clock = _Clock(datetime(day.year, day.month, day.day, 17, 0, tzinfo=timezone.utc))
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    return tools
+
+
+def test_offer_says_the_first_payment_can_wait_until_the_end_of_the_month():
+    result, _ = _run(_tools_on(date(2026, 11, 12)), "propose_offer", account_ref="ACC-deb-1")
+    assert result["latest_first_payment_date"] == "2026-11-30"
+    assert result["first_payment_date_rule"].startswith("Try to get the first payment today.")
+    assert "Monday, November 30, 2026" in result["first_payment_date_rule"]
+
+
+def test_near_the_end_of_the_month_it_asks_for_this_month_first():
+    result, _ = _run(_tools_on(date(2027, 1, 27)), "propose_offer", account_ref="ACC-deb-1")
+    assert result["latest_first_payment_date"] == "2027-02-28"
+    rule = result["first_payment_date_rule"]
+    assert rule.index("Sunday, January 31, 2027") < rule.index("Sunday, February 28, 2027")

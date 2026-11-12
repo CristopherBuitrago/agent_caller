@@ -15,7 +15,10 @@ REGULAR_MIN_PARTIAL_PAYMENT_PCT = 10
 # Último recurso, "cuando no hay opción": requiere Hardship y haber rechazado todas las ofertas.
 MIN_PARTIAL_PAYMENT_PCT = 5
 LAST_INSTALLMENTS_BEFORE_HARDSHIP = 3
-MAX_DAYS_TO_FIRST_PAYMENT = 8
+# N8 (2026-11-12, reemplaza los 8 días que aprobó el jefe; por confirmar con él): el primer pago
+# puede ir hasta fin de este mes, que es cuando cobra la mayoría. Si faltan menos de 8 días, hasta
+# fin del mes siguiente (el agente ofrece primero fin de este mes). Siempre se intenta hoy primero.
+MIN_DAYS_BEFORE_MONTH_END = 8
 MAX_DAYS_TO_PAY_REMAINDER = 30  # contados desde el primer pago
 # Plazo máximo del plan: 1 año ("Maximo un año"). El último pago puede caer, como mucho, el mismo
 # día del mes 12 meses después del primero.
@@ -97,6 +100,21 @@ def add_months(start: date, months: int) -> date:
     year = start.year + month_index // 12
     month = month_index % 12 + 1
     return date(year, month, min(start.day, calendar.monthrange(year, month)[1]))
+
+
+def end_of_month(day: date) -> date:
+    return day.replace(day=calendar.monthrange(day.year, day.month)[1])
+
+
+def latest_first_payment_date(today: date) -> date:
+    """N8: fin de este mes; si faltan menos de 8 días, fin del mes siguiente.
+
+    12 de noviembre -> 30 de noviembre; 27 de enero -> 28 (o 29) de febrero.
+    """
+    this_month_end = end_of_month(today)
+    if (this_month_end - today).days >= MIN_DAYS_BEFORE_MONTH_END:
+        return this_month_end
+    return end_of_month(add_months(today.replace(day=1), 1))
 
 
 def _equal_parts(total_cents: int, parts: int) -> list[int]:
@@ -213,7 +231,7 @@ def validate_proposal(proposal: ArrangementProposal, balance_cents: int, today: 
         raise ArrangementRuleError(RuleViolation.INVALID_SCHEDULE)
 
     first = payments[0]
-    if not today <= first.due_date <= today + timedelta(days=MAX_DAYS_TO_FIRST_PAYMENT):
+    if not today <= first.due_date <= latest_first_payment_date(today):
         raise ArrangementRuleError(RuleViolation.FIRST_PAYMENT_DATE_OUT_OF_RANGE)
 
     if proposal.type is ArrangementType.FULL:

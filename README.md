@@ -79,7 +79,7 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿Cómo son las cuotas? | "el deudor no propone, acepta, tienen que ser iguales y con frecuencia fija" |
 | ¿Cada cuánto se paga? | "Cuotas mensuales fecha establecida" (Jefe; reemplazó la quincenal) |
 | Plazo máximo del plan | 1 año |
-| ¿Cuándo es el primer pago? | En unos días, máximo 8 ("Si, se puede pagar a 8 dias", Jefe) |
+| ¿Cuándo es el primer pago? | Primero: en unos días, máximo 8 ("Si, se puede pagar a 8 dias", Jefe). Cambiado el 2026-11-12 (N8, por confirmar con el jefe): siempre se intenta hoy; si el deudor pide tiempo, hasta fin de este mes, "teniendo en cuenta que ahi es donde le pagan a casi todas las personas". Si faltan menos de 8 días para fin de mes, el agente pregunta primero si puede pagar el último día de este mes y, si no, hasta fin del mes siguiente. La herramienta le dice al agente la fecha límite (resuelve también B7) |
 | ¿Cuándo se paga el resto de un parcial? | "normalmente es al mes" → 30 días |
 | ¿Se acepta menos del 10%? | "en cos muy específicos" → piso de 5%, como último recurso |
 | ¿Qué estado queda tras el acuerdo? | `PTP`; `RCC` queda fuera del alcance |

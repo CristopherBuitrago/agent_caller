@@ -80,7 +80,8 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] N5: después de las Hardship Questions, la última oferta es un primer pago del 10% y el resto en 12 cuotas mensuales iguales (oferta 11); si tampoco puede, pasa a una persona. El plazo de 1 año se mide en meses del calendario. 299 pruebas pasan (2026-11-12)
 - [x] N6: el resto de un parcial se reparte en cuotas mensuales si el deudor dice su límite (con más de 3 pagos, primero Hardship); el agente sigue ofreciendo el parcial de último recurso antes de transferir. 311 pruebas pasan (2026-11-12)
 - [x] N7: ante una aceptación con duda, el agente pregunta cuánto puede pagar cómodo al mes y vuelve a pedir la oferta; solo cierra si el deudor dice que puede cumplir. Pendiente de aplicar en el cambio de prompt (2026-11-12)
-- [ ] Preguntar al jefe: proveedor de SMS ("empieza por V"), página de pago del procesador, y estado de la cuenta cuando se pagan todas las cuotas o una no se paga
+- [x] N8: el primer pago puede ir hasta fin de este mes (si faltan menos de 8 días, primero se ofrece fin de este mes y después fin del mes siguiente); siempre se intenta hoy. `propose_offer` devuelve la fecha límite (también resuelve B7). 319 pruebas pasan (2026-11-12)
+- [ ] Preguntar al jefe: proveedor de SMS ("empieza por V"), página de pago del procesador, estado de la cuenta cuando se pagan todas las cuotas o una no se paga, y si aprueba que el primer pago vaya hasta fin de mes en vez de 8 días (N8)
 - [ ] Resolver una por una las observaciones del informe: S2, después negocio (N1–N15), backend (B1–B15) y prompt (P1–P12, en un solo cambio). Lo legal (L1–L7) se anota como supuesto
 - [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 

@@ -157,7 +157,7 @@ class StartAgentConversation:
                 on_tool: ToolObserver | None = None) -> tuple[AgentSession, AgentReply]:
         call_id = self._start_call.execute(direction, caller_phone, account_external_id)
         session: AgentSession | None = None
-        tools = CallTools(self._uc, call_id, direction, caller_phone, account_external_id,
+        tools = CallTools(self._uc, call_id, direction, caller_phone, account_external_id, clock=self._clock,
                           transcript=lambda: session.transcript() if session else "")
         session = AgentSession(tools, self._model.start(self._system_prompt, list(TOOL_SPECS)), on_tool)
         return session, session.call_event(self._opening_event(direction, account_external_id))

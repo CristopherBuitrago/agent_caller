@@ -220,10 +220,10 @@ def test_offer_number_starts_at_one():
         _use_cases()[0].execute("c1", "ACC-1", 0)
 
 
-def test_first_due_defaults_to_today_and_can_be_up_to_eight_days():
+def test_first_due_defaults_to_today_and_can_be_up_to_the_end_of_the_month():
     propose = _use_cases()[0]
     assert propose.execute("c1", "ACC-1", 1).payments[0].due_date == TODAY
-    assert _violation(propose.execute, "c1", "ACC-1", 1, TODAY + timedelta(days=9)) \
+    assert _violation(propose.execute, "c1", "ACC-1", 1, TODAY + timedelta(days=29)) \
         is R.FIRST_PAYMENT_DATE_OUT_OF_RANGE
 
 
@@ -374,17 +374,17 @@ def _log_size(log, call_id="c1"):
     return len(log._by_call.get(call_id, {}))
 
 
-def test_next_offer_uses_the_requested_first_date_up_to_eight_days():
+def test_next_offer_uses_the_requested_first_date_up_to_the_end_of_the_month():
     next_offer, _, _ = _offer_flow()
-    offer = next_offer.execute("c1", "ACC-1", TODAY + timedelta(days=8))
-    assert offer.proposal.payments[0].due_date == TODAY + timedelta(days=8)
+    offer = next_offer.execute("c1", "ACC-1", TODAY + timedelta(days=28))
+    assert offer.proposal.payments[0].due_date == TODAY + timedelta(days=28)   # 30 de noviembre
 
 
 def test_next_offer_with_a_date_out_of_range_logs_nothing():
     log = InMemoryNegotiationLog()
     next_offer = ProposeNextOffer(_use_cases(log=log)[0], log)
     assert _violation(next_offer.execute, "c1", "ACC-1",
-                      TODAY + timedelta(days=9)) is R.FIRST_PAYMENT_DATE_OUT_OF_RANGE
+                      TODAY + timedelta(days=29)) is R.FIRST_PAYMENT_DATE_OUT_OF_RANGE
     assert _violation(next_offer.execute, "c1", "ACC-1",
                       TODAY - timedelta(days=1)) is R.FIRST_PAYMENT_DATE_OUT_OF_RANGE
     assert _log_size(log) == 0
@@ -471,9 +471,9 @@ def test_partial_remainder_cannot_go_past_thirty_days():
                       remainder_due=TODAY + timedelta(days=31)) is R.REMAINDER_DATE_OUT_OF_RANGE
 
 
-def test_partial_first_payment_cannot_go_past_eight_days():
+def test_partial_first_payment_cannot_go_past_the_end_of_the_month():
     assert _violation(_use_cases()[1].execute, "c1", "ACC-1", 20000,
-                      first_due=TODAY + timedelta(days=9)) is R.FIRST_PAYMENT_DATE_OUT_OF_RANGE
+                      first_due=TODAY + timedelta(days=29)) is R.FIRST_PAYMENT_DATE_OUT_OF_RANGE
 
 
 def test_rejected_partial_does_not_count_as_a_rejected_offer():

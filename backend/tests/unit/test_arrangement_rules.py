@@ -84,8 +84,8 @@ def test_plan_cannot_exceed_ten_installments():
     assert _violation(build_plan, BALANCE, 11, TODAY, TODAY) is R.INVALID_SCHEDULE
 
 
-@pytest.mark.parametrize("days, ok", [(-1, False), (0, True), (8, True), (9, False)])
-def test_first_payment_is_within_eight_days(days, ok):
+@pytest.mark.parametrize("days, ok", [(-1, False), (0, True), (28, True), (29, False)])  # 2 nov -> 30 nov
+def test_first_payment_is_up_to_the_end_of_the_month(days, ok):
     first_due = TODAY + timedelta(days=days)
     if ok:
         assert build_full(BALANCE, first_due, TODAY).payments[0].due_date == first_due
@@ -243,3 +243,20 @@ def test_altered_partial_installments_are_rejected():
     payments[2] = replace(payments[2], amount_cents=payments[2].amount_cents - 100)
     altered = ArrangementProposal(ArrangementType.PARTIAL, 48500, tuple(payments))
     assert _violation(validate_proposal, altered, 48500, TODAY) is R.INVALID_SCHEDULE
+
+
+# --- N8: el primer pago, hasta fin de mes (o fin del mes siguiente si faltan menos de 8 días) --
+
+from cobranza.domain.arrangement import latest_first_payment_date  # noqa: E402
+
+
+@pytest.mark.parametrize("today, latest", [
+    (date(2026, 11, 12), date(2026, 11, 30)),   # faltan 18 días: fin de este mes
+    (date(2026, 12, 8), date(2026, 12, 31)),
+    (date(2027, 1, 23), date(2027, 1, 31)),     # justo 8 días
+    (date(2027, 1, 27), date(2027, 2, 28)),     # faltan 4: fin del mes siguiente
+    (date(2028, 1, 27), date(2028, 2, 29)),     # año bisiesto
+    (date(2026, 12, 29), date(2027, 1, 31)),    # cambia de año
+])
+def test_latest_first_payment_date(today, latest):
+    assert latest_first_payment_date(today) == latest

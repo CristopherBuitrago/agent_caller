@@ -10,9 +10,11 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
+from zoneinfo import ZoneInfo
 from typing import Any
 
 from cobranza.agent.application.conversation_model import ToolCall, ToolResult, ToolSpec
+from cobranza.application.interfaces.clock import Clock
 from cobranza.application.interfaces.negotiation_log import LoggedProposal
 from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
 from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
@@ -27,7 +29,8 @@ from cobranza.application.use_cases.register_call import EndCall, RecordRecordin
 from cobranza.application.use_cases.verify_identity import VerifyIdentity
 from cobranza.domain.arrangement import (
     LAST_INSTALLMENTS_BEFORE_HARDSHIP,
-    MAX_DAYS_TO_FIRST_PAYMENT,
+    end_of_month,
+    latest_first_payment_date,
     LAST_OFFER,
     REGULAR_MIN_PARTIAL_PAYMENT_PCT,
     ArrangementRuleError,
@@ -169,8 +172,7 @@ _NEXT_STEP_BY_RULE = {
     RuleViolation.AMOUNT_NOT_PARTIAL:
         "That amount covers the full balance. Use propose_offer instead.",
     RuleViolation.FIRST_PAYMENT_DATE_OUT_OF_RANGE:
-        f"The first payment must be between today and {MAX_DAYS_TO_FIRST_PAYMENT} days from "
-        "today. Ask for a date in that range.",
+        "That date is not available. Follow first_payment_date_rule and ask for a date in that range.",
     RuleViolation.REMAINDER_DATE_OUT_OF_RANGE:
         "The rest must be paid within 30 days of the first payment. Ask for an earlier date.",
 }
@@ -232,8 +234,9 @@ class CallTools:
 
     def __init__(self, uc: AgentUseCases, call_id: str, direction: CallDirection,
                  caller_phone: str, outbound_account: str | None,
-                 transcript: Callable[[], str]):
+                 transcript: Callable[[], str], clock: Clock | None = None):
         self._uc = uc
+        self._clock = clock
         self.call_id = call_id
         self._direction = direction
         self._caller_phone = caller_phone
@@ -331,16 +334,35 @@ class CallTools:
                     "propose_partial_payment with both amounts. If they cannot pay anything, tell "
                     "them a representative will help them and call transfer_to_human."}
         self._proposals[logged.id] = logged
+        window = self._first_payment_window()
         if logged.offer_number in _LOWEST_OFFER_OF_STAGE:
             # Es cierto decir que es la opción más baja disponible ahora; nunca se inventa una regla.
-            return {**_describe(logged), "lowest_option_available_now": True, "next_step":
+            return {**_describe(logged), **window, "lowest_option_available_now": True, "next_step":
                     "Present this as the lowest option you have available right now. Do not mention "
                     "any minimum percentage or rule. If the debtor accepts, call record_offer_response "
                     "with accepted true; if they say it is not possible, call it with accepted false "
                     "and then call propose_offer again."}
-        return {**_describe(logged), "next_step": "Present this option as the fastest way to "
-                "resolve it. If the debtor accepts, call record_offer_response with accepted true; "
+        return {**_describe(logged), **window, "next_step": "Present this option as the fastest way "
+                "to resolve it. If the debtor accepts, call record_offer_response with accepted true; "
                 "if they say it is not possible, call it with accepted false."}
+
+    def _first_payment_window(self) -> dict[str, str]:
+        """N8: hasta cuándo puede ir el primer pago, en la fecha local del deudor. Siempre se intenta hoy."""
+        if self._clock is None or self._debtor is None:
+            return {}
+        now = self._clock.now()
+        today = (now.astimezone(ZoneInfo(self._debtor.timezone)).date()
+                 if self._debtor.timezone else now.date())
+        latest = latest_first_payment_date(today)
+        this_month_end = end_of_month(today)
+        if latest == this_month_end:
+            note = (f"Try to get the first payment today. If they need time, it can be any day up to "
+                    f"{_spoken_date(latest)}; then call propose_offer again with first_payment_date.")
+        else:
+            note = (f"Try to get the first payment today. If they need time, first ask if they can pay "
+                    f"by {_spoken_date(this_month_end)}; only if they cannot, it can be any day up to "
+                    f"{_spoken_date(latest)}. Then call propose_offer again with first_payment_date.")
+        return {"latest_first_payment_date": latest.isoformat(), "first_payment_date_rule": note}
 
     def _tool_record_offer_response(self, proposal_id: str, accepted: bool) -> dict:
         arrangement_id = self._uc.record_offer_response.execute(self.call_id, proposal_id, accepted)
@@ -465,6 +487,8 @@ class CallTools:
                             if a.external_id == tool_input.get("account_ref")), None)
             if account is not None:
                 result["minimum_amount"] = self._account_view(account)["minimum_partial_payment"]
+        if violation is RuleViolation.FIRST_PAYMENT_DATE_OUT_OF_RANGE:
+            result.update(self._first_payment_window())
         return result
 
     def _close(self, outcome: CallOutcome) -> None:
