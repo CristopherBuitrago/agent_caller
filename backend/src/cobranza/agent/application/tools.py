@@ -118,7 +118,10 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
           {"account_ref": _ACCOUNT_REF,
            "amount_dollars": {"type": "number"},
            "first_payment_date": {**_DATE, "description": "Optional. Omit it to use today."},
-           "remainder_date": {**_DATE, "description": "Optional. Omit it to use 30 days later."}},
+           "remainder_date": {**_DATE, "description": "Optional. Omit it to use 30 days later."},
+           "max_payment_dollars": {"type": "number", "description": "Optional. The most the debtor "
+                                   "said they can pay per month. If the rest does not fit in one "
+                                   "payment, the system splits it into monthly payments."}},
           ("account_ref", "amount_dollars")),
     _spec("record_hardship_answers",
           "Save the debtor's answers to the hardship questions. Every field is optional.",
@@ -205,6 +208,9 @@ def _describe(logged: LoggedProposal) -> dict[str, Any]:
                   "payments")
     elif proposal.type is ArrangementType.PLAN:
         option = f"{len(proposal.payments)} equal monthly payments"
+    elif len(proposal.payments) > 2:
+        option = (f"a partial payment now and the rest in {len(proposal.payments) - 1} equal "
+                  "monthly payments")
     else:
         option = "a partial payment now and the rest later"
     return {
@@ -318,10 +324,12 @@ class CallTools:
         logged = self._uc.propose_next_offer.execute(
             self.call_id, account_ref, _parse_date(first_payment_date, "first_payment_date"), max_cents)
         if logged is None:
-            # N5: si tampoco puede con el plan de pago inicial más 12 cuotas, lo atiende una persona.
-            return {"offers_exhausted": True, "next_step": "There are no more payment options. "
-                    "Tell the debtor a representative will help them find a solution, and call "
-                    "transfer_to_human."}
+            # N5 y N6 (b): sin más planes, el agente prueba el parcial de último recurso; si tampoco,
+            # lo atiende una persona. Así los cobradores se dedican a los estados que les tocan.
+            return {"offers_exhausted": True, "next_step": "There are no more installment options. "
+                    "Ask how much they could pay now and how much per month after that, and call "
+                    "propose_partial_payment with both amounts. If they cannot pay anything, tell "
+                    "them a representative will help them and call transfer_to_human."}
         self._proposals[logged.id] = logged
         if logged.offer_number in _LOWEST_OFFER_OF_STAGE:
             # Es cierto decir que es la opción más baja disponible ahora; nunca se inventa una regla.
@@ -348,15 +356,17 @@ class CallTools:
 
     def _tool_propose_partial_payment(self, account_ref: str, amount_dollars: float,
                                       first_payment_date: str | None = None,
-                                      remainder_date: str | None = None) -> dict:
+                                      remainder_date: str | None = None,
+                                      max_payment_dollars: float | None = None) -> dict:
         self._require_own_account(account_ref)
+        max_cents = round(float(max_payment_dollars) * 100) if max_payment_dollars is not None else None
         logged = self._uc.propose_partial_payment.execute(
             self.call_id, account_ref, round(float(amount_dollars) * 100),
             _parse_date(first_payment_date, "first_payment_date"),
-            _parse_date(remainder_date, "remainder_date"))
+            _parse_date(remainder_date, "remainder_date"), max_cents)
         self._proposals[logged.id] = logged
         return {**_describe(logged), "next_step": "Present this plan, making clear the rest is still "
-                "owed on the second date. Then call record_offer_response."}
+                "owed on the dates shown. Then call record_offer_response."}
 
     def _tool_record_hardship_answers(self, situation_description: str | None = None,
                                       situation_started: str | None = None,

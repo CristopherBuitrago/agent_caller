@@ -585,3 +585,19 @@ def test_a_skipped_offer_cannot_be_accepted():
     skipped = next(p for p in log._by_call["c1"].values() if p.skip_reason)
     with pytest.raises(ValueError):
         respond.execute("c1", skipped.id, accepted=True)
+
+
+# --- N6: parcial con el resto en cuotas ----------------------------------------------------
+
+def test_partial_with_more_than_three_payments_needs_hardship_first():
+    partial = _use_cases()[1]                               # saldo USD 1.000
+    assert _violation(partial.execute, "c1", "ACC-1", 20000, stated_max_payment_cents=10000) is R.HARDSHIP_REQUIRED
+    ok = _use_cases(hardship_done=True)[1].execute("c1", "ACC-1", 20000, stated_max_payment_cents=10000)
+    assert [p.amount_cents for p in ok.proposal.payments] == [20000] + [10000] * 8
+
+
+def test_last_resort_partial_can_split_the_rest_in_installments():
+    partial = _use_cases(hardship_done=True, log=_all_rejected_log())[1]
+    offer = partial.execute("c1", "ACC-1", 5000, stated_max_payment_cents=8000)   # 5% y hasta 80 al mes
+    assert offer.proposal.payments[0].amount_cents == 5000
+    assert len(offer.proposal.payments) == 13                # 950 caben en 80/mes recién con 12 cuotas

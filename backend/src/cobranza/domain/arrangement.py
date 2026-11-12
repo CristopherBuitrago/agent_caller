@@ -84,10 +84,11 @@ def is_last_resort_partial(proposal: ArrangementProposal) -> bool:
 
 
 def requires_hardship(proposal: ArrangementProposal) -> bool:
-    """Planes de más de 3 cuotas y parciales menores al 10% van después de las Hardship Questions."""
-    if proposal.type is ArrangementType.PLAN:
-        return len(proposal.payments) > LAST_INSTALLMENTS_BEFORE_HARDSHIP
-    return is_last_resort_partial(proposal)
+    """Van después de las Hardship Questions: más de 3 pagos en total (plan o parcial con el resto
+    en cuotas, N6) y los parciales menores al 10%."""
+    if proposal.type is ArrangementType.FULL:
+        return False
+    return len(proposal.payments) > LAST_INSTALLMENTS_BEFORE_HARDSHIP or is_last_resort_partial(proposal)
 
 
 def add_months(start: date, months: int) -> date:
@@ -153,18 +154,42 @@ def is_down_payment_plan(proposal: ArrangementProposal) -> bool:
             and amounts[1:] == _equal_parts(sum(amounts[1:]), DOWN_PAYMENT_PLAN_INSTALLMENTS))
 
 
+def remainder_installments(remainder_cents: int, max_installment_cents: int) -> int:
+    """N6: el menor número de cuotas mensuales iguales que cabe en lo que el deudor puede pagar.
+
+    Si ni con 12 cuotas cabe, devuelve 12: es la cuota más baja posible dentro del año.
+    """
+    return next((n for n in range(1, MAX_PLAN_MONTHS + 1)
+                 if _equal_parts(remainder_cents, n)[0] <= max_installment_cents), MAX_PLAN_MONTHS)
+
+
 def build_partial(balance_cents: int, first_amount_cents: int, first_due: date, today: date,
-                  remainder_due: date | None = None) -> ArrangementProposal:
-    """Monto propuesto por el deudor. El resto va en un solo pago, por defecto a los 30 días."""
+                  remainder_due: date | None = None,
+                  max_installment_cents: int | None = None) -> ArrangementProposal:
+    """Monto propuesto por el deudor. El resto va en un solo pago, por defecto a los 30 días.
+
+    N6 (2026-11-12): si el deudor dijo cuánto puede pagar por cuota (`max_installment_cents`) y el
+    resto no cabe en un solo pago, el resto se reparte en el menor número de cuotas mensuales
+    iguales que quepa, dentro del año. Lo elige el sistema; el deudor solo dio su límite.
+    """
     if balance_cents <= 0:
         raise ArrangementRuleError(RuleViolation.NO_BALANCE)
     if first_amount_cents >= balance_cents:
         raise ArrangementRuleError(RuleViolation.AMOUNT_NOT_PARTIAL)
-    default_remainder_due = first_due + timedelta(days=MAX_DAYS_TO_PAY_REMAINDER)
-    proposal = ArrangementProposal(ArrangementType.PARTIAL, balance_cents, (
-        ScheduledPayment(1, first_amount_cents, first_due),
-        ScheduledPayment(2, balance_cents - first_amount_cents, remainder_due or default_remainder_due),
-    ))
+    rest = balance_cents - first_amount_cents
+    installments = 1
+    if max_installment_cents is not None and remainder_due is None:
+        installments = remainder_installments(rest, max_installment_cents)
+    first = ScheduledPayment(1, first_amount_cents, first_due)
+    if installments == 1:
+        default_remainder_due = first_due + timedelta(days=MAX_DAYS_TO_PAY_REMAINDER)
+        payments = (first, ScheduledPayment(2, rest, remainder_due or default_remainder_due))
+    else:
+        payments = (first,) + tuple(
+            ScheduledPayment(i + 2, amount, add_months(first_due, i + 1))
+            for i, amount in enumerate(_equal_parts(rest, installments))
+        )
+    proposal = ArrangementProposal(ArrangementType.PARTIAL, balance_cents, payments)
     validate_proposal(proposal, balance_cents, today)
     return proposal
 
@@ -214,7 +239,16 @@ def _validate_plan(payments) -> None:
 
 
 def _validate_partial(payments) -> None:
-    if len(payments) != 2:
+    if len(payments) == 2:
+        # El resto en un solo pago: como mucho a los 30 días del primero.
+        if payments[1].due_date - payments[0].due_date > timedelta(days=MAX_DAYS_TO_PAY_REMAINDER):
+            raise ArrangementRuleError(RuleViolation.REMAINDER_DATE_OUT_OF_RANGE)
+        return
+    # N6: el resto en cuotas mensuales iguales, dentro del año.
+    rest = payments[1:]
+    amounts = [p.amount_cents for p in rest]
+    first_due = payments[0].due_date
+    if (not 2 <= len(rest) <= MAX_PLAN_MONTHS
+            or amounts != _equal_parts(sum(amounts), len(amounts))
+            or any(p.due_date != add_months(first_due, i + 1) for i, p in enumerate(rest))):
         raise ArrangementRuleError(RuleViolation.INVALID_SCHEDULE)
-    if payments[1].due_date - payments[0].due_date > timedelta(days=MAX_DAYS_TO_PAY_REMAINDER):
-        raise ArrangementRuleError(RuleViolation.REMAINDER_DATE_OUT_OF_RANGE)

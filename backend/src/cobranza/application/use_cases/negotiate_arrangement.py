@@ -169,14 +169,18 @@ class ProposePartialPayment:
         self._log = log
 
     def execute(self, call_id: str, account_external_id: str, amount_cents: int,
-                first_due: date | None = None, remainder_due: date | None = None) -> LoggedProposal:
+                first_due: date | None = None, remainder_due: date | None = None,
+                stated_max_payment_cents: int | None = None) -> LoggedProposal:
+        """`stated_max_payment_cents` (N6): lo que el deudor dijo poder pagar por cuota; si el resto
+        no cabe en un pago, se reparte en cuotas mensuales. Más de 3 pagos exige las Hardship Questions."""
         context = self._gate.check(call_id, account_external_id)
         proposal = build_partial(
             context.account.current_balance_cents, amount_cents,
-            first_due or context.today, context.today, remainder_due,
+            first_due or context.today, context.today, remainder_due, stated_max_payment_cents,
         )
-        if is_last_resort_partial(proposal):
+        if requires_hardship(proposal):
             self._gate.check_hardship_done(call_id)
+        if is_last_resort_partial(proposal):
             rejected = self._log.rejected_offer_numbers(call_id, account_external_id)
             if not set(range(1, LAST_OFFER + 1)) <= rejected:
                 raise ArrangementRuleError(RuleViolation.OFFERS_NOT_EXHAUSTED)

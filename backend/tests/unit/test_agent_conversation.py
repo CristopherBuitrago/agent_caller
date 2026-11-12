@@ -434,3 +434,17 @@ def test_no_offers_left_transfers_to_a_person():
     _run(tools, "verify_identity", **VERIFY_JANE)
     result, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
     assert result["offers_exhausted"] is True and "transfer_to_human" in result["next_step"]
+
+
+def test_partial_with_installments_is_described_and_passes_the_limit():
+    from cobranza.domain.arrangement import build_partial
+    partial = build_partial(48500, 9000, date(2026, 11, 13), date(2026, 11, 13), max_installment_cents=20000)
+    tools, uc = _tools()
+    uc.propose_partial_payment._fn = lambda *a: LoggedProposal("PP", "c1", a[1], None, partial)
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    result, is_error = _run(tools, "propose_partial_payment", account_ref="ACC-deb-1", amount_dollars=90,
+                            max_payment_dollars=200)
+    assert not is_error
+    assert result["option"] == "a partial payment now and the rest in 2 equal monthly payments"
+    assert uc.propose_partial_payment.calls[-1][-1] == 20000

@@ -244,3 +244,13 @@ def test_down_payment_plan_is_saved_with_thirteen_payments(use_cases, verified_j
     arrangement, payments = _saved(pool, arrangement_id)
     assert arrangement == ("plan", 48500, "active")
     assert [p[1] for p in payments] == [4850, 3643] + [3637] * 11
+
+
+def test_partial_with_rest_in_installments_is_saved(use_cases, verified_jane, pool):
+    """N6: Jane da USD 90 hoy y puede USD 200 al mes: el resto (395) va en 2 cuotas, sin Hardship."""
+    partial = use_cases.propose_partial_payment.execute(verified_jane, "ACC-T001", 9000,
+                                                        stated_max_payment_cents=20000)
+    arrangement_id = use_cases.record_offer_response.execute(verified_jane, partial.id, accepted=True)
+    arrangement, payments = _saved(pool, arrangement_id)
+    assert arrangement == ("partial", 48500, "active")
+    assert [p[1] for p in payments] == [9000, 19750, 19750]

@@ -203,3 +203,43 @@ def test_altered_down_payment_plans_are_rejected(change):
         payments[1] = replace(payments[1], amount_cents=payments[1].amount_cents - 1)
     altered = ArrangementProposal(ArrangementType.PLAN, 48500, tuple(payments))
     assert _violation(validate_proposal, altered, 48500, TODAY) is R.INVALID_SCHEDULE
+
+
+# --- N6: el resto de un parcial en cuotas mensuales cuando el deudor dice su límite -----
+
+from cobranza.domain.arrangement import remainder_installments, requires_hardship  # noqa: E402
+
+
+@pytest.mark.parametrize("max_cents, installments", [(50000, 1), (20000, 2), (10000, 4), (1000, 12)])
+def test_remainder_installments_is_the_fewest_that_fit(max_cents, installments):
+    assert remainder_installments(39500, max_cents) == installments
+
+
+def test_partial_rest_in_monthly_installments():
+    partial = build_partial(48500, 9000, TODAY, TODAY, max_installment_cents=10000)
+    assert partial.type is ArrangementType.PARTIAL
+    assert [p.amount_cents for p in partial.payments] == [9000] + [9875] * 4
+    assert [p.due_date for p in partial.payments[1:]] == [add_months(TODAY, i) for i in range(1, 5)]
+    assert requires_hardship(partial)                      # 5 pagos: más de 3
+
+
+def test_partial_rest_in_one_payment_when_it_fits_or_without_a_limit():
+    for partial in (build_partial(48500, 9000, TODAY, TODAY, max_installment_cents=50000),
+                    build_partial(48500, 9000, TODAY, TODAY)):
+        assert [p.amount_cents for p in partial.payments] == [9000, 39500]
+        assert partial.payments[1].due_date == TODAY + timedelta(days=30)
+        assert not requires_hardship(partial)
+
+
+def test_partial_with_rest_in_two_installments_needs_no_hardship():
+    partial = build_partial(48500, 9000, TODAY, TODAY, max_installment_cents=20000)
+    assert len(partial.payments) == 3 and not requires_hardship(partial)
+
+
+def test_altered_partial_installments_are_rejected():
+    partial = build_partial(48500, 9000, TODAY, TODAY, max_installment_cents=10000)
+    payments = list(partial.payments)
+    payments[1] = replace(payments[1], amount_cents=payments[1].amount_cents + 100)
+    payments[2] = replace(payments[2], amount_cents=payments[2].amount_cents - 100)
+    altered = ArrangementProposal(ArrangementType.PARTIAL, 48500, tuple(payments))
+    assert _violation(validate_proposal, altered, 48500, TODAY) is R.INVALID_SCHEDULE
