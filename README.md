@@ -128,6 +128,8 @@ Sin pendientes.
 | Pregunta | Respuesta |
 | --- | --- |
 | ¿"Yo sí pagué" o "fue error del banco" cuenta como disputa? | "Sí, cuenta como disputa, constrúyelo así" → se marca la cuenta, se cierra como `dispute` y pasa a una persona |
+| ¿Quién revisa la disputa y cómo? (N11) | Opción A, elegida por el desarrollador el 2026-11-12: al registrarse la disputa, la cuenta pasa al estado de disputa que defina el jefe y se envía una alerta por el canal de la empresa (Teams u otro, por confirmar) con los detalles; un cobrador la analiza y marca si es válida o no. Además, parte de la opción B: el agente dice "One moment while I check that for you" y busca en la base el pago que menciona el deudor. Sin construir todavía: depende del estado, del canal y del acceso a los pagos de la base real |
+| ¿Qué pasa si el agente no encuentra el pago? (N11) | Supuesto vigente (opción A), porque el desarrollador no tenía claro qué hacer: el agente no acusa al deudor ("I wasn't able to find a payment matching that information in our records"), pide fecha o número de confirmación y vuelve a buscar; si sigue sin aparecer, registra la disputa igual con la nota "pago no encontrado" y deja de cobrar en esa llamada. Si encuentra el pago, se lo dice y la alerta sale como "pago encontrado"; el agente no cambia el saldo. Seguir cobrando una deuda que el deudor acaba de disputar no se hace sin aprobación del abogado |
 
 **Supuestos:**
 - Una disputa o "no llamar" impide cobrar.
