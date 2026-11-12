@@ -22,6 +22,7 @@ from cobranza.application.use_cases.negotiate_arrangement import (
     RecordOfferResponse,
     _ArrangementGate,
 )
+from cobranza.application.use_cases.payment_schedule import ListNewArrangements, ListPaymentsDue
 from cobranza.application.use_cases.register_call import EndCall, RecordRecordingConsent, StartCall
 from cobranza.application.use_cases.verify_identity import VerifyIdentity
 from cobranza.infrastructure.repositories.in_memory_negotiation_log import InMemoryNegotiationLog
@@ -30,6 +31,7 @@ from cobranza.infrastructure.repositories.postgres_call_repository import Postgr
 from cobranza.infrastructure.repositories.postgres_debtor_repository import PostgresDebtorRepository
 from cobranza.infrastructure.repositories.postgres_hardship_repository import PostgresHardshipRepository
 from cobranza.infrastructure.repositories.postgres_identity_repository import PostgresIdentityRepository
+from cobranza.infrastructure.repositories.postgres_payment_schedule_reader import PostgresPaymentScheduleReader
 from cobranza.infrastructure.services.claude_call_summarizer import (
     BACKUP_MODEL,
     PRIMARY_MODEL,
@@ -57,6 +59,8 @@ class UseCases:
     record_hardship_assessment: RecordHardshipAssessment
     record_dispute: RecordDispute
     mark_do_not_call: MarkDoNotCall
+    list_new_arrangements: ListNewArrangements
+    list_payments_due: ListPaymentsDue
 
 
 def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
@@ -79,6 +83,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
     get_debtor_by_account = GetDebtorByAccount(debtors, phones)
     arrangements = PostgresArrangementRepository(pool)
     hardships = PostgresHardshipRepository(pool)
+    schedule = PostgresPaymentScheduleReader(pool)
     end_call = EndCall(calls, summarizer, clock)
     gate = _ArrangementGate(calls, arrangements, get_debtor_by_account, clock, hardships)
     # Las ofertas de cada llamada viven en memoria: basta mientras la llamada viva en este proceso.
@@ -102,4 +107,6 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         end_call=end_call,
         record_dispute=RecordDispute(calls, debtors, end_call),
         mark_do_not_call=MarkDoNotCall(calls, debtors, end_call),
+        list_new_arrangements=ListNewArrangements(schedule),
+        list_payments_due=ListPaymentsDue(schedule),
     )

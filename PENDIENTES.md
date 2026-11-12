@@ -72,6 +72,8 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] S1 (simulación 8, verificación por tanteo): si quien llama cambia el nombre de pila entre intentos, `VerifyIdentity` devuelve `identity_mismatch` sin revisar los datos, cuenta un intento fallido y la llamada se cierra con el resultado nuevo `identity_mismatch` (agregado al CHECK de `calls.outcome`). 242 pruebas pasan (2026-11-12)
 - [x] S2 (simulación 8): se pide deletrear el apellido solo si el SSN, la fecha y el nombre de pila coinciden y solo falla el apellido; si no, es un intento fallido normal (`only_last_name_differs`). 251 pruebas pasan (2026-11-12)
 - [x] Arquitectura en 3 módulos (núcleo, `agent/`, `messaging/`) en el mismo repositorio, con reglas en `test_architecture.py`. Sin cambios de comportamiento; 256 pruebas pasan (2026-11-12)
+- [x] N1: SMS de confirmación del acuerdo y link de pago en cada fecha (módulo `messaging/`, tabla `sms_messages`, tarea `cobranza.messaging.infrastructure.run`). Proveedor y link de prueba hasta que el jefe confirme el proveedor ("empieza por V") y la página de pago. 269 pruebas pasan (2026-11-12)
+- [ ] Preguntar al jefe: proveedor de SMS ("empieza por V"), página de pago del procesador, y estado de la cuenta cuando se pagan todas las cuotas o una no se paga
 - [ ] Resolver una por una las observaciones del informe: S2, después negocio (N1–N15), backend (B1–B15) y prompt (P1–P12, en un solo cambio). Lo legal (L1–L7) se anota como supuesto
 - [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 

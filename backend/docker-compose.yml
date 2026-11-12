@@ -23,6 +23,8 @@ services:
   #   docker compose run --rm app bash       -> consola dentro del contenedor
   #   docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --entrante +13055550001
   #                                          -> chat de prueba con Claude (necesita ANTHROPIC_API_KEY)
+  #   docker compose run --rm app python -m cobranza.messaging.infrastructure.run
+  #                                          -> tarea diaria de SMS (confirmaciones y links de pago)
   app:
     build: .
     profiles: ["tools"]

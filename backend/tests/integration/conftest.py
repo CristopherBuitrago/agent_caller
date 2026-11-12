@@ -42,6 +42,11 @@ def started_calls(pool):
             conn.execute("UPDATE debtors SET do_not_call = %s WHERE id = %s", (do_not_call, debtor_id))
         conn.execute("DELETE FROM hardship_assessments WHERE call_id = ANY(%s::uuid[])", (ids,))
         conn.execute(
+            """DELETE FROM sms_messages WHERE arrangement_id IN
+               (SELECT id FROM payment_arrangements WHERE call_id = ANY(%s::uuid[]))""",
+            (ids,),
+        )
+        conn.execute(
             """DELETE FROM scheduled_payments WHERE arrangement_id IN
                (SELECT id FROM payment_arrangements WHERE call_id = ANY(%s::uuid[]))""",
             (ids,),

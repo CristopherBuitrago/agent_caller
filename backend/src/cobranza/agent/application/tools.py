@@ -319,8 +319,9 @@ class CallTools:
         logged = self._proposals.get(proposal_id)
         return {"arrangement_id": arrangement_id,
                 **({"payments": _describe(logged)["payments"]} if logged else {}),
-                "next_step": "Repeat the amounts and dates, thank the debtor, and say they will "
-                "receive the payment instructions. Then call end_call with outcome arrangement_made."}
+                "next_step": "Repeat the amounts and dates, thank the debtor, and tell them they "
+                "will receive a text message with the payment details, and a secure payment link "
+                "on each payment date. Then call end_call with outcome arrangement_made."}
 
     def _tool_propose_partial_payment(self, account_ref: str, amount_dollars: float,
                                       first_payment_date: str | None = None,

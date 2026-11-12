@@ -180,3 +180,31 @@ CREATE TABLE hardship_assessments (
     recommended_plan       text,                       -- lo que el agente termina ofreciendo
     created_at             timestamptz NOT NULL DEFAULT now()
 );
+
+-- ---------------------------------------------------------------------------
+-- sms_messages: cada SMS enviado al deudor (N1, aprobada el 2026-11-12).
+-- Confirmación del acuerdo y link de pago de cada cuota. Nunca lleva SSN ni fecha
+-- de nacimiento. Se envía aunque el deudor esté marcado do_not_call (decisión del
+-- desarrollador): una llamada no es un SMS y el deudor aceptó el acuerdo.
+-- ---------------------------------------------------------------------------
+CREATE TABLE sms_messages (
+    id                   uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    debtor_id            uuid NOT NULL REFERENCES debtors (id),
+    arrangement_id       uuid NOT NULL REFERENCES payment_arrangements (id),
+    scheduled_payment_id uuid REFERENCES scheduled_payments (id),   -- vacío en la confirmación
+    kind                 text NOT NULL CHECK (kind IN ('arrangement_confirmation', 'payment_link')),
+    to_phone             text NOT NULL,
+    body                 text NOT NULL,
+    status               text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'sent', 'failed')),
+    provider_message_id  text,                                       -- id que devuelve el proveedor de SMS
+    error                text,                                       -- motivo, si falló
+    created_at           timestamptz NOT NULL DEFAULT now(),
+    sent_at              timestamptz,
+    CHECK ((kind = 'payment_link') = (scheduled_payment_id IS NOT NULL))
+);
+
+-- Nunca dos veces el mismo mensaje: una confirmación por acuerdo y un link por cuota.
+CREATE UNIQUE INDEX sms_messages_one_confirmation_idx ON sms_messages (arrangement_id)
+    WHERE kind = 'arrangement_confirmation';
+CREATE UNIQUE INDEX sms_messages_one_link_per_payment_idx ON sms_messages (scheduled_payment_id)
+    WHERE kind = 'payment_link';

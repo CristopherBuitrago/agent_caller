@@ -173,6 +173,32 @@ Datos para verificar a TEST-001: Jane Carter, últimos 4 del SSN 1234, nacida el
 
 Reglas (las vigila `tests/unit/test_architecture.py`): el núcleo no conoce al agente ni a la mensajería; el agente y la mensajería no se conocen entre sí y usan los casos de uso del núcleo, nunca sus repositorios. Si algún día hacen falta servicios separados, ya están divididos.
 
+### N1: cómo paga el deudor un pago agendado (2026-11-12)
+
+| Pregunta | Respuesta | Origen |
+| --- | --- | --- |
+| ¿Cómo paga el deudor un pago a futuro? | Link de pago por SMS (opción A): al crear el acuerdo se envía un SMS de confirmación con montos y fechas, y el día de cada cuota otro SMS con un link a la página de pago segura del procesador | Desarrollador |
+| ¿Se aprueba la tabla `sms_messages`? | "Si, la apruebo" | Desarrollador |
+| ¿Se envían los SMS si el deudor está marcado "no llamar"? | "Si, obligatoriamente, una llamada es diferente a mensajes de texto y además el mismo aceptó el acuerdo" | Desarrollador |
+| ¿Qué proveedor de SMS usa la empresa? | "Empieza por V" (por confirmar con el jefe) | Jefe, contado por el desarrollador |
+| ¿La empresa tiene página o link de pago con su procesador? | "Muy probablemente"; por confirmar con el jefe | Desarrollador |
+
+Cómo quedó construido:
+- Módulo `messaging/`: `SendArrangementConfirmations` (acuerdos de los últimos 7 días sin confirmación) y `SendDuePaymentLinks` (cuotas pendientes que vencen hasta la fecha dada). Tarea programada: `python -m cobranza.messaging.infrastructure.run [--fecha AAAA-MM-DD]`; se puede correr varias veces sin repetir mensajes.
+- Tabla `sms_messages`: una confirmación por acuerdo y un link por cuota (índices únicos). Un envío fallido se reintenta en la siguiente corrida.
+- Mientras no se conecten el proveedor ni el procesador, el SMS solo queda en el log (`LoggingSmsSender`) y el link es de prueba (`PlaceholderPaymentLinkProvider`).
+- El agente ahora dice que el deudor recibirá un SMS con los detalles y un link de pago en cada fecha (antes prometía "payment instructions" que no existían).
+
+Ejemplo de confirmación: *"Lakeside Recovery Services: your payment arrangement is set: $90.00 on Nov 11 and $395.00 on Dec 11. We'll text you a secure payment link on each date. Reply STOP to opt out."*
+
+**Supuestos:**
+- La tarea corre en la mañana con la fecha del este de EE. UU. (dentro del horario permitido para contactar).
+- Darse de baja con "STOP" lo maneja el proveedor de SMS; el sistema no lo guarda todavía.
+- Los SMS no dicen "debt" ni el acreedor, por si otra persona ve el teléfono.
+- Legal: enviar SMS a deudores requiere su consentimiento y una forma de darse de baja; el texto de los SMS lo debe revisar el abogado.
+
+**Pendiente:** conectar el proveedor de SMS ("V") y el link del procesador; recibir el aviso de pago del procesador (`RecordPaymentResult` y `payment_results`) y definir el estado de la cuenta cuando se pagan todas las cuotas o una no se paga.
+
 ### Para todo el proyecto
 
 - Revisión legal del guion y de los avisos.
