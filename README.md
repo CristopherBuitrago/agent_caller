@@ -49,8 +49,11 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿Dónde se cuentan los intentos? | En un campo nuevo, `verification_attempts`, aparte del estado del NSF |
 | ¿Bloquear tras 5 fallos en 24 h? | "Listo si" (propuesta de Claude) |
 | ¿Pedir deletrear el apellido antes de contar un fallo? | "Perfecto" (propuesta de Claude) |
+| ¿Qué pasa si quien llama cambia de nombre entre intentos? (S1, simulación 8: dijo "Paul Carter", falló, y luego "Jane Carter" pasó) | Se cierra la llamada con un resultado nuevo, `identity_mismatch`, sin revisar los datos del segundo nombre, y se le pide llamar de nuevo con sus datos; después se le vuelve a llamar. Decidido por el desarrollador el 2026-11-12 |
 
-**Supuesto:** máximo 2 fallos por llamada.
+**Supuestos:**
+- Máximo 2 fallos por llamada.
+- S1 compara solo el nombre de pila: corregir la ortografía del apellido (lo que pide `name_retry`) o agregar un segundo nombre no cuenta como cambio. El intento con el nombre cambiado cuenta como fallido para el bloqueo de 24 horas.
 
 ### Función 3: registrar la llamada y resumen
 

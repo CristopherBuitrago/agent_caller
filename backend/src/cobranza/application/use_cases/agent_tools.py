@@ -221,6 +221,7 @@ class CallTools:
         self._outbound_account = outbound_account
         self._transcript = transcript
         self._debtor: DebtorSummary | None = None  # deudor verificado
+        self._names_given: list[str] = []  # nombres que dio quien llama en cada intento de verificación
         self._proposals: dict[str, LoggedProposal] = {}
         self._arrangement_made = False
         self._recording_refused = False
@@ -274,9 +275,13 @@ class CallTools:
             return {"outcome": "not_found", "next_step": "No account matches this phone number. "
                     "Offer to transfer to a representative with transfer_to_human."}
         outcome = self._uc.verify_identity.execute(
-            self.call_id, debtor.id, full_name, str(ssn_last4).strip(), dob, name_was_spelled)
+            self.call_id, debtor.id, full_name, str(ssn_last4).strip(), dob, name_was_spelled,
+            tuple(self._names_given))
+        self._names_given.append(full_name)
         if outcome is VerificationOutcome.VERIFIED:
             self._debtor = debtor
+        elif outcome is VerificationOutcome.IDENTITY_MISMATCH:
+            self._close(CallOutcome.IDENTITY_MISMATCH)
         return {"outcome": outcome.value, "next_step": _VERIFICATION_NEXT_STEP[outcome]}
 
     def _tool_get_account_details(self) -> dict:
@@ -455,4 +460,8 @@ _VERIFICATION_NEXT_STEP = {
         "outcome verification_failed.",
     VerificationOutcome.LOCKED:
         "Say a representative will help them. Do not mention any debt. Call transfer_to_human.",
+    VerificationOutcome.IDENTITY_MISMATCH:
+        "The call is now closed. Say you could not verify their identity and ask them to call back "
+        "with their own information. Do not mention any debt and do not say which item did not "
+        "match. Then say goodbye.",
 }

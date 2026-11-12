@@ -296,3 +296,36 @@ def test_chat_do_not_call_then_hang_up_is_saved(use_cases, started_calls, pool):
     assert session.outcome is CallOutcome.DO_NOT_CALL
     assert _jane_flags(pool)[2] is True
     assert _call_row(pool, session.call_id)[0] == "do_not_call"
+
+
+def test_chat_caller_who_changes_name_is_closed_as_identity_mismatch(use_cases, started_calls, pool):
+    """S1 (simulación 8): dijo "Paul Carter" con otra fecha, falló, y luego probó con "Jane Carter"."""
+    model = GuionModel(
+        say("Thank you for calling. This call is recorded. Is that okay?"),
+        say("", ("record_recording_consent", {"accepted": True})),
+        say("Can I have your full name, last four of your SSN and date of birth?"),
+        say("", ("verify_identity", {"full_name": "Paul Carter", "ssn_last4": "1234",
+                                     "date_of_birth": "1980-01-01"})),
+        say("Could you spell your last name?"),
+        say("", ("verify_identity", {"full_name": "Paul Carter", "ssn_last4": "1234",
+                                     "date_of_birth": "1980-01-01", "name_was_spelled": True})),
+        say("That doesn't match our records. Could you repeat it?"),
+        say("", ("verify_identity", {"full_name": "Jane Carter", "ssn_last4": "1234",
+                                     "date_of_birth": "1985-03-14"})),
+        say("", ("get_account_details", {})),            # aunque lo intente, la llamada ya terminó
+        say("I couldn't verify your identity. Please call us back with your own information. Goodbye."),
+    )
+    session, _ = _start(use_cases, started_calls, model)
+    session.debtor_says("Yes")
+    session.debtor_says("Paul Carter, 1234, January 1 1980")
+    session.debtor_says("C-A-R-T-E-R")
+    reply = session.debtor_says("Sorry, it's Jane Carter, 1234, March 14 1985")
+
+    outcomes = [a.get("outcome") for a in model.tool_answers]
+    assert outcomes[1:4] == ["name_retry", "failed", "identity_mismatch"]
+    assert model.tool_answers[4]["error"] == "call_ended"   # no pudo ver la cuenta
+    assert reply.call_ended and reply.outcome is CallOutcome.IDENTITY_MISMATCH
+    with pool.connection() as conn:
+        row = conn.execute("SELECT outcome, identity_verified, verification_attempts FROM calls WHERE id = %s",
+                           (session.call_id,)).fetchone()
+    assert row == ("identity_mismatch", False, 2)

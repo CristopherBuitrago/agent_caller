@@ -11,6 +11,7 @@ from cobranza.domain.identity import (
     CallVerificationState,
     IdentityRecord,
     VerificationOutcome as V,
+    first_name_changed,
     names_match,
 )
 
@@ -159,3 +160,41 @@ def test_unknown_call_or_debtor_raises():
         _verify(uc, call="missing")
     with pytest.raises(ValueError):
         uc.execute("c1", "nobody", "Jane Carter", "1234", date(1985, 3, 14))
+
+
+# --- S1: verificación por tanteo (simulación 8) ---------------------------------
+
+@pytest.mark.parametrize("earlier, current, changed", [
+    ("Paul Carter", "Jane Carter", True),          # cambia el nombre de pila: tanteo
+    ("Jane Karter", "Jane Carter", False),         # corrige el apellido al deletrearlo
+    ("Jane Carter", "Jane Marie Carter", False),   # agrega un segundo nombre
+    ("JANE carter", "Jáne Carter", False),         # mayúsculas y tildes
+    ("", "Jane Carter", False),
+])
+def test_first_name_changed(earlier, current, changed):
+    assert first_name_changed(earlier, current) is changed
+
+
+def test_changing_name_between_attempts_closes_without_checking_the_data():
+    uc, calls = _setup()
+    # Con los datos correctos de Jane, pero antes dijo llamarse Paul: no se revisan.
+    outcome = uc.execute("c1", "jane", "Jane Carter", "1234", date(1985, 3, 14),
+                         earlier_names=("Paul Carter",))
+    assert outcome is V.IDENTITY_MISMATCH
+    assert calls.calls["c1"].attempts == 1 and not calls.calls["c1"].verified  # cuenta para el bloqueo
+
+
+def test_same_name_or_spelling_correction_can_retry():
+    uc, _ = _setup()
+    assert uc.execute("c1", "jane", "Jane Carter", "1234", date(1985, 3, 14),
+                      earlier_names=("Jane Carter",)) is V.VERIFIED
+    uc, _ = _setup()
+    assert uc.execute("c1", "jane", "Jane Carter", "1234", date(1985, 3, 14), name_was_spelled=True,
+                      earlier_names=("Jane Karter",)) is V.VERIFIED
+
+
+def test_locked_debtor_stays_locked_even_if_the_name_changes():
+    old = FakeCall(debtor_id="jane", attempts=5, started_at=NOW - timedelta(hours=1))
+    uc, _ = _setup(old=old)
+    assert uc.execute("c1", "jane", "Jane Carter", "1234", date(1985, 3, 14),
+                      earlier_names=("Paul Carter",)) is V.LOCKED

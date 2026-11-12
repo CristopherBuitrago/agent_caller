@@ -1,6 +1,7 @@
 """Función 2: verificar identidad."""
 
 import hmac
+from collections.abc import Sequence
 from datetime import date
 
 from cobranza.application.interfaces.call_repository import CallRepository
@@ -12,6 +13,7 @@ from cobranza.domain.identity import (
     MAX_FAILED_ATTEMPTS_IN_WINDOW,
     MAX_FAILED_ATTEMPTS_PER_CALL,
     VerificationOutcome,
+    first_name_changed,
     is_valid_ssn_last4,
     names_match,
 )
@@ -26,8 +28,12 @@ class VerifyIdentity:
         self._clock = clock
 
     def execute(self, call_id: str, debtor_id: str, full_name: str, ssn_last4: str,
-                dob: date, name_was_spelled: bool = False) -> VerificationOutcome:
-        """`dob` llega ya convertida desde lo hablado. `name_was_spelled` = el deudor ya deletreó el apellido."""
+                dob: date, name_was_spelled: bool = False,
+                earlier_names: Sequence[str] = ()) -> VerificationOutcome:
+        """`dob` llega ya convertida desde lo hablado. `name_was_spelled` = el deudor ya deletreó el apellido.
+
+        `earlier_names`: los nombres que dio quien llama en los intentos anteriores de esta llamada.
+        """
         state = self._calls.get_verification_state(call_id)
         if state is None:
             raise ValueError(f"Llamada desconocida: {call_id}")
@@ -43,6 +49,12 @@ class VerifyIdentity:
         recent_failures = self._calls.count_failed_verifications_since(debtor_id, since)
         if recent_failures >= MAX_FAILED_ATTEMPTS_IN_WINDOW:
             return VerificationOutcome.LOCKED
+
+        # Verificación por tanteo (S1): si cambia el nombre entre intentos, no se revisan los datos.
+        # Cuenta como intento fallido para el bloqueo de 24 horas.
+        if any(first_name_changed(earlier, full_name) for earlier in earlier_names):
+            self._calls.record_verification_attempt(call_id, debtor_id, False)
+            return VerificationOutcome.IDENTITY_MISMATCH
 
         identity = self._identities.get_identity(debtor_id)
         if identity is None:

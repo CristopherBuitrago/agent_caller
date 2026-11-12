@@ -21,6 +21,9 @@ class VerificationOutcome(Enum):
     MAX_ATTEMPTS_REACHED = "max_attempts_reached"
     # 5 fallos en 24 horas sumando llamadas: se transfiere a una persona.
     LOCKED = "locked"
+    # Quien llama cambió de nombre entre intentos (p. ej. "Paul Carter" y luego "Jane Carter"):
+    # se cierra la llamada sin revisar los datos, para que no pueda adivinar por tanteo.
+    IDENTITY_MISMATCH = "identity_mismatch"
 
 
 @dataclass(frozen=True)
@@ -64,3 +67,16 @@ def names_match(spoken_full_name: str, first_name: str, last_name: str) -> bool:
 
 def is_valid_ssn_last4(value: str) -> bool:
     return bool(re.fullmatch(r"\d{4}", value))
+
+
+def first_name_changed(earlier_full_name: str, full_name: str) -> bool:
+    """True si quien llama dio un nombre de pila distinto al de un intento anterior de la misma llamada.
+
+    Solo se compara el primer nombre: corregir la ortografía del apellido ("Karter" -> "Carter",
+    lo que pide NAME_RETRY) o agregar un segundo nombre no cuenta como cambio.
+    """
+    earlier = _name_tokens(earlier_full_name)
+    current = _name_tokens(full_name)
+    if not earlier or not current:
+        return False
+    return earlier[0] != current[0]

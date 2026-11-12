@@ -100,7 +100,8 @@ CREATE TABLE calls (
                               'wrong_party',            -- contestó un tercero
                               'callback_requested',
                               'no_answer',
-                              'recording_refused'       -- no aceptó la grabación: se cierra sin hablar de la deuda
+                              'recording_refused',      -- no aceptó la grabación: se cierra sin hablar de la deuda
+                              'identity_mismatch'       -- cambió de nombre entre intentos de verificación
                           )),
     summary               text,                     -- generado por IA al cerrar; nunca incluye SSN ni fecha de nacimiento
     recording_uri         text,                     -- ruta del audio en el almacenamiento

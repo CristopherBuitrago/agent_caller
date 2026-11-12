@@ -23,6 +23,8 @@ class CallOutcome(Enum):
     NO_ANSWER = "no_answer"
     # Toda llamada se graba por política; sin consentimiento se cierra sin hablar de la deuda.
     RECORDING_REFUSED = "recording_refused"
+    # Quien llama cambió de nombre entre intentos de verificación; se le pide llamar con sus datos.
+    IDENTITY_MISMATCH = "identity_mismatch"
 
 
 @dataclass(frozen=True)
