@@ -103,3 +103,8 @@ class PostgresCallRepository:
                 (excluding_call_id, debtor_id, debtor_id),
             ).fetchone()
         return LastContact(row[0], bool(row[1])) if row else None
+
+    def set_callback(self, call_id: str, callback_at: datetime, note: str | None) -> None:
+        with self._pool.connection() as conn:
+            conn.execute("UPDATE calls SET callback_at = %s, callback_note = %s WHERE id = %s",
+                         (callback_at, note, call_id))

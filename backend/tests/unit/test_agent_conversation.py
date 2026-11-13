@@ -81,6 +81,7 @@ def _tools(debtors=(None,), verify=VerificationOutcome.VERIFIED, next_offer=None
         record_dispute=Stub(lambda *a: "summary"),
         mark_do_not_call=Stub(lambda *a: "summary"),
         get_last_contact=Stub(last_contact or (lambda *a: None)),
+        schedule_callback=Stub(),
     )
     tools = CallTools(uc, "c1", direction, "+13055550001", None, transcript=lambda: "Agent: hi")
     return tools, uc
@@ -586,3 +587,32 @@ def test_doubtful_yes_flow_gets_a_new_offer_within_the_stated_amount():
     _run(tools, "propose_offer", account_ref="ACC-deb-1", max_payment_dollars=150)
     assert uc.record_offer_response.calls[-1][-1] is False
     assert uc.propose_next_offer.calls[-1][-1] == 15000
+
+
+# --- N9 / B2: el agente guarda el día y la hora pedidos -------------------------------------
+
+def test_schedule_callback_uses_the_debtor_local_time_and_closes_the_call():
+    tools, uc = _tools()
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    result, is_error = _run(tools, "schedule_callback", date="2026-11-20", time="18:00", note="asked by debtor")
+    assert not is_error and result["scheduled"] is True
+    call_id, when, note = uc.schedule_callback.calls[0]
+    assert (call_id, when.isoformat(), note) == ("c1", "2026-11-20T18:00:00-05:00", "asked by debtor")
+    assert "Friday, November 20, 2026 at 6:00 PM" in result["next_step"]
+    assert tools.ended and tools.outcome is CallOutcome.CALLBACK_REQUESTED
+
+
+def test_invalid_callback_time_asks_for_another_one():
+    from cobranza.domain.call import CallbackTimeError
+    tools, uc = _tools()
+    uc.schedule_callback._fn = lambda *a: (_ for _ in ()).throw(CallbackTimeError("outside_calling_hours"))
+    _run(tools, "record_recording_consent", accepted=True)
+    result, _ = _run(tools, "schedule_callback", date="2026-11-20", time="22:30")
+    assert result["error"] == "invalid_callback_time" and not tools.ended
+
+
+def test_bad_time_format_asks_to_retry():
+    tools, _ = _tools()
+    _, is_error = _run(tools, "schedule_callback", date="2026-11-20", time="six pm")
+    assert is_error

@@ -235,3 +235,11 @@ CREATE TABLE outbound_call_list (
 );
 
 CREATE INDEX outbound_call_list_pending_debtor_idx ON outbound_call_list (debtor_id) WHERE status = 'pending';
+
+-- ---------------------------------------------------------------------------
+-- N9 / B2 (aprobado el 2026-11-13): el día y la hora que pide el deudor (o un tercero)
+-- para que lo vuelvan a llamar. La lista diaria lo incluye ese día con esa hora.
+-- ---------------------------------------------------------------------------
+ALTER TABLE calls ADD COLUMN callback_at   timestamptz;  -- cuándo pidió que lo llamen
+ALTER TABLE calls ADD COLUMN callback_note text;          -- detalle breve, p. ej. "back at 6 p.m."
+ALTER TABLE outbound_call_list ADD COLUMN call_at timestamptz;  -- a qué hora llamar; vacío = cualquier hora

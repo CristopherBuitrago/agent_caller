@@ -90,3 +90,46 @@ def test_reg_f_no_call_for_seven_days_after_a_conversation(use_cases, started_ca
     _verified_call(use_cases, started_calls, CallDirection.INBOUND)  # Jane habló hoy
     use_cases.build_daily_outbound_list.execute(list_date)
     assert "ACC-T001" not in _test_accounts(use_cases, list_date)
+
+
+# --- N9 / B2: devoluciones de llamada en la lista diaria --------------------------------------
+
+def _callback(pool, call_id, local):
+    with pool.connection() as conn:
+        conn.execute("UPDATE calls SET callback_at = %s WHERE id = %s", (local, call_id))
+
+
+def test_debtor_who_asked_for_a_callback_enters_that_day_at_that_time(use_cases, started_calls, pool, list_date):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    call = _verified_call(use_cases, started_calls, CallDirection.INBOUND)   # Jane habló hoy
+    local = datetime(list_date.year, list_date.month, list_date.day, 18, 0, tzinfo=ZoneInfo("America/New_York"))
+    _callback(pool, call, local)
+    use_cases.build_daily_outbound_list.execute(list_date)
+    entry = _test_accounts(use_cases, list_date)["ACC-T001"]   # entra aunque habló hace menos de 7 días
+    assert entry.call_at == local
+
+
+def test_a_third_party_callback_does_not_skip_the_conversation_rule(use_cases, started_calls, pool, list_date):
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    _verified_call(use_cases, started_calls, CallDirection.INBOUND)          # Jane habló hoy
+    third_party = use_cases.start_call.execute(CallDirection.OUTBOUND, "+13055550001", "ACC-T001")
+    started_calls.append(third_party)                                       # contestó el esposo
+    _callback(pool, third_party, datetime(list_date.year, list_date.month, list_date.day, 18, 0,
+                                          tzinfo=ZoneInfo("America/New_York")))
+    use_cases.build_daily_outbound_list.execute(list_date)
+    assert "ACC-T001" not in _test_accounts(use_cases, list_date)
+
+
+def test_schedule_callback_saves_the_time(use_cases, started_calls, pool):
+    from datetime import datetime, timedelta
+    from zoneinfo import ZoneInfo
+    call = use_cases.start_call.execute(CallDirection.INBOUND, "+13055550001")
+    started_calls.append(call)
+    tomorrow = datetime.now(ZoneInfo("America/New_York")) + timedelta(days=1)
+    local = tomorrow.replace(hour=18, minute=0, second=0, microsecond=0)
+    use_cases.schedule_callback.execute(call, local, "back at 6 p.m.")
+    with pool.connection() as conn:
+        assert conn.execute("SELECT callback_at, callback_note FROM calls WHERE id = %s",
+                            (call,)).fetchone() == (local, "back at 6 p.m.")

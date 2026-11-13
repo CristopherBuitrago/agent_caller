@@ -252,3 +252,30 @@ def test_recording_starts_only_after_consent(accepted, started):
     call_id = _start(calls).execute(CallDirection.INBOUND, "+12125550100")
     RecordRecordingConsent(calls, recorder).execute(call_id, accepted)
     assert recorder.started == [call_id] * started
+
+
+# --- N9 / B2: volver a llamar en el día y la hora pedidos ---------------------------------
+
+from zoneinfo import ZoneInfo  # noqa: E402
+
+from cobranza.domain.call import CallbackTimeError, check_callback_time  # noqa: E402
+
+FL = ZoneInfo("America/New_York")
+
+
+@pytest.mark.parametrize("local, ok", [
+    (datetime(2026, 11, 14, 18, 0, tzinfo=FL), True),     # mañana a las 6 p. m.
+    (datetime(2026, 11, 14, 8, 0, tzinfo=FL), True),
+    (datetime(2026, 11, 14, 21, 0, tzinfo=FL), True),
+    (datetime(2026, 11, 14, 7, 59, tzinfo=FL), False),    # antes de las 8 a. m.
+    (datetime(2026, 11, 14, 21, 1, tzinfo=FL), False),    # después de las 9 p. m.
+    (datetime(2026, 11, 13, 9, 0, tzinfo=FL), False),     # ya pasó
+    (datetime(2026, 12, 20, 10, 0, tzinfo=FL), False),    # a más de 30 días
+])
+def test_callback_time_rules(local, ok):
+    now = datetime(2026, 11, 13, 15, 0, tzinfo=timezone.utc)   # 10 a. m. en Florida
+    if ok:
+        check_callback_time(local, now)
+    else:
+        with pytest.raises(CallbackTimeError):
+            check_callback_time(local, now)

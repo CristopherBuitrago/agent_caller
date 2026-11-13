@@ -1,6 +1,7 @@
 """Función 3: registrar la llamada (inicio, consentimiento de grabación y cierre)."""
 
 import logging
+from datetime import datetime
 
 from cobranza.application.interfaces.call_recorder import CallRecorder
 from cobranza.application.interfaces.call_repository import CallRepository
@@ -8,7 +9,7 @@ from cobranza.application.interfaces.call_summarizer import CallSummarizer, Summ
 from cobranza.application.interfaces.clock import Clock
 from cobranza.application.interfaces.debtor_repository import DebtorRepository
 from cobranza.application.interfaces.phone_service import PhoneService
-from cobranza.domain.call import CallDirection, CallOutcome, check_can_close
+from cobranza.domain.call import CallDirection, CallOutcome, check_callback_time, check_can_close
 
 log = logging.getLogger(__name__)
 
@@ -79,3 +80,22 @@ class EndCall:
 
         self._calls.close(call_id, outcome, summary, self._clock.now())
         return summary
+
+
+class ScheduleCallback:
+    """N9 / B2: guarda el día y la hora que pidió la persona para que la vuelvan a llamar.
+
+    La lista diaria la incluye ese día con esa hora. No cierra la llamada (eso lo hace quien la usa).
+    """
+
+    def __init__(self, calls: CallRepository, clock: Clock):
+        self._calls = calls
+        self._clock = clock
+
+    def execute(self, call_id: str, local_when: datetime, note: str | None = None) -> None:
+        """`local_when` va con la zona horaria del deudor (para revisar el horario permitido)."""
+        call = self._calls.get(call_id)
+        if call is None or not call.is_open:
+            raise ValueError(f"Llamada desconocida o cerrada: {call_id}")
+        check_callback_time(local_when, self._clock.now())
+        self._calls.set_callback(call_id, local_when, (note or "").strip()[:200] or None)

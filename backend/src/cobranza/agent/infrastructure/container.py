@@ -42,6 +42,7 @@ def build_agent(use_cases: UseCases, model: ConversationModel | None = None,
         record_dispute=use_cases.record_dispute,
         mark_do_not_call=use_cases.mark_do_not_call,
         get_last_contact=use_cases.get_last_contact,
+        schedule_callback=use_cases.schedule_callback,
     )
     return StartAgentConversation(
         agent_use_cases, use_cases.start_call,

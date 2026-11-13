@@ -41,3 +41,7 @@ class CallRepository(Protocol):
         """La última llamada saliente al deudor (por su id o por una de sus cuentas), sin contar
         la llamada en curso. None si no hay ninguna."""
         ...
+
+    def set_callback(self, call_id: str, callback_at: datetime, note: str | None) -> None:
+        """N9: guarda cuándo pidió la persona que la vuelvan a llamar."""
+        ...

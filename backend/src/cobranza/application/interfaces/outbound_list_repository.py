@@ -12,6 +12,7 @@ class OutboundEntry:
     account_external_id: str
     debtor_id: str
     phone: str
+    call_at: datetime | None = None  # N9: hora pedida para llamar; None = a cualquier hora
 
 
 class OutboundListRepository(Protocol):

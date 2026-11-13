@@ -26,7 +26,7 @@ from cobranza.application.use_cases.negotiate_arrangement import (
     RecordOfferResponse,
     UnknownProposalError,
 )
-from cobranza.application.use_cases.register_call import EndCall, RecordRecordingConsent
+from cobranza.application.use_cases.register_call import EndCall, RecordRecordingConsent, ScheduleCallback
 from cobranza.application.use_cases.verify_identity import VerifyIdentity
 from cobranza.domain.arrangement import (
     LAST_INSTALLMENTS_BEFORE_HARDSHIP,
@@ -39,7 +39,7 @@ from cobranza.domain.arrangement import (
     is_down_payment_plan,
     RuleViolation,
 )
-from cobranza.domain.call import CallDirection, CallOutcome
+from cobranza.domain.call import CallbackTimeError, CallDirection, CallOutcome
 from cobranza.domain.debtor import AccountSummary, DebtorSummary
 from cobranza.domain.hardship import HardshipAnswers, HardshipDuration
 from cobranza.domain.identity import VerificationOutcome, names_match
@@ -64,12 +64,16 @@ class AgentUseCases:
     record_dispute: RecordDispute
     mark_do_not_call: MarkDoNotCall
     get_last_contact: GetLastContact
+    schedule_callback: ScheduleCallback
 
 
 # --- definición de las herramientas (lo que ve el modelo) ---------------------------------
 
 # Las ofertas más bajas de cada etapa: 3 cuotas antes de las Hardship Questions y, después, el pago
 # inicial más 12 cuotas (N4 y N5).
+# N9: zona horaria si no se conoce la del deudor (confirmado por el desarrollador, 2026-11-13).
+_DEFAULT_ZONE = ZoneInfo("America/New_York")
+
 _LOWEST_OFFER_OF_STAGE = frozenset({LAST_INSTALLMENTS_BEFORE_HARDSHIP, LAST_OFFER})
 
 _DATE = {"type": "string", "description": "Date as YYYY-MM-DD."}
@@ -147,6 +151,13 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
     _spec("get_last_contact",
           "When the verified debtor complains about being called too often, get the date and time "
           "of our last call from the system. Never guess it."),
+    _spec("schedule_callback",
+          "The person asked to be called back on a specific day and time (or a third party said "
+          "when the debtor will be available). Saves it and ends the call.",
+          {"date": _DATE,
+           "time": {"type": "string", "description": "Time as HH:MM, 24-hour, in the debtor's local time."},
+           "note": {"type": "string", "description": "Optional short note, for example who asked."}},
+          ("date", "time")),
     _spec("transfer_to_human",
           "Transfer the call to a representative. Ends your part of the call.",
           {"reason": {"type": "string"}}, ("reason",)),
@@ -455,6 +466,34 @@ class CallTools:
                 "next_step": f'Say: "According to our records, our last call was on {spoken}{reason}." '
                 "Do not add anything that is not in this result. Then continue. Only mark do not "
                 "call if they explicitly ask for it."}
+
+    def _tool_schedule_callback(self, date: str, time: str, note: str | None = None) -> dict:
+        """N9 / B2: guarda el día y la hora pedidos (hora local del deudor) y cierra la llamada."""
+        day = _parse_date(date, "date")
+        try:
+            hour, minute = (int(part) for part in str(time).strip().split(":"))
+            debtor = self._debtor or self._debtor_for_callback()
+            zone = ZoneInfo(debtor.timezone) if debtor and debtor.timezone else _DEFAULT_ZONE
+            local_when = datetime(day.year, day.month, day.day, hour, minute, tzinfo=zone)
+        except ValueError:
+            raise _ToolInputError("time must be HH:MM in 24-hour format") from None
+        try:
+            self._uc.schedule_callback.execute(self.call_id, local_when, note)
+        except CallbackTimeError:
+            return {"error": "invalid_callback_time", "next_step": "That time is not available. Ask for "
+                    "another day and time between 8 AM and 9 PM their time, within the next 30 days."}
+        self._close(CallOutcome.CALLBACK_REQUESTED)
+        spoken = f"{_spoken_date(local_when.date())} at {_spoken_time(local_when)}"
+        return {"scheduled": True, "callback": local_when.isoformat(), "next_step":
+                f'Confirm: "We\'ll call back on {spoken}." Then say goodbye. If the person is not the '
+                "verified debtor, do not mention the debt or the reason for the call."}
+
+    def _debtor_for_callback(self) -> DebtorSummary | None:
+        """Sin verificación: el deudor de la cuenta (saliente) o el primero de ese teléfono (entrante)."""
+        if self._direction is CallDirection.OUTBOUND:
+            return self._uc.get_debtor_by_account.execute(self._outbound_account)
+        candidates = self._uc.find_debtors_by_phone.execute(self._caller_phone)
+        return candidates[0] if candidates else None
 
     def _tool_mark_do_not_call(self) -> dict:
         self.summary = self._uc.mark_do_not_call.execute(self.call_id, self._transcript())
