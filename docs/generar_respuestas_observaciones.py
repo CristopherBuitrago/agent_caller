@@ -155,6 +155,17 @@ S = [
          "Ante una queja: (A) disculparse y ofrecer otro horario o SMS; (B) solo disculparse; o (C) ofrecer \"no "
          "llamar\". Después de \"no llamar\": (A) solo se dejan las llamadas (la deuda sigue por SMS o cartas de "
          "la empresa) o (B) se detiene toda la cobranza hasta que la revise una persona", "Pendiente de decidir"],
+        ["N14", "Deudores vulnerables y amenazas: no había protocolo ni dónde registrarlas",
+         "Ante angustia fuerte (llanto, \"estoy desesperado\"): (A) pausar la cobranza y pasar a una persona, o "
+         "(B) seguir con empatía y ofrecer una persona. Si menciona hacerse daño: siempre pasar a una persona y dar "
+         "la línea de crisis 988. Ante una amenaza de violencia: (A) cerrar con calma, registrarla (resultado nuevo "
+         "threat), alertar a un supervisor y no volver a llamar hasta que una persona lo revise, o (B) solo dejarla "
+         "en el resumen. Recomendada: A en ambos casos", "Pendiente de decidir"],
+        ["N15", "Proveedor de telefonía y programa de los cobradores",
+         "Si el proveedor de SMS de la empresa (\"empieza por V\") también da llamadas de voz con audio en vivo, se "
+         "usa ese en vez de Telnyx (ya tiene contrato y números). Preguntas: ¿cuál es el proveedor? ¿Las llamadas "
+         "de los cobradores van por el mismo? ¿Qué programa usan para recibir llamadas (marcador o CRM)? De eso "
+         "depende cómo se transfiere la llamada y cómo le llega el motivo al cobrador", "Pendiente de información"],
     ], OBS_WIDTHS, status_col=3),
 
     p("Otras decisiones", H2),
@@ -169,12 +180,27 @@ S = [
          "a una persona", "Por confirmar"],
     ], [4.2 * cm, W - 7.6 * cm, 3.4 * cm], status_col=2),
 
+    p("Para revisar antes del piloto", H2),
+    p("<b>Con el jefe.</b> Temas técnicos o de las instrucciones del agente que cambian lo que ve el equipo o cómo se trata a las personas."),
+    table(["#", "Tema", "Propuesta", "Estado"], [
+        ['B12', 'Resumen con IA de llamadas delicadas', 'Hoy se genera resumen aunque solo haya hablado un tercero o alguien no verificado, y en llamadas con amenazas o insultos. Propuesta: si no hubo verificación, el resumen solo dice quién contestó y cómo terminó, sin mencionar la deuda; con amenazas o insultos, el resumen lo dice en una línea sin repetir las palabras', 'Pendiente'],
+        ['B13', 'Un impostor puede bloquear a la verdadera deudora', 'Con 5 fallos de verificación en 24 horas, entre varias llamadas, la cuenta se bloquea y pasa a una persona. Un impostor puede provocarlo a propósito y la deudora real no podría resolver con el agente ese día. Propuesta: mantener el bloqueo y enviar una alerta al equipo cuando ocurra, para que una persona contacte a la deudora', 'Pendiente'],
+        ['P3', 'Qué se le dice a un tercero que contesta', 'Propuesta de frases fijas: "I\'m calling about a personal business matter" y "I\'m only able to speak with her directly". El agente nunca deja recados, no dice el nombre de la empresa si delata la cobranza (ver L3) y no acepta que el tercero pague o ayude', 'Pendiente'],
+        ['P7', 'Quejas, insultos y "no llamar"', '"Me llaman todo el tiempo" es una queja; "no me llamen más" es un pedido de "no llamar". Propuesta ante insultos: mantener la calma sin comentarlos y, si siguen, ofrecer una persona o cerrar la llamada con amabilidad. Depende de N13', 'Pendiente'],
+    ], OBS_WIDTHS, status_col=3),
+    p("<b>Con el abogado en EE. UU. (por medio del jefe).</b> Nadie los ha revisado todavía. Conviene resolverlos antes de llamar a deudores reales, porque algunos cambian cómo se diseña la llamada."),
+    table(["#", "Tema", "Qué hay que revisar", "Estado"], [
+        ['L1', 'Volver a llamar a quien pidió no ser llamado', 'El error E1 ya está corregido: el pedido se guarda aunque el deudor cuelgue. Falta confirmar qué exige la ley cuando el deudor lo pide (por qué medio se puede seguir contactando, si vale el pedido por teléfono). Prioritario', 'Pendiente'],
+        ['L2', 'Consentimiento de grabación', 'Florida y otros estados exigen el consentimiento de todas las partes. Ya se aplicó que la grabación empiece con el "sí" del deudor (N3). Falta confirmar que eso basta, y si una llamada sin consentimiento puede tener transcripción y resumen con IA', 'Pendiente'],
+        ['L3', 'Qué se le dice a un tercero', 'El nombre de la empresa ("Recovery Services") delata la cobranza. Definir qué nombre se dice, a quién y en qué momento', 'Pendiente'],
+        ['L4', 'Límite de 7 llamadas en 7 días (Reg F)', 'La lista diaria ya respeta el límite y espera 7 días después de una conversación. Falta confirmar qué cuenta: devoluciones de llamada, llamadas fallidas, SMS, y las llamadas del agente sumadas a las de los cobradores', 'Pendiente'],
+        ['L5', 'Disputas', 'Plazos y formato para verificar una deuda disputada, y si basta una disputa por teléfono (relacionado con N11)', 'Pendiente'],
+        ['L6', 'Aviso "This communication is from a debt collector"', 'Se propuso quitarlo por repetido; la frase no se había dicho antes en la llamada. Confirmar el texto exacto del aviso legal', 'Pendiente'],
+        ['L7', 'Deudores vulnerables y SMS', 'Obligaciones con deudores en situación vulnerable (relacionado con N14). Además: el consentimiento para enviar SMS de cobranza, la forma de darse de baja y el texto de los SMS (N1 y N10)', 'Pendiente'],
+    ], OBS_WIDTHS, status_col=3),
     p("Siguen sin revisar", H2),
-    Paragraph("<b>Negocio:</b> N14 (deudores vulnerables y amenazas) y N15 (proveedor de telefonía y programa de "
-              "los cobradores).", BUL, bulletText="•"),
-    Paragraph("<b>Técnicas:</b> 12 de backend (B1–B6, B8, B9, B12–B15).", BUL, bulletText="•"),
-    Paragraph("<b>Instrucciones del agente:</b> P1–P12, en un solo ajuste al final.", BUL, bulletText="•"),
-    Paragraph("<b>Legales:</b> L1–L7, para revisar con un abogado.", BUL, bulletText="•"),
+    Paragraph("<b>Técnicas:</b> 10 de backend (B1–B6, B8, B9, B14, B15).", BUL, bulletText="•"),
+    Paragraph("<b>Instrucciones del agente:</b> P1, P2, P4–P6 y P8–P12, en un solo ajuste al final.", BUL, bulletText="•"),
 ]
 
 doc = SimpleDocTemplate(OUT, pagesize=letter, leftMargin=1.7 * cm, rightMargin=1.7 * cm, topMargin=1.6 * cm,
