@@ -90,7 +90,7 @@ def _spec(name: str, description: str, properties: dict | None = None,
 
 END_OUTCOMES = {
     CallOutcome.ARRANGEMENT_MADE, CallOutcome.WRONG_PARTY, CallOutcome.CALLBACK_REQUESTED,
-    CallOutcome.VERIFICATION_FAILED, CallOutcome.RECORDING_REFUSED,
+    CallOutcome.VERIFICATION_FAILED, CallOutcome.RECORDING_REFUSED, CallOutcome.DEBTOR_UNAVAILABLE,
 }
 
 TOOL_SPECS: tuple[ToolSpec, ...] = (
@@ -276,6 +276,7 @@ class CallTools:
         self.ended = False
         self.outcome: CallOutcome | None = None
         self.summary: str | None = None
+        self.transferred = False  # B3: se pasó a una persona (además del resultado)
 
     def execute(self, call: ToolCall) -> ToolResult:
         handler = getattr(self, f"_tool_{call.name}", None)
@@ -300,10 +301,13 @@ class CallTools:
                                        "next_step": "If you cannot continue, use transfer_to_human."},
                                 error=True)
 
-    def close_without_model(self, outcome: CallOutcome) -> None:
+    def close_without_model(self, outcome: CallOutcome, transfer_reason: str | None = None) -> None:
         """Cierra la llamada sin el modelo (falló o el deudor colgó). Sin grabación, solo recording_refused."""
         if not self.ended:
-            self._close(CallOutcome.RECORDING_REFUSED if self._recording_refused else outcome)
+            if self._recording_refused:
+                self._close(CallOutcome.RECORDING_REFUSED)
+            else:
+                self._close(outcome, transfer_reason)
 
     # --- herramientas ---
 
@@ -505,7 +509,10 @@ class CallTools:
     def _tool_transfer_to_human(self, reason: str) -> dict:
         if self._recording_refused:
             raise ValueError("Without recording consent the call can only end as recording_refused")
-        self._close(CallOutcome.TRANSFERRED_TO_HUMAN)
+        # B3: si ya se cerró un acuerdo, el resultado sigue siendo el acuerdo; el motivo dice por qué
+        # se transfirió (B4), para que el cobrador no tenga que volver a preguntar.
+        outcome = CallOutcome.ARRANGEMENT_MADE if self._arrangement_made else CallOutcome.TRANSFERRED_TO_HUMAN
+        self._close(outcome, reason)
         return {"transferring": True, "next_step": "Tell them you are transferring them to a "
                 "representative now."}
 
@@ -572,9 +579,14 @@ class CallTools:
             result.update(self._first_payment_window())
         return result
 
-    def _close(self, outcome: CallOutcome) -> None:
-        self.summary = self._uc.end_call.execute(self.call_id, outcome, self._transcript())
+    def _close(self, outcome: CallOutcome, transfer_reason: str | None = None) -> None:
+        if transfer_reason:
+            self.summary = self._uc.end_call.execute(self.call_id, outcome, self._transcript(),
+                                                     transfer_reason=transfer_reason)
+        else:
+            self.summary = self._uc.end_call.execute(self.call_id, outcome, self._transcript())
         self._mark_ended(outcome)
+        self.transferred = bool(transfer_reason)
 
     def _mark_ended(self, outcome: CallOutcome) -> None:
         self.ended = True

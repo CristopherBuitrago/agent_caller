@@ -45,3 +45,7 @@ class CallRepository(Protocol):
     def set_callback(self, call_id: str, callback_at: datetime, note: str | None) -> None:
         """N9: guarda cuándo pidió la persona que la vuelvan a llamar."""
         ...
+
+    def set_transfer_reason(self, call_id: str, reason: str) -> None:
+        """B3 / B4: por qué se transfirió la llamada a una persona."""
+        ...

@@ -44,6 +44,10 @@ class FakeCalls:
         self.calls[call_id] = replace(self.calls[call_id], ended_at=ended_at)
         self.closed[call_id] = (outcome, summary)
 
+    def set_transfer_reason(self, call_id, reason):
+        self.transfer_reasons = getattr(self, "transfer_reasons", {})
+        self.transfer_reasons[call_id] = reason
+
     def get_verification_state(self, call_id):
         return getattr(self, "verification", None)
 
@@ -310,3 +314,14 @@ def test_claude_summarizer_sends_the_verification_flag_and_the_rules():
     assert request["messages"][0]["content"].startswith("<identity_verified>false</identity_verified>")
     assert "Do not mention any debt" in request["system"]
     assert "without repeating their" in request["system"]
+
+
+# --- B3 / B4: motivo de la transferencia -------------------------------------------------------
+
+def test_end_call_saves_the_transfer_reason_and_keeps_the_outcome():
+    calls = FakeCalls()
+    call_id = _start(calls).execute(CallDirection.INBOUND, "+12125550100")
+    EndCall(calls, FakeSummarizer(), FixedClock()).execute(
+        call_id, CallOutcome.ARRANGEMENT_MADE, "Agent: hi", transfer_reason="  wants to know how to pay  ")
+    assert calls.closed[call_id][0] is CallOutcome.ARRANGEMENT_MADE
+    assert calls.transfer_reasons[call_id] == "wants to know how to pay"

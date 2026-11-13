@@ -25,6 +25,8 @@ class CallOutcome(Enum):
     RECORDING_REFUSED = "recording_refused"
     # Quien llama cambió de nombre entre intentos de verificación; se le pide llamar con sus datos.
     IDENTITY_MISMATCH = "identity_mismatch"
+    # B3: contestó un tercero y el deudor no estaba (no es "wrong_party": el número sí es suyo).
+    DEBTOR_UNAVAILABLE = "debtor_unavailable"
 
 
 @dataclass(frozen=True)

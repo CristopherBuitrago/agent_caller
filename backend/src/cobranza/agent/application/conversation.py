@@ -136,7 +136,8 @@ class AgentSession:
 
     def _fail(self) -> AgentReply:
         self._lines.append(f"Agent: {FALLBACK_TEXT}")
-        self._tools.close_without_model(CallOutcome.TRANSFERRED_TO_HUMAN)
+        self._tools.close_without_model(CallOutcome.TRANSFERRED_TO_HUMAN,
+                                        "The agent could not continue the call (technical problem).")
         return AgentReply(FALLBACK_TEXT, True, self._tools.outcome)
 
     def _reply(self, text: str) -> AgentReply:

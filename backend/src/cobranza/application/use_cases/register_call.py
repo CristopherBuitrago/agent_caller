@@ -63,8 +63,13 @@ class EndCall:
         self._summarizer = summarizer
         self._clock = clock
 
-    def execute(self, call_id: str, outcome: CallOutcome, transcript: str | None = None) -> str | None:
-        """Cierra la llamada. Devuelve el resumen generado, o None si no hubo transcripción o falló."""
+    def execute(self, call_id: str, outcome: CallOutcome, transcript: str | None = None,
+                transfer_reason: str | None = None) -> str | None:
+        """Cierra la llamada. Devuelve el resumen generado, o None si no hubo transcripción o falló.
+
+        `transfer_reason` (B3 / B4): si la llamada se pasó a una persona, por qué. El resultado puede
+        ser otro (por ejemplo arrangement_made si el acuerdo se cerró antes de transferir).
+        """
         call = self._calls.get(call_id)
         if call is None:
             raise ValueError(f"Llamada desconocida: {call_id}")
@@ -81,6 +86,8 @@ class EndCall:
                 # El resultado de la llamada nunca se pierde por un fallo del resumen.
                 log.warning("No se pudo resumir la llamada %s", call_id, exc_info=True)
 
+        if transfer_reason and transfer_reason.strip():
+            self._calls.set_transfer_reason(call_id, transfer_reason.strip()[:300])
         self._calls.close(call_id, outcome, summary, self._clock.now())
         return summary
 

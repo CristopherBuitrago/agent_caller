@@ -91,6 +91,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] N14: ante angustia o amenazas, el agente mantiene la calma y sigue cobrando; nunca cuelga ni transfiere por eso, ni siquiera si el deudor menciona hacerse daño (decisión del desarrollador, queda para L7). Aplicado en el prompt; 369 pruebas pasan (2026-11-13)
 - [x] B12: el resumen sabe si hubo verificación; sin verificación solo dice quién contestó y cómo terminó, sin mencionar la deuda; con amenazas o insultos, una línea sin repetir las palabras (respuesta del jefe). 373 pruebas pasan (2026-11-13)
 - [x] B1: las Hardship Questions valen 30 días por deudor en cualquier llamada (`exists_for_debtor_since`); las ofertas empiezan de nuevo en cada llamada. 375 pruebas pasan (2026-11-13)
+- [x] B3 y B4: campo `calls.transfer_reason` y resultado `debtor_unavailable` (aprobados). Con acuerdo y transferencia, la llamada queda `arrangement_made` y guarda el motivo; si el modelo falla, el motivo lo dice. 381 pruebas pasan (2026-11-13)
 - [x] N12: al cerrar por verificación fallida o cambio de nombre, el agente da el número para devolver la llamada (`AGENT_CALLBACK_NUMBER`; si no está configurado, no se ofrece). 330 pruebas pasan (2026-11-12)
 - [ ] Preguntar al jefe (N12): confirmar la opción y cuál es el número de la línea de entrada que atiende el agente
 - [x] L2, L3 y P3: aviso de grabación sin pregunta, "L.O.F." antes de verificar y "Live Oak Financial" después, frases fijas para terceros. Los SMS dicen "L.O.F.". 330 pruebas pasan (2026-11-12)

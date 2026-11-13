@@ -56,6 +56,8 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 | --- | --- | --- | --- |
 | B1 | Lo hablado en una llamada no servía para la siguiente | Las Hardship Questions de un deudor valen 30 días, en cualquier llamada: no se le repiten. Las ofertas empiezan de nuevo en cada llamada (su situación puede haber cambiado); si dice cuánto puede pagar, las mayores se saltan (N4) | Aplicada (2026-11-13) |
 | B2 | No se guardaba cuándo volver a llamar | Se guarda el día y la hora pedidos y la lista diaria llama a esa hora (con N9) | Aplicada (2026-11-13) |
+| B3 | El resultado de la llamada escondía información | Si hubo acuerdo y después se transfirió, la llamada queda como `arrangement_made`; el motivo de la transferencia queda aparte. Resultado nuevo `debtor_unavailable` para "contestó un tercero; el deudor no estaba" | Aplicada (2026-11-13) |
+| B4 | No se guardaba por qué se transfirió la llamada | Campo nuevo `calls.transfer_reason` con el motivo, para que el cobrador no tenga que volver a preguntar | Aplicada (2026-11-13) |
 | B7 | El agente no sabía hasta cuándo podía ir el primer pago | La herramienta le da la fecha límite (con N8) | Aplicada |
 | B10 | No había forma de enviar el link de pago | SMS de confirmación, aviso y link de pago (con N1) | Aplicada con proveedor de prueba |
 | B11 | La grabación empezaba antes de avisar | La grabación empieza al dar el aviso (con N3 y L2) | Aplicada |
@@ -75,5 +77,5 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 ## Siguen sin revisar
 
 - **Con el abogado:** L7.
-- **Técnicas:** 8 de backend (B3–B6, B8, B9, B14, B15).
+- **Técnicas:** 6 de backend (B5, B6, B8, B9, B14, B15).
 - **Instrucciones del agente:** P1, P2, P4–P6 y P8–P12, en un solo ajuste al final.

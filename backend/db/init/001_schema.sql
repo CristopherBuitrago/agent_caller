@@ -101,7 +101,8 @@ CREATE TABLE calls (
                               'callback_requested',
                               'no_answer',
                               'recording_refused',      -- no aceptó la grabación: se cierra sin hablar de la deuda
-                              'identity_mismatch'       -- cambió de nombre entre intentos de verificación
+                              'identity_mismatch',      -- cambió de nombre entre intentos de verificación
+                              'debtor_unavailable'      -- B3: contestó un tercero; el deudor no estaba
                           )),
     summary               text,                     -- generado por IA al cerrar; nunca incluye SSN ni fecha de nacimiento
     recording_uri         text,                     -- ruta del audio en el almacenamiento
@@ -243,3 +244,7 @@ CREATE INDEX outbound_call_list_pending_debtor_idx ON outbound_call_list (debtor
 ALTER TABLE calls ADD COLUMN callback_at   timestamptz;  -- cuándo pidió que lo llamen
 ALTER TABLE calls ADD COLUMN callback_note text;          -- detalle breve, p. ej. "back at 6 p.m."
 ALTER TABLE outbound_call_list ADD COLUMN call_at timestamptz;  -- a qué hora llamar; vacío = cualquier hora
+
+-- B3 / B4 (aprobado el 2026-11-13): motivo de la transferencia a una persona. Si tiene algo, la
+-- llamada se transfirió, aunque su resultado sea otro (por ejemplo arrangement_made).
+ALTER TABLE calls ADD COLUMN transfer_reason text;

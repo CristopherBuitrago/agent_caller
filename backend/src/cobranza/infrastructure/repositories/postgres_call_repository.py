@@ -108,3 +108,7 @@ class PostgresCallRepository:
         with self._pool.connection() as conn:
             conn.execute("UPDATE calls SET callback_at = %s, callback_note = %s WHERE id = %s",
                          (callback_at, note, call_id))
+
+    def set_transfer_reason(self, call_id: str, reason: str) -> None:
+        with self._pool.connection() as conn:
+            conn.execute("UPDATE calls SET transfer_reason = %s WHERE id = %s", (reason, call_id))

@@ -72,3 +72,18 @@ def test_last_outbound_call_to_the_debtor(use_cases, started_calls, pool):
     assert abs(contact.started_at - two_days_ago) < timedelta(seconds=1) and contact.arrangement_made
     # La llamada en curso no cuenta, aunque sea saliente.
     assert use_cases.get_last_contact.execute(jane.id, newer).arrangement_made is False
+
+
+# --- B3 / B4 -------------------------------------------------------------------------------------
+
+def test_transfer_reason_and_debtor_unavailable_are_saved(use_cases, started_calls, pool):
+    transferred = use_cases.start_call.execute(CallDirection.INBOUND, "+13055550001")
+    unavailable = use_cases.start_call.execute(CallDirection.OUTBOUND, "+13055550001", "ACC-T001")
+    started_calls.extend([transferred, unavailable])
+    use_cases.end_call.execute(transferred, CallOutcome.TRANSFERRED_TO_HUMAN, transfer_reason="Asked for a person")
+    use_cases.end_call.execute(unavailable, CallOutcome.DEBTOR_UNAVAILABLE)
+    with pool.connection() as conn:
+        rows = dict(conn.execute("SELECT id::text, (outcome, transfer_reason) FROM calls WHERE id = ANY(%s::uuid[])",
+                                 ([transferred, unavailable],)).fetchall())
+    assert rows[transferred] == ("transferred_to_human", "Asked for a person")
+    assert rows[unavailable] == ("debtor_unavailable", None)

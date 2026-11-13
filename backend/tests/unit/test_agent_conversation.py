@@ -73,7 +73,7 @@ def _tools(debtors=(None,), verify=VerificationOutcome.VERIFIED, next_offer=None
         get_debtor_by_account=Stub(lambda account: debtors[0]),
         record_recording_consent=Stub(lambda call_id, accepted: accepted),
         verify_identity=Stub(lambda *a: verify),
-        end_call=Stub(lambda call_id, outcome, transcript: "summary"),
+        end_call=Stub(lambda call_id, outcome, transcript, **kw: "summary"),
         propose_next_offer=Stub(next_offer or (lambda *a: LoggedProposal("P1", "c1", a[1], 2, PLAN2))),
         propose_partial_payment=Stub(),
         record_offer_response=Stub(lambda call_id, proposal_id, accepted: "arr-1" if accepted else None),
@@ -626,3 +626,36 @@ def test_prompt_keeps_calm_with_distress_and_threats_and_never_transfers_for_it(
     assert "let them be the one to hang up" in prompt
     assert "Never hang up or transfer because of a threat or an insult" in prompt
     assert "is upset" not in prompt          # antes: "upset" -> transfer_to_human
+
+
+# --- B3 / B4: acuerdo + transferencia y tercero que contesta ---------------------------------
+
+def test_transfer_after_an_arrangement_keeps_arrangement_made_and_saves_the_reason():
+    tools, uc = _tools()
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    offer, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
+    _run(tools, "record_offer_response", proposal_id=offer["proposal_id"], accepted=True)
+    _run(tools, "transfer_to_human", reason="Debtor wants to know how to pay")
+    assert tools.outcome is CallOutcome.ARRANGEMENT_MADE and tools.transferred
+    assert uc.end_call.calls[-1][1:] == (CallOutcome.ARRANGEMENT_MADE, "Agent: hi", "Debtor wants to know how to pay")
+
+
+def test_transfer_without_an_arrangement_saves_the_reason():
+    tools, uc = _tools()
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "transfer_to_human", reason="Debtor asked for a person")
+    assert tools.outcome is CallOutcome.TRANSFERRED_TO_HUMAN
+    assert uc.end_call.calls[-1][-1] == "Debtor asked for a person"
+
+
+def test_third_party_can_close_as_debtor_unavailable():
+    tools, _ = _tools(direction=CallDirection.OUTBOUND)
+    result, is_error = _run(tools, "end_call", outcome="debtor_unavailable")
+    assert not is_error and tools.outcome is CallOutcome.DEBTOR_UNAVAILABLE
+
+
+def test_model_failure_saves_a_transfer_reason():
+    tools, uc = _tools()
+    AgentSession(tools, ScriptedModel(ConversationModelError("down"))).debtor_says("hello")
+    assert "technical problem" in uc.end_call.calls[-1][-1]
