@@ -9,13 +9,14 @@ import inspect
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from zoneinfo import ZoneInfo
 from typing import Any
 
 from cobranza.agent.application.conversation_model import ToolCall, ToolResult, ToolSpec
 from cobranza.application.interfaces.clock import Clock
 from cobranza.application.interfaces.negotiation_log import LoggedProposal
+from cobranza.application.use_cases.contact_history import GetLastContact
 from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
 from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
 from cobranza.application.use_cases.negotiate_arrangement import (
@@ -62,6 +63,7 @@ class AgentUseCases:
     record_hardship_assessment: RecordHardshipAssessment
     record_dispute: RecordDispute
     mark_do_not_call: MarkDoNotCall
+    get_last_contact: GetLastContact
 
 
 # --- definición de las herramientas (lo que ve el modelo) ---------------------------------
@@ -141,7 +143,10 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
           "theirs. Marks the account as disputed and ends the call.",
           {"account_ref": _ACCOUNT_REF}, ("account_ref",)),
     _spec("mark_do_not_call",
-          "The debtor asked not to be called again. Saves it and ends the call."),
+          "The debtor explicitly asked not to be called again. Saves it and ends the call."),
+    _spec("get_last_contact",
+          "When the verified debtor complains about being called too often, get the date and time "
+          "of our last call from the system. Never guess it."),
     _spec("transfer_to_human",
           "Transfer the call to a representative. Ends your part of the call.",
           {"reason": {"type": "string"}}, ("reason",)),
@@ -188,6 +193,12 @@ def dollars(cents: int) -> str:
 
 def _spoken_date(value: date) -> str:
     return f"{value:%A}, {value:%B} {value.day}, {value.year}"
+
+
+def _spoken_time(value: datetime) -> str:
+    """15:05 -> "3:05 PM"."""
+    hour = value.hour % 12 or 12
+    return f"{hour}:{value.minute:02d} {'AM' if value.hour < 12 else 'PM'}"
 
 
 def _parse_date(value: str | None, field: str) -> date | None:
@@ -422,6 +433,24 @@ class CallTools:
         self._mark_ended(CallOutcome.DISPUTE)
         return {"recorded": True, "next_step": "Tell them a representative will review it, thank them "
                 "and say goodbye. Do not ask for any payment."}
+
+    def _tool_get_last_contact(self) -> dict:
+        """N13: la fecha real de la última llamada, en la hora local del deudor."""
+        debtor = self._require_debtor()
+        contact = self._uc.get_last_contact.execute(debtor.id, self.call_id)
+        if contact is None:
+            return {"last_call": None, "next_step": "Say you don't see a previous call from us in "
+                    "your records, apologize for the inconvenience and continue. Only mark do not "
+                    "call if they explicitly ask for it."}
+        when = (contact.started_at.astimezone(ZoneInfo(debtor.timezone)) if debtor.timezone
+                else contact.started_at)
+        spoken = f"{_spoken_date(when.date())} at {_spoken_time(when)}"
+        reason = (", when we set up a payment arrangement; that's why we're following up"
+                  if contact.arrangement_made else "")
+        return {"last_call": when.isoformat(), "arrangement_made": contact.arrangement_made,
+                "next_step": f'Say: "According to our records, our last call was on {spoken}{reason}." '
+                "Do not add anything that is not in this result. Then continue. Only mark do not "
+                "call if they explicitly ask for it."}
 
     def _tool_mark_do_not_call(self) -> dict:
         self.summary = self._uc.mark_do_not_call.execute(self.call_id, self._transcript())

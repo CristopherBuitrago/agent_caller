@@ -52,3 +52,23 @@ def test_recording_refused_closes_without_other_outcomes(use_cases, pool, starte
     use_cases.end_call.execute(call, CallOutcome.RECORDING_REFUSED)
     row = _row(pool, call)
     assert (row[4], row[5], row[6], row[7]) == (False, "recording_refused", None, True)
+
+
+# --- N13: última llamada saliente al deudor ---------------------------------------------------
+
+def test_last_outbound_call_to_the_debtor(use_cases, started_calls, pool):
+    from datetime import datetime, timedelta, timezone
+    jane = use_cases.find_debtors_by_phone.execute("+13055550001")[0]
+    older = use_cases.start_call.execute(CallDirection.OUTBOUND, "+13055550001", "ACC-T001")
+    newer = use_cases.start_call.execute(CallDirection.OUTBOUND, "+13055550001", "ACC-T001")
+    current = use_cases.start_call.execute(CallDirection.INBOUND, "+13055550001")
+    started_calls.extend([older, newer, current])
+    two_days_ago = datetime.now(timezone.utc) - timedelta(days=2)
+    with pool.connection() as conn:
+        conn.execute("UPDATE calls SET started_at = %s WHERE id = %s", (two_days_ago - timedelta(days=1), older))
+        conn.execute("UPDATE calls SET started_at = %s, outcome = 'arrangement_made' WHERE id = %s",
+                     (two_days_ago, newer))
+    contact = use_cases.get_last_contact.execute(jane.id, current)
+    assert abs(contact.started_at - two_days_ago) < timedelta(seconds=1) and contact.arrangement_made
+    # La llamada en curso no cuenta, aunque sea saliente.
+    assert use_cases.get_last_contact.execute(jane.id, newer).arrangement_made is False

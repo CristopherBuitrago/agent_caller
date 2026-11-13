@@ -11,6 +11,7 @@ import anthropic
 from psycopg_pool import ConnectionPool
 
 from cobranza.application.interfaces.call_summarizer import CallSummarizer
+from cobranza.application.use_cases.contact_history import GetLastContact
 from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
 from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
 from cobranza.application.use_cases.negotiate_arrangement import (
@@ -80,6 +81,7 @@ class UseCases:
     mark_outbound_called: MarkOutboundCalled
     record_payment_result: RecordPaymentResult
     break_overdue_arrangements: BreakOverdueArrangements
+    get_last_contact: GetLastContact
 
 
 def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
@@ -136,4 +138,5 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         mark_outbound_called=MarkOutboundCalled(outbound),
         record_payment_result=RecordPaymentResult(ledger),
         break_overdue_arrangements=BreakOverdueArrangements(ledger),
+        get_last_contact=GetLastContact(calls),
     )

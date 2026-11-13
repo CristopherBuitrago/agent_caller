@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Protocol
 
-from cobranza.domain.call import CallDirection, CallOutcome, CallRecord
+from cobranza.domain.call import CallDirection, CallOutcome, CallRecord, LastContact
 from cobranza.domain.identity import CallVerificationState
 
 
@@ -33,4 +33,11 @@ class CallRepository(Protocol):
 
     def count_failed_verifications_since(self, debtor_id: str, since: datetime) -> int:
         """Fallos de verificación del deudor en todas sus llamadas desde `since`."""
+        ...
+
+    # --- historial de contacto (N13) ---
+
+    def last_outbound_call(self, debtor_id: str, excluding_call_id: str) -> LastContact | None:
+        """La última llamada saliente al deudor (por su id o por una de sus cuentas), sin contar
+        la llamada en curso. None si no hay ninguna."""
         ...

@@ -4,7 +4,7 @@ from datetime import datetime
 
 from psycopg_pool import ConnectionPool
 
-from cobranza.domain.call import CallDirection, CallOutcome, CallRecord
+from cobranza.domain.call import CallDirection, CallOutcome, CallRecord, LastContact
 from cobranza.domain.identity import CallVerificationState
 
 
@@ -89,3 +89,17 @@ class PostgresCallRepository:
                 (debtor_id, since),
             ).fetchone()
         return int(row[0])
+
+    def last_outbound_call(self, debtor_id: str, excluding_call_id: str) -> LastContact | None:
+        with self._pool.connection() as conn:
+            row = conn.execute(
+                """SELECT c.started_at, c.outcome = 'arrangement_made'
+                   FROM calls c
+                   WHERE c.direction = 'outbound' AND c.id <> %s
+                     AND (c.debtor_id = %s
+                          OR c.account_id IN (SELECT id FROM accounts WHERE debtor_id = %s))
+                   ORDER BY c.started_at DESC
+                   LIMIT 1""",
+                (excluding_call_id, debtor_id, debtor_id),
+            ).fetchone()
+        return LastContact(row[0], bool(row[1])) if row else None

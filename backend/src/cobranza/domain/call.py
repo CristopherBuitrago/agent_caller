@@ -47,3 +47,10 @@ def check_can_close(call: CallRecord, outcome: CallOutcome) -> None:
         raise ValueError(f"La llamada {call.id} ya está cerrada")
     if call.recording_consent is False and outcome is not CallOutcome.RECORDING_REFUSED:
         raise ValueError("Sin consentimiento de grabación, el único resultado posible es recording_refused")
+
+
+@dataclass(frozen=True)
+class LastContact:
+    """La última llamada saliente de la empresa al deudor (N13)."""
+    started_at: datetime
+    arrangement_made: bool  # en esa llamada se cerró un acuerdo

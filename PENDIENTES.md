@@ -85,6 +85,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] N10: SMS solo de aviso 3 días antes de cada cuota (`SendPaymentReminders`, tipo `payment_reminder` en `sms_messages`), además del link el día de la cuota. 323 pruebas pasan (2026-11-12)
 - [x] N10: a los 5 días sin pago, acuerdo `broken` y cuenta de vuelta a `NSF`, sin alerta (respuesta del jefe). `RecordPaymentResult` y `BreakOverdueArrangements`; la tarea `break_overdue_arrangements` está protegida hasta conectar el aviso de pago (`PAYMENT_RESULTS_CONNECTED=true`). 339 pruebas pasan (2026-11-13)
 - [ ] Conectar el aviso de pago del procesador (webhook) a `RecordPaymentResult` y activar `break_overdue_arrangements`
+- [x] N13: herramienta `get_last_contact` (caso de uso `GetLastContact`): ante una queja por las llamadas, el agente dice la fecha y hora reales de la última llamada saliente, en la hora local del deudor, y si en ella hubo acuerdo. "No llamar" solo con pedido explícito (prompt). Solo cuenta las llamadas de esta base. 344 pruebas pasan (2026-11-13)
 - [ ] Preguntar al jefe: estado de la cuenta cuando se pagan todas las cuotas
 - [x] N11 (decisión, sin construir): disputa con alerta al equipo y revisión de un cobrador; el agente busca el pago en la llamada; si no lo encuentra, no acusa y registra la disputa igual (supuesto vigente) (2026-11-12)
 - [x] N12: al cerrar por verificación fallida o cambio de nombre, el agente da el número para devolver la llamada (`AGENT_CALLBACK_NUMBER`; si no está configurado, no se ofrece). 330 pruebas pasan (2026-11-12)

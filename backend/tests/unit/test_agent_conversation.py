@@ -65,7 +65,7 @@ PLAN2 = ArrangementProposal(ArrangementType.PLAN, 48500, (
     ScheduledPayment(1, 24250, date(2026, 11, 13)), ScheduledPayment(2, 24250, date(2026, 12, 13))))
 
 
-def _tools(debtors=(None,), verify=VerificationOutcome.VERIFIED, next_offer=None,
+def _tools(debtors=(None,), verify=VerificationOutcome.VERIFIED, next_offer=None, last_contact=None,
            direction=CallDirection.INBOUND):
     debtors = [d or _debtor() for d in debtors]
     uc = AgentUseCases(
@@ -80,6 +80,7 @@ def _tools(debtors=(None,), verify=VerificationOutcome.VERIFIED, next_offer=None
         record_hardship_assessment=Stub(),
         record_dispute=Stub(lambda *a: "summary"),
         mark_do_not_call=Stub(lambda *a: "summary"),
+        get_last_contact=Stub(last_contact or (lambda *a: None)),
     )
     tools = CallTools(uc, "c1", direction, "+13055550001", None, transcript=lambda: "Agent: hi")
     return tools, uc
@@ -519,3 +520,43 @@ def test_other_outcomes_do_not_offer_the_number():
                                          ("3055550001", "305-555-0001"), ("ext 12", "ext 12")])
 def test_spoken_phone(raw, spoken):
     assert spoken_phone(raw) == spoken
+
+
+# --- N13: la fecha real de la última llamada -----------------------------------------------
+
+def _verified_tools(last_contact):
+    tools, uc = _tools(last_contact=last_contact)
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    return tools, uc
+
+
+def test_last_contact_is_said_in_the_debtor_local_time():
+    from datetime import datetime, timezone
+    from cobranza.domain.call import LastContact
+    when = datetime(2026, 11, 10, 20, 15, tzinfo=timezone.utc)            # 3:15 PM en Florida
+    tools, uc = _verified_tools(lambda *a: LastContact(when, False))
+    result, _ = _run(tools, "get_last_contact")
+    assert "our last call was on Tuesday, November 10, 2026 at 3:15 PM." in result["next_step"]
+    assert "arrangement" not in result["next_step"].split("Do not add")[0]
+    assert uc.get_last_contact.calls == [("deb-1", "c1")]
+
+
+def test_last_contact_with_an_arrangement_explains_why_we_call():
+    from datetime import datetime, timezone
+    from cobranza.domain.call import LastContact
+    tools, _ = _verified_tools(lambda *a: LastContact(datetime(2026, 11, 10, 14, 0, tzinfo=timezone.utc), True))
+    result, _ = _run(tools, "get_last_contact")
+    assert "when we set up a payment arrangement; that's why we're following up" in result["next_step"]
+
+
+def test_no_previous_call_is_never_invented():
+    tools, _ = _verified_tools(None)
+    result, _ = _run(tools, "get_last_contact")
+    assert result["last_call"] is None and "don't see a previous call" in result["next_step"]
+
+
+def test_last_contact_needs_verification():
+    tools, uc = _tools()
+    _, is_error = _run(tools, "get_last_contact")
+    assert is_error and uc.get_last_contact.calls == []
