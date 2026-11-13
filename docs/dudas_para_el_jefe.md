@@ -39,6 +39,23 @@ Salieron nuevas dudas:
 - ¿Vaspian tiene una API para **enviar SMS** desde el sistema? ¿Quién puede dar la documentación y las credenciales?
 - ¿Cómo se **transfiere** una llamada del agente a la cola de los cobradores, y se puede enviar con la llamada el motivo de la transferencia?
 
+### 6. Disputas: ¿transferir en la llamada o revisar después?
+
+Resolviendo la **observación técnica B5**, que dice: *"Las disputas se guardan sin detalles"* (hoy solo queda la marca de disputa y el estado `DISPUTE`; quien la revisa no sabe cuándo ni cómo dice el deudor que pagó).
+
+Salió una nueva duda (ligada a la duda 5, la transferencia por Vaspian):
+
+- Cuando alguien disputa la deuda, **¿se le transfiere en la misma llamada a un cobrador, o se registra y alguien la revisa después?**
+- **¿Su base ya tiene dónde guardar los detalles de una disputa** (fecha del pago, medio, número de confirmación, notas)? Si no, se propone una tabla `disputes` con esos campos.
+
+Mientras tanto, B5 queda en pausa (2026-11-13). El agente preguntará la fecha del pago y el número de confirmación antes de registrar la disputa, para que queden al menos en el resumen de la llamada.
+
+### 7. Todos los códigos de rebote del pago
+
+Resolviendo la **observación técnica B6**, que dice: *"get_account_details no devuelve el motivo del rebote"* (decidido el 2026-11-13: el agente da el motivo solo para R01, fondos insuficientes, y R09, fondos todavía no disponibles; con cualquier otro código dice que un representante puede dar los detalles).
+
+Salió una nueva duda: **necesitamos la lista de todos los códigos de rebote que maneja la empresa** (ACH como R02, R03, R08, R10, y los de cheques y tarjetas, si usan otros). Para cada uno: qué significa y qué debe decir o hacer el agente. Así el agente puede explicarlos todos y no tiene que transferir a un representante solo por eso. Importante saber cuáles se tratan como disputa (por ejemplo, "pago no autorizado").
+
 ## Resueltas
 
 ### 3. Día de cobro del deudor y fecha del primer pago

@@ -76,6 +76,13 @@ _DEFAULT_ZONE = ZoneInfo("America/New_York")
 
 _LOWEST_OFFER_OF_STAGE = frozenset({LAST_INSTALLMENTS_BEFORE_HARDSHIP, LAST_OFFER})
 
+# B6 (2026-11-13): motivo del rebote en palabras sencillas, solo para los dos códigos de NSF. Con
+# cualquier otro código no se da motivo (podría ser una disputa) y nunca se dice el código.
+_RETURN_REASONS = {
+    "R01": "there were not enough funds in the account",
+    "R09": "the funds were not available yet when the bank processed it",
+}
+
 _DATE = {"type": "string", "description": "Date as YYYY-MM-DD."}
 _ACCOUNT_REF = {"type": "string", "description": "account_ref returned by get_account_details."}
 
@@ -351,7 +358,9 @@ class CallTools:
                                         "representative. Do not give their details.")
         result["next_step"] = (
             "Explain calmly that a recent payment was returned by the bank, give the creditor and "
-            "the balance, then call propose_offer." if collectable else
+            "the balance, then call propose_offer. If they ask why it was returned, say the "
+            "returned_payment reason in your own words; if there is no reason, say a "
+            "representative can give them the details." if collectable else
             "You cannot handle these accounts. Transfer with transfer_to_human.")
         return result
 
@@ -565,6 +574,9 @@ class CallTools:
                 "returned_payment_fee": dollars(account.nsf_fee_cents),
                 "date": account.nsf_date.isoformat() if account.nsf_date else None,
             }
+            reason = _RETURN_REASONS.get((account.nsf_return_code or "").strip().upper())
+            if reason:
+                view["returned_payment"]["reason"] = reason
         return view
 
     def _rule_error(self, violation: RuleViolation, tool_input: dict) -> dict:

@@ -37,12 +37,12 @@ from cobranza.agent.infrastructure.claude_conversation_model import ClaudeConver
 
 # --- datos y dobles ---------------------------------------------------------------------
 
-def _debtor(debtor_id="deb-1", first="Jane", last="Carter", status="NSF"):
+def _debtor(debtor_id="deb-1", first="Jane", last="Carter", status="NSF", return_code="R01"):
     account = AccountSummary(
         id=f"acc-{debtor_id}", external_id=f"ACC-{debtor_id}", creditor_name="Lakeside Auto Finance",
         account_number_masked="****4821", current_balance_cents=48500, status=status,
         payment_method="ACH", nsf_amount_cents=45000, nsf_fee_cents=3500, nsf_date=date(2026, 10, 10),
-        nsf_return_code="R01", is_disputed=False,
+        nsf_return_code=return_code, is_disputed=False,
     )
     return DebtorSummary(id=debtor_id, external_id="TEST-001", first_name=first, last_name=last,
                          phone_primary="+13055550001", us_state="FL", timezone="America/New_York",
@@ -148,6 +148,28 @@ def test_verified_caller_hears_the_disclosure_and_sees_only_safe_fields():
     account = details["accounts"][0]
     assert account["balance"] == "$485.00" and account["minimum_partial_payment"] == "$48.50"
     assert "1985" not in json.dumps(details) and "1234" not in json.dumps(details)
+
+
+@pytest.mark.parametrize("code, reason", [
+    ("R01", "there were not enough funds in the account"),
+    ("r09", "the funds were not available yet when the bank processed it"),
+])
+def test_account_details_give_the_nsf_return_reason_in_plain_words(code, reason):
+    tools, _ = _tools(debtors=(_debtor(return_code=code),))
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    details, _ = _run(tools, "get_account_details")
+    assert details["accounts"][0]["returned_payment"]["reason"] == reason
+    assert code.upper() not in json.dumps(details)
+
+
+@pytest.mark.parametrize("code", ["R02", "R10", None])
+def test_other_return_codes_give_no_reason_and_never_the_code(code):
+    tools, _ = _tools(debtors=(_debtor(return_code=code),))
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    details, _ = _run(tools, "get_account_details")
+    assert "reason" not in details["accounts"][0]["returned_payment"]
+    assert code is None or code not in json.dumps(details)
+    assert "representative can give them the details" in details["next_step"]
 
 
 def test_failed_verification_never_says_which_item_failed():
