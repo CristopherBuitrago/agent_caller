@@ -27,6 +27,7 @@ from cobranza.application.use_cases.outbound_list import (
     GetOutboundCalls,
     MarkOutboundCalled,
 )
+from cobranza.application.use_cases.payment_results import BreakOverdueArrangements, RecordPaymentResult
 from cobranza.application.use_cases.payment_schedule import (
     ListNewArrangements,
     ListPaymentsDue,
@@ -41,6 +42,7 @@ from cobranza.infrastructure.repositories.postgres_debtor_repository import Post
 from cobranza.infrastructure.repositories.postgres_hardship_repository import PostgresHardshipRepository
 from cobranza.infrastructure.repositories.postgres_identity_repository import PostgresIdentityRepository
 from cobranza.infrastructure.repositories.postgres_outbound_list_repository import PostgresOutboundListRepository
+from cobranza.infrastructure.repositories.postgres_payment_ledger import PostgresPaymentLedger
 from cobranza.infrastructure.repositories.postgres_payment_schedule_reader import PostgresPaymentScheduleReader
 from cobranza.infrastructure.services.claude_call_summarizer import (
     BACKUP_MODEL,
@@ -76,6 +78,8 @@ class UseCases:
     build_daily_outbound_list: BuildDailyOutboundList
     get_outbound_calls: GetOutboundCalls
     mark_outbound_called: MarkOutboundCalled
+    record_payment_result: RecordPaymentResult
+    break_overdue_arrangements: BreakOverdueArrangements
 
 
 def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
@@ -100,6 +104,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
     hardships = PostgresHardshipRepository(pool)
     schedule = PostgresPaymentScheduleReader(pool)
     outbound = PostgresOutboundListRepository(pool)
+    ledger = PostgresPaymentLedger(pool)
     end_call = EndCall(calls, summarizer, clock)
     gate = _ArrangementGate(calls, arrangements, get_debtor_by_account, clock, hardships)
     # Las ofertas de cada llamada viven en memoria: basta mientras la llamada viva en este proceso.
@@ -129,4 +134,6 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         build_daily_outbound_list=BuildDailyOutboundList(outbound, clock),
         get_outbound_calls=GetOutboundCalls(outbound),
         mark_outbound_called=MarkOutboundCalled(outbound),
+        record_payment_result=RecordPaymentResult(ledger),
+        break_overdue_arrangements=BreakOverdueArrangements(ledger),
     )
