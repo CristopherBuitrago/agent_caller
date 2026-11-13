@@ -616,3 +616,13 @@ def test_bad_time_format_asks_to_retry():
     tools, _ = _tools()
     _, is_error = _run(tools, "schedule_callback", date="2026-11-20", time="six pm")
     assert is_error
+
+
+# --- N14: angustia y amenazas -----------------------------------------------------------------
+
+def test_prompt_keeps_calm_with_distress_and_threats_and_never_transfers_for_it():
+    prompt = render_system_prompt("Live Oak Financial", "L.O.F.")
+    assert "This is only a debt, there is a solution" in prompt
+    assert "let them be the one to hang up" in prompt
+    assert "Never hang up or transfer because of a threat or an insult" in prompt
+    assert "is upset" not in prompt          # antes: "upset" -> transfer_to_human
