@@ -115,7 +115,7 @@ SELECT 'ACC-' || lpad(gen.g::text, 6, '0') || '-' || n,
        r.status,
        date '2026-10-28' - (random() * 90)::int,
        CASE WHEN random() < 0.85 THEN 'R01' ELSE 'R09' END,
-       r.status = 'DISPUTED'
+       r.status = 'DISPUTE'
 FROM gen
 JOIN debtors d ON d.external_id = 'DEB-' || lpad(gen.g::text, 6, '0')
 CROSS JOIN LATERAL generate_series(1, 1 + (gen.g % 3 = 0)::int + (gen.g % 7 = 0)::int) AS n
@@ -130,7 +130,7 @@ CROSS JOIN LATERAL (
                WHEN x < 0.75 THEN 'fourth_attempt'
                WHEN x < 0.82 THEN 'PAYMENT_PLAN'
                WHEN x < 0.89 THEN 'PAID'
-               WHEN x < 0.94 THEN 'DISPUTED'
+               WHEN x < 0.94 THEN 'DISPUTE'
                ELSE 'CLOSED'
            END AS status
     FROM (SELECT random() AS x, n AS dep) s   -- dep fuerza un valor aleatorio por fila

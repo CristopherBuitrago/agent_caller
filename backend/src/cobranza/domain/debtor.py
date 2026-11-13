@@ -11,6 +11,8 @@ from datetime import date
 # El agente cobra solo NSF (decisión del 2026-11-08). Cualquier otro estado,
 # incluidos first_attempt..fourth_attempt, se transfiere a una persona.
 COLLECTABLE_STATUSES = frozenset({"NSF"})
+# N11 (jefe, 2026-11-12): al registrarse una disputa, la cuenta pasa a este estado (además de is_disputed).
+ACCOUNT_STATUS_DISPUTE = "DISPUTE"
 
 
 @dataclass(frozen=True)

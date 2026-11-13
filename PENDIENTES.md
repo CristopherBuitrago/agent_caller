@@ -87,7 +87,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [ ] Conectar el aviso de pago del procesador (webhook) a `RecordPaymentResult` y activar `break_overdue_arrangements`
 - [x] N13: herramienta `get_last_contact` (caso de uso `GetLastContact`): ante una queja por las llamadas, el agente dice la fecha y hora reales de la última llamada saliente, en la hora local del deudor, y si en ella hubo acuerdo. "No llamar" solo con pedido explícito (prompt). Solo cuenta las llamadas de esta base. 344 pruebas pasan (2026-11-13)
 - [ ] Preguntar al jefe: estado de la cuenta cuando se pagan todas las cuotas
-- [x] N11 (decisión, sin construir): disputa con alerta al equipo y revisión de un cobrador; el agente busca el pago en la llamada; si no lo encuentra, no acusa y registra la disputa igual (supuesto vigente) (2026-11-12)
+- [x] N11 (decisión, sin construir): disputa con alerta al equipo y revisión de un cobrador; el agente busca el pago en la llamada; si no lo encuentra, no acusa y registra la disputa igual (supuesto vigente) (2026-11-12). Estado `DISPUTE` construido el 2026-11-13 (los datos simulados pasaron de `DISPUTED` a `DISPUTE`); 368 pruebas pasan
 - [x] N12: al cerrar por verificación fallida o cambio de nombre, el agente da el número para devolver la llamada (`AGENT_CALLBACK_NUMBER`; si no está configurado, no se ofrece). 330 pruebas pasan (2026-11-12)
 - [ ] Preguntar al jefe (N12): confirmar la opción y cuál es el número de la línea de entrada que atiende el agente
 - [x] L2, L3 y P3: aviso de grabación sin pregunta, "L.O.F." antes de verificar y "Live Oak Financial" después, frases fijas para terceros. Los SMS dicen "L.O.F.". 330 pruebas pasan (2026-11-12)

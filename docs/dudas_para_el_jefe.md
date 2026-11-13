@@ -16,6 +16,13 @@ Resolviendo la **observación de negocio N10** (y la N1, *"No había forma de qu
 
 Salió una nueva duda: **¿el procesador de pagos puede avisar al sistema cada vez que un pago se aprueba o se rechaza?** Sin ese aviso, el sistema no sabe quién pagó. Mientras tanto, la tarea que marca los acuerdos rotos queda apagada: si corriera, rompería todos los acuerdos. Hace falta saber qué procesador es, si tiene página de pago y si envía ese aviso (*webhook*) o un reporte diario de pagos.
 
+Preguntas concretas (agregadas el 2026-11-13, revisando lo que falta de N10):
+
+- ¿Qué procesador de pagos usa la empresa?
+- ¿Tiene una página de pago a la que se pueda enviar al deudor con un link?
+- **¿El procesador avisa en el momento cada pago aprobado o rechazado (*webhook*), o entrega un reporte diario de pagos?** Con aviso en el momento, la cuota se marca como pagada al instante; con un reporte diario, se lee el reporte una vez al día.
+- ¿Quién puede dar la documentación técnica y los accesos del procesador?
+
 ## Resueltas
 
 ### 3. Día de cobro del deudor y fecha del primer pago

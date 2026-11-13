@@ -5,6 +5,7 @@ from cobranza.application.interfaces.debtor_repository import DebtorRepository
 from cobranza.application.use_cases.register_call import EndCall
 from cobranza.domain.arrangement import ArrangementRuleError, RuleViolation
 from cobranza.domain.call import CallDirection, CallOutcome
+from cobranza.domain.debtor import ACCOUNT_STATUS_DISPUTE
 
 
 class RecordDispute:
@@ -35,7 +36,7 @@ class RecordDispute:
             raise ArrangementRuleError(RuleViolation.IDENTITY_NOT_VERIFIED)
 
         account = next(a for a in debtor.accounts if a.external_id == account_external_id)
-        self._debtors.mark_disputed(account.id)
+        self._debtors.mark_disputed(account.id, ACCOUNT_STATUS_DISPUTE)
         # Un deudor puede tener varias cuentas: la llamada deja constancia de cuál disputó.
         self._calls.link_account(call_id, account.id)
         return self._end_call.execute(call_id, CallOutcome.DISPUTE, transcript)

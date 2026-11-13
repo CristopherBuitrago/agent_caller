@@ -35,6 +35,7 @@ def test_dispute_blocks_further_collection(use_cases, verified_jane, pool):
 
     jane = use_cases.find_debtors_by_phone.execute("+13055550001")[0]
     assert jane.accounts[0].is_disputed
+    assert jane.accounts[0].status == "DISPUTE"   # N11: estado nuevo de la cuenta
     assert jane.collectable_accounts == ()
 
 

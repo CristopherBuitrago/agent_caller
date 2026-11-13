@@ -47,9 +47,12 @@ class PostgresDebtorRepository:
             debtors = self._load_debtors(conn, [row[0]])
             return debtors[0] if debtors else None
 
-    def mark_disputed(self, account_id: str) -> None:
+    def mark_disputed(self, account_id: str, status: str) -> None:
         with self._pool.connection() as conn:
-            conn.execute("UPDATE accounts SET is_disputed = true WHERE id = %s", (account_id,))
+            conn.execute(
+                "UPDATE accounts SET is_disputed = true, status = %s, status_updated_at = now() WHERE id = %s",
+                (status, account_id),
+            )
 
     def mark_do_not_call(self, debtor_id: str) -> None:
         with self._pool.connection() as conn:

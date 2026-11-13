@@ -65,8 +65,9 @@ class FakeDebtors:
             timezone_inferred=False, do_not_call=False, accounts=(account,),
         )
 
-    def mark_disputed(self, account_id):
+    def mark_disputed(self, account_id, status):
         self.disputed.append(account_id)
+        self.dispute_status = status
 
     def mark_do_not_call(self, debtor_id):
         self.do_not_call.append(debtor_id)
@@ -89,7 +90,7 @@ def _violation(fn, *args):
 def test_dispute_marks_the_account_links_it_and_closes_the_call():
     dispute, calls, debtors = _build(RecordDispute)
     summary = dispute.execute("c1", "ACC-1", "Debtor: I did pay that.")
-    assert debtors.disputed == ["acc-1"]
+    assert debtors.disputed == ["acc-1"] and debtors.dispute_status == "DISPUTE"   # N11
     assert calls.linked == "acc-1"
     assert calls.closed == (CallOutcome.DISPUTE, summary)
     assert summary == "Debtor says the payment went through."
