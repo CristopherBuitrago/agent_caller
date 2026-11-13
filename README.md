@@ -111,6 +111,7 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿Se aprueban los campos y el orden? | "Sí, apruebo los campos y el orden, constrúyelo" |
 | ¿Y si después sigue sin poder pagar? | "Se transfiere a un agente" |
 | ¿Cómo se registra una promesa de pago? | Se anota, con fecha y monto en `scheduled_payments` |
+| ¿Hay que repetir las Hardship Questions si el deudor vuelve a llamar? (B1) | No. Valen 30 días por deudor, en cualquier llamada (opción A, elegida por el desarrollador el 2026-11-13). Las ofertas sí empiezan de nuevo en cada llamada |
 
 Sin pendientes.
 

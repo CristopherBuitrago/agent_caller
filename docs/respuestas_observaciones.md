@@ -50,6 +50,16 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 | P3 | Qué se le dice a un tercero que contesta | Solo se dice que es un asunto personal, o que legalmente la información solo se le puede dar a la persona: "It's a personal matter" / "Legally, I can only share this information with Jane Carter". Nunca se dejan recados | Aplicada |
 | P7 | Quejas, insultos y "no llamar" | Sigue lo decidido en N13: "no llamar" solo si el deudor lo pide de forma explícita; si no, se sigue | Decidida |
 
+## Técnicas resueltas
+
+| # | Tema | Respuesta | Estado |
+| --- | --- | --- | --- |
+| B1 | Lo hablado en una llamada no servía para la siguiente | Las Hardship Questions de un deudor valen 30 días, en cualquier llamada: no se le repiten. Las ofertas empiezan de nuevo en cada llamada (su situación puede haber cambiado); si dice cuánto puede pagar, las mayores se saltan (N4) | Aplicada (2026-11-13) |
+| B2 | No se guardaba cuándo volver a llamar | Se guarda el día y la hora pedidos y la lista diaria llama a esa hora (con N9) | Aplicada (2026-11-13) |
+| B7 | El agente no sabía hasta cuándo podía ir el primer pago | La herramienta le da la fecha límite (con N8) | Aplicada |
+| B10 | No había forma de enviar el link de pago | SMS de confirmación, aviso y link de pago (con N1) | Aplicada con proveedor de prueba |
+| B11 | La grabación empezaba antes de avisar | La grabación empieza al dar el aviso (con N3 y L2) | Aplicada |
+
 ## Respuestas legales (abogado del jefe)
 
 | # | Tema | Respuesta | Estado |
@@ -65,5 +75,5 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 ## Siguen sin revisar
 
 - **Con el abogado:** L7.
-- **Técnicas:** 9 de backend (B1, B3–B6, B8, B9, B14, B15).
+- **Técnicas:** 8 de backend (B3–B6, B8, B9, B14, B15).
 - **Instrucciones del agente:** P1, P2, P4–P6 y P8–P12, en un solo ajuste al final.

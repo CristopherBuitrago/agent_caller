@@ -1,7 +1,7 @@
 """Funciones 4 y 5: negociar el acuerdo de pago y registrar las Hardship Questions."""
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, timedelta
 from zoneinfo import ZoneInfo
 
 from cobranza.application.interfaces.arrangement_repository import ArrangementRepository
@@ -29,6 +29,10 @@ from cobranza.domain.arrangement import (
 )
 from cobranza.domain.debtor import AccountSummary, DebtorSummary
 from cobranza.domain.hardship import HardshipAnswers
+
+
+# B1 (2026-11-13): las Hardship Questions de un deudor valen 30 días, en cualquier llamada.
+HARDSHIP_VALID_FOR = timedelta(days=30)
 
 
 @dataclass(frozen=True)
@@ -62,7 +66,11 @@ class _ArrangementGate:
         return state.debtor_id
 
     def check_hardship_done(self, call_id: str) -> None:
-        if not self._hardships.exists_for_call(call_id):
+        """B1: valen las Hardship Questions que el deudor contestó en los últimos 30 días, en esta
+        o en otra llamada, para no repetírselas."""
+        debtor_id = self.verified_debtor_id(call_id)
+        since = self._clock.now() - HARDSHIP_VALID_FOR
+        if not self._hardships.exists_for_debtor_since(debtor_id, since):
             raise ArrangementRuleError(RuleViolation.HARDSHIP_REQUIRED)
 
     def check(self, call_id: str, account_external_id: str) -> _Context:

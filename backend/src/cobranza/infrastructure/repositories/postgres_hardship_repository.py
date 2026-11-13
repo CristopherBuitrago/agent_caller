@@ -1,5 +1,7 @@
 """Implementación PostgreSQL de HardshipRepository."""
 
+from datetime import datetime
+
 from psycopg_pool import ConnectionPool
 
 from cobranza.domain.hardship import HardshipAnswers
@@ -34,7 +36,10 @@ class PostgresHardshipRepository:
                  answers.recommended_plan),
             )
 
-    def exists_for_call(self, call_id: str) -> bool:
+    def exists_for_debtor_since(self, debtor_id: str, since: datetime) -> bool:
         with self._pool.connection() as conn:
-            row = conn.execute("SELECT 1 FROM hardship_assessments WHERE call_id = %s", (call_id,)).fetchone()
+            row = conn.execute(
+                "SELECT 1 FROM hardship_assessments WHERE debtor_id = %s AND created_at >= %s LIMIT 1",
+                (debtor_id, since),
+            ).fetchone()
         return row is not None

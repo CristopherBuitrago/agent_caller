@@ -254,3 +254,27 @@ def test_partial_with_rest_in_installments_is_saved(use_cases, verified_jane, po
     arrangement, payments = _saved(pool, arrangement_id)
     assert arrangement == ("partial", 48500, "active")
     assert [p[1] for p in payments] == [9000, 19750, 19750]
+
+
+# --- B1: las Hardship Questions de otra llamada valen 30 días -----------------------------------
+
+def _new_verified_call(use_cases, started_calls):
+    call = use_cases.start_call.execute(CallDirection.INBOUND, "+13055550001")
+    started_calls.append(call)
+    use_cases.record_recording_consent.execute(call, True)
+    jane = use_cases.find_debtors_by_phone.execute("+13055550001")[0]
+    use_cases.verify_identity.execute(call, jane.id, "Jane Carter", "1234", date(1985, 3, 14))
+    return call
+
+
+def test_hardship_from_a_previous_call_counts_for_30_days(use_cases, verified_jane, started_calls, pool):
+    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(situation_description="Lost job"))
+    next_call = _new_verified_call(use_cases, started_calls)       # vuelve a llamar otro día
+    assert len(use_cases.propose_arrangement.execute(next_call, "ACC-T001", 4).payments) == 4
+
+    with pool.connection() as conn:                                # ...pero hace 31 días ya no vale
+        conn.execute("UPDATE hardship_assessments SET created_at = now() - interval '31 days' "
+                     "WHERE call_id = %s", (verified_jane,))
+    with pytest.raises(ArrangementRuleError) as e:
+        use_cases.propose_arrangement.execute(next_call, "ACC-T001", 4)
+    assert e.value.violation is R.HARDSHIP_REQUIRED

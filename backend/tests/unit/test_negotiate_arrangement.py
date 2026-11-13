@@ -90,7 +90,8 @@ class FakeHardships:
         self.saved.append((call_id, debtor_id, answers))
         self.done = True
 
-    def exists_for_call(self, call_id):
+    def exists_for_debtor_since(self, debtor_id, since):
+        self.checked = (debtor_id, since)
         return self.done
 
 
@@ -601,3 +602,14 @@ def test_last_resort_partial_can_split_the_rest_in_installments():
     offer = partial.execute("c1", "ACC-1", 5000, stated_max_payment_cents=8000)   # 5% y hasta 80 al mes
     assert offer.proposal.payments[0].amount_cents == 5000
     assert len(offer.proposal.payments) == 13                # 950 caben en 80/mes recién con 12 cuotas
+
+
+# --- B1: las Hardship Questions valen 30 días por deudor ---------------------------------------
+
+def test_hardship_is_checked_for_the_verified_debtor_in_the_last_30_days():
+    hardships = FakeHardships(done=True)
+    gate = _ArrangementGate(FakeCalls(), FakeArrangements(),
+                            GetDebtorByAccount(FakeDebtors(_debtor()), PhonenumbersPhoneService()),
+                            FixedClock(), hardships)
+    assert ProposeArrangement(gate).execute("c1", "ACC-1", 4) is not None
+    assert hardships.checked == ("deb-1", NOW - timedelta(days=30))
