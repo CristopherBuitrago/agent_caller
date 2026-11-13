@@ -117,7 +117,7 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
           ("account_ref",)),
     _spec("record_offer_response",
           "Record whether the debtor accepted or declined a proposal. Accepting creates the "
-          "agreement.",
+          "agreement: use accepted true only after a clear yes, without doubts or conditions.",
           {"proposal_id": {"type": "string"}, "accepted": {"type": "boolean"}},
           ("proposal_id", "accepted")),
     _spec("propose_partial_payment",

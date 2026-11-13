@@ -560,3 +560,29 @@ def test_last_contact_needs_verification():
     tools, uc = _tools()
     _, is_error = _run(tools, "get_last_contact")
     assert is_error and uc.get_last_contact.calls == []
+
+
+# --- N7: una aceptación con duda no cierra el acuerdo ---------------------------------------
+
+def test_prompt_says_a_doubtful_yes_does_not_create_the_agreement():
+    prompt = render_system_prompt("Live Oak Financial", "L.O.F.")
+    assert "Only a clear yes counts" in prompt
+    assert "how much could you comfortably pay each month?" in prompt
+    assert "`max_payment_dollars`" in prompt
+
+
+def test_record_offer_response_asks_for_a_clear_yes():
+    spec = next(s for s in TOOL_SPECS if s.name == "record_offer_response")
+    assert "only after a clear yes, without doubts or conditions" in spec.description
+
+
+def test_doubtful_yes_flow_gets_a_new_offer_within_the_stated_amount():
+    """El agente rechaza la oferta con duda y pide otra con el monto cómodo: el sistema la arma."""
+    tools, uc = _tools()
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    first, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
+    _run(tools, "record_offer_response", proposal_id=first["proposal_id"], accepted=False)
+    _run(tools, "propose_offer", account_ref="ACC-deb-1", max_payment_dollars=150)
+    assert uc.record_offer_response.calls[-1][-1] is False
+    assert uc.propose_next_offer.calls[-1][-1] == 15000
