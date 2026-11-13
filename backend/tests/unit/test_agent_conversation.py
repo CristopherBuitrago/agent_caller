@@ -475,7 +475,7 @@ def test_offer_says_the_first_payment_can_wait_until_the_end_of_the_month():
     result, _ = _run(_tools_on(date(2026, 11, 12)), "propose_offer", account_ref="ACC-deb-1")
     assert result["latest_first_payment_date"] == "2026-11-30"
     assert result["first_payment_date_rule"].startswith("Try to get the first payment today.")
-    assert "Monday, November 30, 2026" in result["first_payment_date_rule"]
+    assert "offer the last day of the month, Monday, November 30, 2026" in result["first_payment_date_rule"]
 
 
 def test_near_the_end_of_the_month_it_asks_for_this_month_first():

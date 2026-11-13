@@ -106,6 +106,18 @@ def end_of_month(day: date) -> date:
     return day.replace(day=calendar.monthrange(day.year, day.month)[1])
 
 
+def monthly_due_date(first_due: date, months: int) -> date:
+    """Fecha de la cuota `months` meses después del primer pago.
+
+    N8 (2026-11-13): si el primer pago cae el último día del mes (el deudor pidió tiempo), todas
+    las cuotas caen el último día de cada mes: 30 nov, 31 dic, 31 ene, 28 feb. Si no, el mismo día
+    del mes (con el último día cuando ese mes no lo tiene).
+    """
+    if first_due == end_of_month(first_due):
+        return end_of_month(add_months(first_due.replace(day=1), months))
+    return add_months(first_due, months)
+
+
 def latest_first_payment_date(today: date) -> date:
     """N8: fin de este mes; si faltan menos de 8 días, fin del mes siguiente.
 
@@ -136,7 +148,7 @@ def build_plan(balance_cents: int, installments: int, first_due: date, today: da
     if balance_cents < installments:
         raise ArrangementRuleError(RuleViolation.INVALID_SCHEDULE)
     payments = tuple(
-        ScheduledPayment(i + 1, amount, add_months(first_due, i))
+        ScheduledPayment(i + 1, amount, monthly_due_date(first_due, i))
         for i, amount in enumerate(_equal_parts(balance_cents, installments))
     )
     proposal = ArrangementProposal(ArrangementType.PLAN, balance_cents, payments)
@@ -156,7 +168,7 @@ def build_down_payment_plan(balance_cents: int, first_due: date, today: date) ->
     if rest < DOWN_PAYMENT_PLAN_INSTALLMENTS:
         raise ArrangementRuleError(RuleViolation.INVALID_SCHEDULE)
     payments = (ScheduledPayment(1, down, first_due),) + tuple(
-        ScheduledPayment(i + 2, amount, add_months(first_due, i + 1))
+        ScheduledPayment(i + 2, amount, monthly_due_date(first_due, i + 1))
         for i, amount in enumerate(_equal_parts(rest, DOWN_PAYMENT_PLAN_INSTALLMENTS))
     )
     proposal = ArrangementProposal(ArrangementType.PLAN, balance_cents, payments)
@@ -204,7 +216,7 @@ def build_partial(balance_cents: int, first_amount_cents: int, first_due: date, 
         payments = (first, ScheduledPayment(2, rest, remainder_due or default_remainder_due))
     else:
         payments = (first,) + tuple(
-            ScheduledPayment(i + 2, amount, add_months(first_due, i + 1))
+            ScheduledPayment(i + 2, amount, monthly_due_date(first_due, i + 1))
             for i, amount in enumerate(_equal_parts(rest, installments))
         )
     proposal = ArrangementProposal(ArrangementType.PARTIAL, balance_cents, payments)
@@ -251,8 +263,8 @@ def _validate_plan(payments) -> None:
     down_payment_plan = is_down_payment_plan(
         ArrangementProposal(ArrangementType.PLAN, sum(amounts), tuple(payments)))
     if (not (equal_installments or down_payment_plan)
-            or any(p.due_date != add_months(first_due, i) for i, p in enumerate(payments))
-            or payments[-1].due_date > add_months(first_due, MAX_PLAN_MONTHS)):
+            or any(p.due_date != monthly_due_date(first_due, i) for i, p in enumerate(payments))
+            or payments[-1].due_date > monthly_due_date(first_due, MAX_PLAN_MONTHS)):
         raise ArrangementRuleError(RuleViolation.INVALID_SCHEDULE)
 
 
@@ -268,5 +280,5 @@ def _validate_partial(payments) -> None:
     first_due = payments[0].due_date
     if (not 2 <= len(rest) <= MAX_PLAN_MONTHS
             or amounts != _equal_parts(sum(amounts), len(amounts))
-            or any(p.due_date != add_months(first_due, i + 1) for i, p in enumerate(rest))):
+            or any(p.due_date != monthly_due_date(first_due, i + 1) for i, p in enumerate(rest))):
         raise ArrangementRuleError(RuleViolation.INVALID_SCHEDULE)

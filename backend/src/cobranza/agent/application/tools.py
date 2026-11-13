@@ -375,13 +375,17 @@ class CallTools:
                  if self._debtor.timezone else now.date())
         latest = latest_first_payment_date(today)
         this_month_end = end_of_month(today)
+        # N8 (2026-11-13): si pide tiempo, el primer pago va el último día del mes y las cuotas
+        # siguientes también caen el último día de cada mes.
         if latest == this_month_end:
-            note = (f"Try to get the first payment today. If they need time, it can be any day up to "
-                    f"{_spoken_date(latest)}; then call propose_offer again with first_payment_date.")
+            note = (f"Try to get the first payment today. If they need time, offer the last day of the "
+                    f"month, {_spoken_date(latest)}, and call propose_offer again with that "
+                    "first_payment_date; any later payments will also fall on the last day of each month.")
         else:
-            note = (f"Try to get the first payment today. If they need time, first ask if they can pay "
-                    f"by {_spoken_date(this_month_end)}; only if they cannot, it can be any day up to "
-                    f"{_spoken_date(latest)}. Then call propose_offer again with first_payment_date.")
+            note = (f"Try to get the first payment today. If they need time, first offer "
+                    f"{_spoken_date(this_month_end)}; only if they cannot, offer {_spoken_date(latest)}. "
+                    "Call propose_offer again with that first_payment_date; any later payments will also "
+                    "fall on the last day of each month.")
         return {"latest_first_payment_date": latest.isoformat(), "first_payment_date_rule": note}
 
     def _tool_record_offer_response(self, proposal_id: str, accepted: bool) -> dict:

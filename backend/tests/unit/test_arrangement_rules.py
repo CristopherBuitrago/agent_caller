@@ -260,3 +260,38 @@ from cobranza.domain.arrangement import latest_first_payment_date  # noqa: E402
 ])
 def test_latest_first_payment_date(today, latest):
     assert latest_first_payment_date(today) == latest
+
+
+# --- N8: si el primer pago cae a fin de mes, todas las cuotas caen a fin de mes ------------
+
+from cobranza.domain.arrangement import build_down_payment_plan as _down_plan, monthly_due_date  # noqa: E402
+
+
+@pytest.mark.parametrize("first, months, due", [
+    (date(2026, 11, 30), 1, date(2026, 12, 31)),   # fin de mes: siempre el último día
+    (date(2026, 11, 30), 3, date(2027, 2, 28)),
+    (date(2027, 2, 28), 12, date(2028, 2, 29)),     # año bisiesto
+    (date(2026, 11, 13), 1, date(2026, 12, 13)),   # otro día: el mismo día de cada mes
+    (date(2027, 1, 30), 1, date(2027, 2, 28)),
+])
+def test_monthly_due_date(first, months, due):
+    assert monthly_due_date(first, months) == due
+
+
+def test_plan_starting_at_the_end_of_the_month_stays_at_the_end_of_each_month():
+    plan = build_plan(BALANCE, 4, date(2026, 11, 30), date(2026, 11, 13))
+    assert [p.due_date for p in plan.payments] == [date(2026, 11, 30), date(2026, 12, 31),
+                                                   date(2027, 1, 31), date(2027, 2, 28)]
+
+
+def test_down_payment_plan_and_partial_also_follow_the_end_of_the_month():
+    plan = _down_plan(48500, date(2026, 11, 30), date(2026, 11, 13))
+    assert plan.payments[1].due_date == date(2026, 12, 31) and plan.payments[-1].due_date == date(2027, 11, 30)
+    partial = build_partial(48500, 9000, date(2026, 11, 30), date(2026, 11, 13), max_installment_cents=20000)
+    assert [p.due_date for p in partial.payments[1:]] == [date(2026, 12, 31), date(2027, 1, 31)]
+
+
+def test_a_month_end_plan_with_mid_month_installments_is_rejected():
+    plan = build_plan(BALANCE, 2, date(2026, 11, 30), date(2026, 11, 13))
+    altered = replace(plan, payments=(plan.payments[0], replace(plan.payments[1], due_date=date(2026, 12, 30))))
+    assert _violation(validate_proposal, altered, BALANCE, date(2026, 11, 13)) is R.INVALID_SCHEDULE

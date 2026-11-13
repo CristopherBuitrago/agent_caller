@@ -16,11 +16,12 @@ Resolviendo la **observación de negocio N10** (y la N1, *"No había forma de qu
 
 Salió una nueva duda: **¿el procesador de pagos puede avisar al sistema cada vez que un pago se aprueba o se rechaza?** Sin ese aviso, el sistema no sabe quién pagó. Mientras tanto, la tarea que marca los acuerdos rotos queda apagada: si corriera, rompería todos los acuerdos. Hace falta saber qué procesador es, si tiene página de pago y si envía ese aviso (*webhook*) o un reporte diario de pagos.
 
+## Resueltas
+
 ### 3. Día de cobro del deudor y fecha del primer pago
 
 Resolviendo la **observación de negocio N8**, que dice: *"El primer pago siempre caía hoy, aunque el deudor pidiera tiempo"* (respuesta del jefe: aprobado hasta fin de mes, y además el agente pregunta cuándo recibe dinero el deudor, por ejemplo "el 5 de cada mes", para poner ahí las fechas).
 
-Salió una nueva duda: **¿qué pasa si el día de cobro cae después del límite del primer pago?** Por ejemplo, el 13 de noviembre el próximo 5 es el 5 de diciembre, pero el primer pago solo puede ir hasta el 30 de noviembre.
+Salió la duda: **¿qué pasa si el día de cobro cae después del límite del primer pago?** (el 13 de noviembre, el próximo 5 es el 5 de diciembre, pero el primer pago solo puede ir hasta el 30 de noviembre).
 
-- **A (recomendada):** el primer pago respeta el límite (hoy o hasta fin de mes) y las cuotas siguientes caen el día de cobro del deudor (por ejemplo, un pago hoy y las demás cuotas el 5 de cada mes).
-- **B:** si el día de cobro cae después del límite, el primer pago se pasa a ese día (el 5 de diciembre). Más cómodo para el deudor, pero rompe la regla de fin de mes.
+**Resuelta por el desarrollador (2026-11-13):** la pregunta por el día de cobro se omite por ahora. Siempre se intenta cobrar hoy; si el deudor pide tiempo, el primer pago va el último día del mes y todas las cuotas siguientes también caen el último día de cada mes (30 nov, 31 dic, 31 ene, 28 feb). Si paga hoy, las cuotas caen el mismo día de cada mes.
