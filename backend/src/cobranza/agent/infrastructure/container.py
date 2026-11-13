@@ -11,11 +11,14 @@ from cobranza.agent.infrastructure.claude_conversation_model import ClaudeConver
 from cobranza.infrastructure.config.container import UseCases
 from cobranza.infrastructure.services.system_clock import SystemClock
 
-DEFAULT_COMPANY_NAME = "Lakeside Recovery Services"  # nombre ficticio para el chat de prueba
+# L3: el nombre completo solo se dice al deudor verificado; antes, solo las siglas.
+DEFAULT_COMPANY_NAME = "Live Oak Financial"
+DEFAULT_COMPANY_SHORT = "L.O.F."
 
 
 def build_agent(use_cases: UseCases, model: ConversationModel | None = None,
                 company_name: str = DEFAULT_COMPANY_NAME,
+                company_short: str = DEFAULT_COMPANY_SHORT,
                 callback_number: str | None = None) -> StartAgentConversation:
     """Arma el agente conversacional sobre los casos de uso.
 
@@ -42,5 +45,5 @@ def build_agent(use_cases: UseCases, model: ConversationModel | None = None,
     return StartAgentConversation(
         agent_use_cases, use_cases.start_call,
         model or ClaudeConversationModel(anthropic.Anthropic()), SystemClock(), company_name,
-        callback_number,
+        company_short, callback_number,
     )

@@ -89,7 +89,9 @@ END_OUTCOMES = {
 
 TOOL_SPECS: tuple[ToolSpec, ...] = (
     _spec("record_recording_consent",
-          "Save whether the caller agreed to the call being recorded.",
+          "Call with accepted true right after saying the recording notice (do not wait for an answer). "
+          "Call with accepted false only if the caller still refuses to be recorded after you explain "
+          "that it is required.",
           {"accepted": {"type": "boolean"}}, ("accepted",)),
     _spec("verify_identity",
           "Verify the caller with full name, last 4 digits of the SSN and date of birth. "
@@ -289,7 +291,7 @@ class CallTools:
             self._recording_refused = True
             return {"recorded": True, "next_step": "Do not mention any account. Say goodbye politely "
                     "and call end_call with outcome recording_refused."}
-        return {"recorded": True, "next_step": "Confirm who you are speaking with and verify identity."}
+        return {"recorded": True, "next_step": "Verify identity before discussing anything else."}
 
     def _tool_verify_identity(self, full_name: str, ssn_last4: str, date_of_birth: str,
                               name_was_spelled: bool = False) -> dict:
@@ -513,7 +515,8 @@ class CallTools:
 
 _VERIFICATION_NEXT_STEP = {
     VerificationOutcome.VERIFIED:
-        f'Say this sentence exactly, before anything else: "{DISCLOSURE}" Then call get_account_details.',
+        f'Say that you are calling from the company (full name), then this sentence exactly: "{DISCLOSURE}" '
+        'Then call get_account_details.',
     VerificationOutcome.NAME_RETRY:
         "Ask the caller to spell their last name letter by letter, then call verify_identity again "
         "with name_was_spelled true.",

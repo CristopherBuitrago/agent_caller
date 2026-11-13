@@ -15,7 +15,8 @@ from cobranza.messaging.application.send_sms import (
 from cobranza.messaging.infrastructure.dev_services import LoggingSmsSender, PlaceholderPaymentLinkProvider
 from cobranza.messaging.infrastructure.postgres_sms_repository import PostgresSmsRepository
 
-DEFAULT_COMPANY_NAME = "Lakeside Recovery Services"  # nombre ficticio, igual que en el agente
+# Solo las siglas (L3): otra persona puede ver el teléfono del deudor.
+DEFAULT_COMPANY_NAME = "L.O.F."
 
 
 @dataclass(frozen=True)

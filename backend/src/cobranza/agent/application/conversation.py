@@ -40,11 +40,15 @@ HANG_UP_EVENT = (
 )
 
 
-def render_system_prompt(company_name: str) -> str:
-    """El prompt no cambia entre llamadas, así se puede cachear."""
+def render_system_prompt(company_name: str, company_short: str) -> str:
+    """El prompt no cambia entre llamadas, así se puede cachear.
+
+    `company_short` (L3): lo único que se dice de la empresa antes de verificar (p. ej. "L.O.F.").
+    """
     questions = "\n".join(f"{i}. {q}" for i, q in enumerate(HARDSHIP_QUESTIONS, start=1))
     return (PROMPT_PATH.read_text(encoding="utf-8")
             .replace("{{COMPANY_NAME}}", company_name)
+            .replace("{{COMPANY_SHORT}}", company_short)
             .replace("{{DISCLOSURE}}", DISCLOSURE)
             .replace("{{HARDSHIP_QUESTIONS}}", questions))
 
@@ -145,12 +149,13 @@ class StartAgentConversation:
     """Abre la llamada y devuelve la sesión con el saludo del agente."""
 
     def __init__(self, uc: AgentUseCases, start_call: StartCall, model: ConversationModel,
-                 clock: Clock, company_name: str, callback_number: str | None = None):
+                 clock: Clock, company_name: str, company_short: str,
+                 callback_number: str | None = None):
         self._uc = uc
         self._start_call = start_call
         self._model = model
         self._clock = clock
-        self._system_prompt = render_system_prompt(company_name)
+        self._system_prompt = render_system_prompt(company_name, company_short)
         self._callback_number = callback_number
 
     def execute(self, direction: CallDirection, caller_phone: str,

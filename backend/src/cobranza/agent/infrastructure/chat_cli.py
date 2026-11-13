@@ -20,7 +20,7 @@ from psycopg_pool import ConnectionPool
 
 from cobranza.agent.application.conversation_model import ToolCall, ToolResult
 from cobranza.domain.call import CallDirection
-from cobranza.agent.infrastructure.container import DEFAULT_COMPANY_NAME, build_agent
+from cobranza.agent.infrastructure.container import DEFAULT_COMPANY_NAME, DEFAULT_COMPANY_SHORT, build_agent
 from cobranza.infrastructure.config.container import build_use_cases
 
 GREY, CYAN, YELLOW, RESET = "\033[90m", "\033[36m", "\033[33m", "\033[0m"
@@ -51,7 +51,8 @@ def main() -> int:
     who.add_argument("--saliente", metavar="CUENTA", help="Llamada saliente por esta cuenta del job")
     parser.add_argument("--sin-herramientas", action="store_true",
                         help="No mostrar las herramientas que pide el agente")
-    parser.add_argument("--empresa", default=DEFAULT_COMPANY_NAME, help="Nombre de la empresa")
+    parser.add_argument("--empresa", default=DEFAULT_COMPANY_NAME, help="Nombre completo (solo tras verificar)")
+    parser.add_argument("--siglas", default=DEFAULT_COMPANY_SHORT, help="Lo que se dice antes de verificar")
     parser.add_argument("--debug", action="store_true",
                         help="Mostrar los avisos internos (fallos de la API, respaldo con Sonnet)")
     args = parser.parse_args()
@@ -64,7 +65,7 @@ def main() -> int:
 
     with ConnectionPool(os.environ["DATABASE_URL"], min_size=1, max_size=2) as pool:
         use_cases = build_use_cases(pool, os.environ["PII_HMAC_KEY"])
-        agent = build_agent(use_cases, company_name=args.empresa)
+        agent = build_agent(use_cases, company_name=args.empresa, company_short=args.siglas)
         on_tool = None if args.sin_herramientas else _show_tool
 
         if args.entrante:

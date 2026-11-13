@@ -14,7 +14,7 @@ from cobranza.messaging.application.send_sms import (
 from cobranza.messaging.application.texts import confirmation_text, money, payment_link_text, payment_reminder_text
 
 NOW = datetime(2026, 11, 12, 15, 0, tzinfo=timezone.utc)
-COMPANY = "Lakeside Recovery Services"
+COMPANY = "L.O.F."
 
 
 # --- textos -------------------------------------------------------------------------------

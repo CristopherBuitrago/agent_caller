@@ -160,7 +160,10 @@ docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --s
 Datos para verificar a TEST-001: Jane Carter, últimos 4 del SSN 1234, nacida el 14 de marzo de 1985 (saldo USD 485, ACC-T001). Los demás casos están en `backend/db/init/002_seed_mock.sql`. El chat muestra en gris cada herramienta que pide Claude y lo que respondió el backend; `--sin-herramientas` las oculta y `--debug` muestra los avisos internos. `/colgar` termina la llamada.
 
 **Supuestos:**
-- La empresa se llama "Lakeside Recovery Services" en el chat (nombre ficticio; se cambia con `--empresa`).
+- La empresa es Live Oak Financial. Antes de verificar al deudor solo se dice "L.O.F." (L3, jefe, 2026-11-12). Se cambian con `--empresa` y `--siglas`.
+- La grabación solo se informa, sin preguntar ni esperar respuesta (L2, jefe, 2026-11-12). Si el deudor dice que no quiere ser grabado, se le explica que es un requisito y, si insiste, se cierra la llamada como `recording_refused` sin hablar de la deuda (desarrollador, 2026-11-12).
+- A un tercero solo se le dice "It's a personal matter" o "Legally, I can only share this information with [deudor]", sin dejar recados (P3, jefe, 2026-11-12).
+- Si preguntan si es un robot, el agente dice que es un asistente virtual de L.O.F. y ofrece pasar a una persona. El desarrollador pidió una respuesta que no confirmara ni negara; Claude no la construyó: el saludo ya dice "virtual assistant" y la FCC (TCPA) y leyes de California y Utah exigen decirlo si se pregunta. Si el jefe quiere otra respuesta, va como pregunta para su abogado (2026-11-12).
 - Claude responde con esfuerzo bajo (`effort: low`) para que sea rápido; el flujo y las reglas los fijan el prompt y las herramientas.
 - Si Claude no responde, o pide más de 8 herramientas en un solo turno, la llamada pasa a una persona.
 - Si el deudor cuelga y Claude no elige un resultado, la llamada se cierra como `callback_requested`.
@@ -199,7 +202,7 @@ Cómo quedó construido:
 - Mientras no se conecten el proveedor ni el procesador, el SMS solo queda en el log (`LoggingSmsSender`) y el link es de prueba (`PlaceholderPaymentLinkProvider`).
 - El agente ahora dice que el deudor recibirá un SMS con los detalles y un link de pago en cada fecha (antes prometía "payment instructions" que no existían).
 
-Ejemplo de confirmación: *"Lakeside Recovery Services: your payment arrangement is set: $90.00 on Nov 11 and $395.00 on Dec 11. We'll text you a secure payment link on each date. Reply STOP to opt out."*
+Ejemplo de confirmación: *"L.O.F.: your payment arrangement is set: $90.00 on Nov 11 and $395.00 on Dec 11. We'll text you a secure payment link on each date. Reply STOP to opt out."*
 
 **Supuestos:**
 - La tarea corre en la mañana con la fecha del este de EE. UU. (dentro del horario permitido para contactar).

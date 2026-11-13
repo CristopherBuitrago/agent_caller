@@ -274,8 +274,9 @@ def test_hang_up_closes_the_call_even_if_the_model_does_not():
 
 
 def test_system_prompt_has_no_placeholders_left():
-    prompt = render_system_prompt("Lakeside Recovery Services")
+    prompt = render_system_prompt("Live Oak Financial", "L.O.F.")
     assert "{{" not in prompt and DISCLOSURE in prompt
+    assert "L.O.F." in prompt and "Live Oak Financial" in prompt
     assert all(q in prompt for q in HARDSHIP_QUESTIONS)
     assert all(spec.name in prompt for spec in TOOL_SPECS)
 
