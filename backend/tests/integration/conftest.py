@@ -15,7 +15,7 @@ def pool():
 class StaticSummarizer:
     """Las pruebas de integración no llaman a la API de Claude."""
 
-    def summarize(self, transcript):
+    def summarize(self, transcript, identity_verified=True):
         return f"Summary of {len(transcript)} chars."
 
 

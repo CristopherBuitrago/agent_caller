@@ -21,7 +21,7 @@ class FixedClock:
 
 
 class FakeSummarizer:
-    def summarize(self, transcript):
+    def summarize(self, transcript, identity_verified=True):
         return "Debtor says the payment went through."
 
 

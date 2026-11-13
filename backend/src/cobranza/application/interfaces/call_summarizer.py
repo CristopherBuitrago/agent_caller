@@ -8,6 +8,9 @@ class SummarizationError(Exception):
 class CallSummarizer(Protocol):
     """Interfaz. Implementación: infrastructure/services/claude_call_summarizer.py"""
 
-    def summarize(self, transcript: str) -> str:
-        """Resumen breve de la llamada, sin datos de verificación. Lanza SummarizationError si falla."""
+    def summarize(self, transcript: str, identity_verified: bool = True) -> str:
+        """Resumen breve de la llamada, sin datos de verificación. Lanza SummarizationError si falla.
+
+        B12: sin identidad verificada, el resumen solo dice quién contestó y cómo terminó.
+        """
         ...

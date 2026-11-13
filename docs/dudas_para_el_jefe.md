@@ -23,6 +23,22 @@ Preguntas concretas (agregadas el 2026-11-13, revisando lo que falta de N10):
 - **¿El procesador avisa en el momento cada pago aprobado o rechazado (*webhook*), o entrega un reporte diario de pagos?** Con aviso en el momento, la cuota se marca como pagada al instante; con un reporte diario, se lee el reporte una vez al día.
 - ¿Quién puede dar la documentación técnica y los accesos del procesador?
 
+### 4. Número de la línea de entrada
+
+Resolviendo la **observación de negocio N12**, que dice: *"Quien no lograba verificarse se quedaba sin salida"* (respuesta del jefe: el agente le da el número de la línea de entrada que atiende el mismo agente; él entrega el número después).
+
+Falta el dato: **¿cuál es ese número?** Ya está construido: basta con ponerlo en `AGENT_CALLBACK_NUMBER`.
+
+### 5. Vaspian: audio en vivo y SMS
+
+Resolviendo la **observación de negocio N15**, que dice: *"Proveedor de telefonía y programa de los cobradores"* (respuesta del jefe: Vaspian es el marcador, recibe las entrantes y envía los SMS; el CRM es Actos Software, en migración a Lariat Software).
+
+Salieron nuevas dudas:
+
+- **¿Vaspian puede enviar el audio de la llamada en vivo al agente** (por ejemplo, por WebSocket o SIP) y recibir su voz de vuelta? Sin esto, el agente de voz no puede atender llamadas por Vaspian.
+- ¿Vaspian tiene una API para **enviar SMS** desde el sistema? ¿Quién puede dar la documentación y las credenciales?
+- ¿Cómo se **transfiere** una llamada del agente a la cola de los cobradores, y se puede enviar con la llamada el motivo de la transferencia?
+
 ## Resueltas
 
 ### 3. Día de cobro del deudor y fecha del primer pago

@@ -44,6 +44,9 @@ class FakeCalls:
         self.calls[call_id] = replace(self.calls[call_id], ended_at=ended_at)
         self.closed[call_id] = (outcome, summary)
 
+    def get_verification_state(self, call_id):
+        return getattr(self, "verification", None)
+
 
 def _debtor():
     account = AccountSummary(
@@ -68,8 +71,9 @@ class FakeSummarizer:
         self.fail = fail
         self.transcripts = []
 
-    def summarize(self, transcript):
+    def summarize(self, transcript, identity_verified=True):
         self.transcripts.append(transcript)
+        self.verified = identity_verified
         if self.fail:
             raise SummarizationError("api down")
         return "Debtor agreed to pay in full."
@@ -202,7 +206,7 @@ class NamedSummarizer:
     def __init__(self, name, fail=False):
         self.name, self.fail, self.calls = name, fail, 0
 
-    def summarize(self, transcript):
+    def summarize(self, transcript, identity_verified=True):
         self.calls += 1
         if self.fail:
             raise SummarizationError(f"{self.name} failed")
@@ -279,3 +283,30 @@ def test_callback_time_rules(local, ok):
     else:
         with pytest.raises(CallbackTimeError):
             check_callback_time(local, now)
+
+
+# --- B12: resumen de llamadas delicadas -------------------------------------------------------
+
+from cobranza.domain.identity import CallVerificationState  # noqa: E402
+
+
+@pytest.mark.parametrize("state, verified", [
+    (None, False),
+    (CallVerificationState(None, 2, False), False),          # verificación fallida o tercero
+    (CallVerificationState("deb-1", 1, True), True),
+])
+def test_end_call_tells_the_summarizer_if_identity_was_verified(state, verified):
+    calls, summarizer = FakeCalls(), FakeSummarizer()
+    call_id = _start(calls).execute(CallDirection.INBOUND, "+12125550100")
+    calls.verification = state
+    EndCall(calls, summarizer, FixedClock()).execute(call_id, CallOutcome.CALLBACK_REQUESTED, "Agent: hi")
+    assert summarizer.verified is verified
+
+
+def test_claude_summarizer_sends_the_verification_flag_and_the_rules():
+    client = FakeAnthropic(_response(texts=("Husband answered; call ended.",)))
+    ClaudeCallSummarizer(client).summarize("transcript", identity_verified=False)
+    request = client.requests[0]
+    assert request["messages"][0]["content"].startswith("<identity_verified>false</identity_verified>")
+    assert "Do not mention any debt" in request["system"]
+    assert "without repeating their" in request["system"]

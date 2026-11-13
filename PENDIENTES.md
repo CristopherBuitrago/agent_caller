@@ -89,6 +89,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [ ] Preguntar al jefe: estado de la cuenta cuando se pagan todas las cuotas
 - [x] N11 (decisión, sin construir): disputa con alerta al equipo y revisión de un cobrador; el agente busca el pago en la llamada; si no lo encuentra, no acusa y registra la disputa igual (supuesto vigente) (2026-11-12). Estado `DISPUTE` construido el 2026-11-13 (los datos simulados pasaron de `DISPUTED` a `DISPUTE`); 368 pruebas pasan
 - [x] N14: ante angustia o amenazas, el agente mantiene la calma y sigue cobrando; nunca cuelga ni transfiere por eso, ni siquiera si el deudor menciona hacerse daño (decisión del desarrollador, queda para L7). Aplicado en el prompt; 369 pruebas pasan (2026-11-13)
+- [x] B12: el resumen sabe si hubo verificación; sin verificación solo dice quién contestó y cómo terminó, sin mencionar la deuda; con amenazas o insultos, una línea sin repetir las palabras (respuesta del jefe). 373 pruebas pasan (2026-11-13)
 - [x] N12: al cerrar por verificación fallida o cambio de nombre, el agente da el número para devolver la llamada (`AGENT_CALLBACK_NUMBER`; si no está configurado, no se ofrece). 330 pruebas pasan (2026-11-12)
 - [ ] Preguntar al jefe (N12): confirmar la opción y cuál es el número de la línea de entrada que atiende el agente
 - [x] L2, L3 y P3: aviso de grabación sin pregunta, "L.O.F." antes de verificar y "Live Oak Financial" después, frases fijas para terceros. Los SMS dicen "L.O.F.". 330 pruebas pasan (2026-11-12)

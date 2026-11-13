@@ -45,7 +45,7 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 
 | # | Tema | Respuesta | Estado |
 | --- | --- | --- | --- |
-| B12 | Resumen con IA de llamadas delicadas | **Confirmada:** si no hubo verificación, el resumen solo dice quién contestó y cómo terminó, sin mencionar la deuda; con amenazas o insultos, el resumen lo dice en una línea sin repetir las palabras | Decidida |
+| B12 | Resumen con IA de llamadas delicadas | **Confirmada:** si no hubo verificación, el resumen solo dice quién contestó y cómo terminó, sin mencionar la deuda; con amenazas o insultos, el resumen lo dice en una línea sin repetir las palabras | Aplicada (2026-11-13) |
 | B13 | Un impostor puede bloquear a la verdadera deudora | **Jefe:** es muy poco probable que alguien intente pagar la deuda de otra persona. Se deja como está, sin alerta | Decidida (sin cambios) |
 | P3 | Qué se le dice a un tercero que contesta | Solo se dice que es un asunto personal, o que legalmente la información solo se le puede dar a la persona: "It's a personal matter" / "Legally, I can only share this information with Jane Carter". Nunca se dejan recados | Aplicada |
 | P7 | Quejas, insultos y "no llamar" | Sigue lo decidido en N13: "no llamar" solo si el deudor lo pide de forma explícita; si no, se sigue | Decidida |

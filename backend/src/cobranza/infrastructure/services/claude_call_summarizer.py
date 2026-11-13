@@ -16,7 +16,13 @@ refused, wrong party, failed verification), say so and why.
 
 Never include Social Security numbers, dates of birth, card numbers, or any other data used to \
 verify identity, even if they appear in the transcript. Report only what the transcript shows; \
-do not guess."""
+do not guess.
+
+If <identity_verified> is false, write one or two sentences saying only who answered and how the \
+call ended. Do not mention any debt, creditor, amount, or reason for the call.
+
+If the caller threatened or insulted the agent, say so in one sentence without repeating their \
+words."""
 
 
 class ClaudeCallSummarizer:
@@ -24,14 +30,16 @@ class ClaudeCallSummarizer:
         self._client = client
         self._model = model
 
-    def summarize(self, transcript: str) -> str:
+    def summarize(self, transcript: str, identity_verified: bool = True) -> str:
         try:
             response = self._client.messages.create(
                 model=self._model,
                 max_tokens=2000,
                 output_config={"effort": "low"},  # resumir es una tarea simple
                 system=SYSTEM_PROMPT,
-                messages=[{"role": "user", "content": f"<transcript>\n{transcript}\n</transcript>"}],
+                messages=[{"role": "user", "content":
+                           f"<identity_verified>{str(identity_verified).lower()}</identity_verified>\n"
+                           f"<transcript>\n{transcript}\n</transcript>"}],
             )
         except anthropic.APIError as e:
             raise SummarizationError(f"Error de la API de Claude ({self._model}): {e}") from e

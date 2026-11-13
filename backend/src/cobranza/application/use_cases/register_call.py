@@ -72,8 +72,11 @@ class EndCall:
 
         summary = None
         if transcript and transcript.strip():
+            # B12: sin identidad verificada, el resumen no menciona la deuda.
+            state = self._calls.get_verification_state(call_id)
+            verified = bool(state and state.identity_verified)
             try:
-                summary = self._summarizer.summarize(transcript)
+                summary = self._summarizer.summarize(transcript, verified)
             except SummarizationError:
                 # El resultado de la llamada nunca se pierde por un fallo del resumen.
                 log.warning("No se pudo resumir la llamada %s", call_id, exc_info=True)

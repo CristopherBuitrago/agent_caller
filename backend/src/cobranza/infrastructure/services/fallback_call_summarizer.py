@@ -16,10 +16,10 @@ class FallbackCallSummarizer:
         self._primary = primary
         self._backup = backup
 
-    def summarize(self, transcript: str) -> str:
+    def summarize(self, transcript: str, identity_verified: bool = True) -> str:
         try:
-            return self._primary.summarize(transcript)
+            return self._primary.summarize(transcript, identity_verified)
         except SummarizationError:
             log.warning("Falló el resumidor principal; se usa el de respaldo", exc_info=True)
             # Si el respaldo también falla, su SummarizationError sube y EndCall cierra sin resumen.
-            return self._backup.summarize(transcript)
+            return self._backup.summarize(transcript, identity_verified)
