@@ -18,7 +18,7 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 | # | Observación | Respuesta | Estado |
 | --- | --- | --- | --- |
 | N1 | No había forma de que el deudor pagara un pago agendado | Al cerrar el acuerdo se envía un SMS de confirmación; el día de cada cuota, otro SMS con el link de pago. Se envían aunque el deudor esté marcado "no llamar" (aceptó el acuerdo). **Jefe (2026-11-12):** el proveedor de SMS es **Vaspian** | Aplicada con proveedor de prueba. **Por confirmar:** si hay página de pago del procesador |
-| N2 | Verificar leyendo el SSN y la fecha para que el deudor diga sí o no | Se deja como está: el deudor dice su nombre completo, los últimos 4 del SSN y su fecha de nacimiento. Leerle los datos los revela a quien conteste y no se puede con el diseño actual (los datos están cifrados). Si se prefiere la otra forma, se hace | **Por confirmar** |
+| N2 | Verificar leyendo el SSN y la fecha para que el deudor diga sí o no | Se deja como está: el deudor dice su nombre completo, los últimos 4 del SSN y su fecha de nacimiento. Leerle los datos los revela a quien conteste y no se puede con el diseño actual (los datos están cifrados). **Jefe (2026-11-13):** confirmado, "porque leerle los datos los revela a quien conteste y no se puede con el diseño actual" | Aplicada (confirmada) |
 | N3 | Saludo y aviso de grabación en las salientes | El saludo solo pregunta por el deudor ("May I speak with Jane Carter?"). Cuando confirma que es él, el agente se identifica y avisa de la grabación. **Cambia con L2:** ya no se pregunta ni se espera un "sí"; solo se informa | Aplicada (con L2) |
 | N4 | Se ofrecían opciones que el deudor ya había descartado | Si el deudor dice cuánto puede pagar, se saltan las ofertas mayores, pero nunca la de 3 cuotas (antes de las Hardship Questions) ni la última. Esas se presentan como "la opción más baja disponible ahora", sin mencionar mínimos ni reglas | Aplicada |
 | N5 | Lo que podía pagar el deudor no alcanzaba ni para 10 cuotas | Después de las Hardship Questions, la última oferta es un primer pago del 10% y el resto en 12 cuotas mensuales iguales (1 año). Con USD 485: 48,50 hoy y 12 cuotas de unos 36,40 | Aplicada |
@@ -64,6 +64,6 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 
 ## Siguen sin revisar
 
-- **Con el jefe:** N2 (verificación) y L7.
+- **Con el abogado:** L7.
 - **Técnicas:** 10 de backend (B1–B6, B8, B9, B14, B15).
 - **Instrucciones del agente:** P1, P2, P4–P6 y P8–P12, en un solo ajuste al final.
