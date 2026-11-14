@@ -102,6 +102,7 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 - Si el mes no tiene el día fijado, se usa su último día.
 - Un solo acuerdo activo por cuenta.
 - El pago total también pasa a `PTP`.
+- Una propuesta rechazada no se puede aceptar después en la misma llamada. Si el deudor cambia de opinión, el agente arma otra igual (nuevo `proposal_id`) y el registro queda con las dos, una rechazada. Se deja así porque el registro de ofertas vive en memoria durante la llamada y no afecta montos ni reportes (B15, opción A, elegida por el desarrollador el 2026-11-13).
 
 ### Función 5: Hardship Questions
 
