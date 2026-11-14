@@ -328,6 +328,25 @@ def test_system_prompt_has_no_placeholders_left():
     assert all(spec.name in prompt for spec in TOOL_SPECS)
 
 
+@pytest.mark.parametrize("phrase", [
+    "To protect your privacy",                                          # P1
+    "I can share the reason once I confirm I'm speaking with the right person",  # P1
+    "You've reached L.O.F., and I'm happy to help",                     # P12
+    "wait for a clear yes",                                             # P4
+    "yes, but with a discount",                                         # P4
+    "I'm not able to remove it",                                        # P5
+    "Do you remember the date of that payment and the confirmation number?",  # P6 y B5
+    "Are you saying the payment went through?",                         # P6
+    "Would you like to take care of it today?",                         # P8
+    "about one hundred sixty-two dollars a month",                      # P8
+    "we can set your first payment for when you'll have the money",     # P9
+    "leave `duration_type` empty",                                      # P10
+    "in the coming weeks",                                              # P10
+])
+def test_system_prompt_has_the_approved_phrases(phrase):
+    assert phrase in render_system_prompt("Live Oak Financial", "L.O.F.")
+
+
 # --- implementación con Claude (cliente falso) ---------------------------------------------
 
 class FakeMessages:

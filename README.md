@@ -163,6 +163,8 @@ Herramientas: `record_recording_consent`, `verify_identity`, `get_account_detail
 - Después de `get_account_details`, el agente explica la deuda y termina con "Would you like to take care of it today?"; la oferta va en el turno siguiente. Si el deudor ya dijo cuánto puede pagar, se ofrece de una vez.
 - Si el deudor ya colgó, ninguna herramienta le pide al agente que hable: "The caller already hung up. Do not say anything."
 
+**Lote de instrucciones del agente (P1, P4–P6, P8–P10 y P12; frases aprobadas por el desarrollador el 2026-11-13):** frase de privacidad al pedir los datos y "I can share the reason once I confirm..." antes de verificar (P1); "You've reached L.O.F...." ante "who are you calling?" en entrantes (P12); repetir montos y fechas y esperar un "sí" claro, sin aceptar condiciones y corrigiendo cifras equivocadas (P4); no inventar y frase fija para el cargo por pago devuelto (P5); preguntar fecha y número de confirmación antes de `record_dispute`, y "Are you saying the payment went through?" ante la confusión (P6, con B5); deuda y oferta en turnos separados y montos redondeados hasta confirmar (P8); ofrecer la fecha del primer pago antes de agendar una devolución de llamada por falta de dinero (P9); `duration_type` vacío si no es claro y pregunta 4 adaptada si no tiene trabajo (P10). P2 quedó resuelta con L2 y P11 con B8 y N12.
+
 **Cómo correrlo** (desde `backend/`, con la base levantada y la key en la terminal o en `backend/.env`):
 
 ```

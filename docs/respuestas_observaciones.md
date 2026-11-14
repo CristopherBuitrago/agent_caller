@@ -68,6 +68,21 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 | B10 | No había forma de enviar el link de pago | SMS de confirmación, aviso y link de pago (con N1) | Aplicada con proveedor de prueba |
 | B11 | La grabación empezaba antes de avisar | La grabación empieza al dar el aviso (con N3 y L2) | Aplicada |
 
+## Instrucciones del agente
+
+| # | Observación | Respuesta | Estado |
+| --- | --- | --- | --- |
+| P1 | Frases al inicio | Al pedir los datos: "To protect your privacy, could you please give me...". Si preguntan por qué se les llama antes de verificar: "I can share the reason once I confirm I'm speaking with the right person." | Aplicada (2026-11-13) |
+| P2 | Consentimiento de grabación | Resuelta con L2: ya no se pregunta, solo se informa | Resuelta con L2 |
+| P4 | Confirmar antes de cerrar el acuerdo | El agente repite montos y fechas y espera un "sí" claro. Un "sí, pero con descuento" no cuenta. Si el deudor dice una cifra equivocada, se corrige: "Just to be clear, the remaining amount is..." | Aplicada (2026-11-13) |
+| P5 | No inventar | Lo que el agente no sabe: "I don't have that information, but a representative can help you with it." Sobre el cargo por pago devuelto: "That is the returned payment fee on your account, and I'm not able to remove it." Si la pregunta se repite, ofrece una persona | Aplicada (2026-11-13) |
+| P6 | Disputa o confusión | "Ya pagué" o "error del banco" es disputa; antes de registrarla se pregunta la fecha del pago y el número de confirmación (se registra aunque no los recuerde). "Intenté pagar, no sé qué pasó" no es disputa todavía: "Are you saying the payment went through?" | Aplicada (2026-11-13) |
+| P8 | Largo de los turnos | La deuda en un turno, terminando con "Would you like to take care of it today?", y la oferta en el siguiente. Con centavos distintos entre cuotas: "about one hundred sixty-two dollars a month", y los centavos exactos solo al confirmar | Aplicada (2026-11-13) |
+| P9 | Devolución de llamada por falta de dinero | Antes de agendar la llamada, el agente ofrece poner el primer pago cuando el deudor tenga el dinero, dentro del plazo permitido: "If it helps, we can set your first payment for when you'll have the money." | Aplicada (2026-11-13) |
+| P10 | Hardship Questions | Si no queda claro si la situación es temporal o permanente, no se marca y se explica en las notas. Si el deudor no tiene trabajo, la pregunta 4 no menciona "your next pay date": "...today or in the coming weeks?" | Aplicada (2026-11-13) |
+| P11 | Verificación fallida | Resuelta con B8 (aviso del último intento) y N12 (número para devolver la llamada) | Resuelta con B8 y N12 |
+| P12 | "Who are you calling?" en una entrante | "You've reached L.O.F., and I'm happy to help. Could I have your full name, please?" Nunca se dice el nombre del deudor antes de verificar | Aplicada (2026-11-13) |
+
 ## Respuestas legales (abogado del jefe)
 
 | # | Tema | Respuesta | Estado |
@@ -83,4 +98,3 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 ## Siguen sin revisar
 
 - **Con el abogado:** L7.
-- **Instrucciones del agente:** P1, P2, P4–P6 y P8–P12, en un solo ajuste al final.

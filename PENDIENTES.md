@@ -105,6 +105,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [ ] Preguntar al jefe: proveedor de SMS ("empieza por V"), página de pago del procesador, estado de la cuenta cuando se pagan todas las cuotas, si aprueba que el primer pago vaya hasta fin de mes en vez de 8 días (N8), y si a los 5 días sin pago se puede marcar `broken` y avisar por Teams (u otro canal) sin cambiar el estado (N10)
 - [ ] Preguntar al jefe (N11): qué estado se le pone a la cuenta al marcarse en disputa, qué se hace con el resultado de la revisión (válida o no) y si se puede consultar en su base si un pago entró
 - [ ] Resolver una por una las observaciones del informe: S2, después negocio (N1–N15), backend (B1–B15) y prompt (P1–P12, en un solo cambio). Lo legal (L1–L7) se anota como supuesto
+- [x] Lote de prompt: P1, P4–P6, P8–P10 y P12 aplicadas; P2 resuelta con L2 y P11 con B8 y N12. Incluye preguntar fecha y número de confirmación antes de `record_dispute` (B5). 419 pruebas pasan (2026-11-13)
 - [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 
 Correr las pruebas: `cd backend && docker compose run --rm --build app`
