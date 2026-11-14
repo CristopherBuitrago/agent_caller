@@ -20,7 +20,7 @@ from cobranza.agent.application.conversation import (
     AgentSession,
     render_system_prompt,
 )
-from cobranza.agent.application.tools import DISCLOSURE, TOOL_SPECS, AgentUseCases, CallTools
+from cobranza.agent.application.tools import DISCLOSURE, HUNG_UP_NEXT_STEP, TOOL_SPECS, AgentUseCases, CallTools
 from cobranza.domain.arrangement import (
     ArrangementProposal,
     ArrangementRuleError,
@@ -438,6 +438,39 @@ def test_dispute_said_right_before_hanging_up_is_saved():
     session.hang_up()
     assert session.outcome is CallOutcome.DISPUTE
     assert len(uc.record_dispute.calls) == 1
+
+
+# --- B9: next_step que no cubrían casos reales --------------------------------------------
+
+def test_declined_offer_uses_the_amount_the_debtor_gave():
+    tools, _ = _tools()
+    answer, _ = _run(tools, "record_offer_response", proposal_id="P1", accepted=False)
+    assert "propose_partial_payment" in answer["next_step"] and "propose_offer" in answer["next_step"]
+
+
+def test_account_details_leave_the_offer_for_the_next_turn():
+    tools, _ = _tools()
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    details, _ = _run(tools, "get_account_details")
+    assert "Would you like to take care of it today?" in details["next_step"]
+    assert "only after they answer" in details["next_step"]
+
+
+@pytest.mark.parametrize("tool, args", [
+    ("mark_do_not_call", {}), ("end_call", {"outcome": "callback_requested"}),
+])
+def test_after_hang_up_no_tool_asks_the_agent_to_speak(tool, args):
+    tools, _ = _tools()
+    tools.caller_hung_up = True
+    answer, _ = _run(tools, tool, **args)
+    assert answer["next_step"] == HUNG_UP_NEXT_STEP
+    assert "goodbye" not in answer["next_step"].lower()
+
+
+def test_hang_up_marks_the_tools_as_hung_up():
+    tools, _ = _tools()
+    AgentSession(tools, ScriptedModel(_say(""))).hang_up()
+    assert tools.caller_hung_up
 
 
 # --- N4, opción A': monto que dice el deudor y "opción más baja disponible" ---------------

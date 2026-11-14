@@ -156,6 +156,11 @@ Una persona escribe en la terminal como si fuera el deudor y Claude responde com
 
 Herramientas: `record_recording_consent`, `verify_identity`, `get_account_details`, `propose_offer`, `record_offer_response`, `propose_partial_payment`, `record_hardship_answers`, `record_dispute`, `mark_do_not_call`, `transfer_to_human` y `end_call`. Cada respuesta trae `next_step`, una instrucción corta de qué hacer después.
 
+**Correcciones a los `next_step` (B9, opción A, elegida por el desarrollador el 2026-11-13):**
+- Si el deudor rechaza una propuesta y da otro monto, el agente arma un parcial con ese monto (`propose_partial_payment`); si no, pide la siguiente oferta.
+- Después de `get_account_details`, el agente explica la deuda y termina con "Would you like to take care of it today?"; la oferta va en el turno siguiente. Si el deudor ya dijo cuánto puede pagar, se ofrece de una vez.
+- Si el deudor ya colgó, ninguna herramienta le pide al agente que hable: "The caller already hung up. Do not say anything."
+
 **Cómo correrlo** (desde `backend/`, con la base levantada y la key en la terminal o en `backend/.env`):
 
 ```

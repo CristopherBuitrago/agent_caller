@@ -284,6 +284,8 @@ class CallTools:
         self.outcome: CallOutcome | None = None
         self.summary: str | None = None
         self.transferred = False  # B3: se pasó a una persona (además del resultado)
+        # B9: el deudor colgó; ninguna herramienta debe pedirle al agente que hable.
+        self.caller_hung_up = False
 
     def execute(self, call: ToolCall) -> ToolResult:
         handler = getattr(self, f"_tool_{call.name}", None)
@@ -366,7 +368,10 @@ class CallTools:
                                         "representative. Do not give their details.")
         result["next_step"] = (
             "Explain calmly that a recent payment was returned by the bank, give the creditor and "
-            "the balance, then call propose_offer. If they ask why it was returned, say the "
+            "the balance, and end your turn with: \"Would you like to take care of it today?\" Call "
+            "propose_offer only after they answer, so the offer goes in your next turn. If the debtor "
+            "already said how much they can pay, call propose_offer now with max_payment_dollars. "
+            "If they ask why it was returned, say the "
             "returned_payment reason in your own words; if there is no reason, say a "
             "representative can give them the details." if collectable else
             "You cannot handle these accounts. Transfer with transfer_to_human.")
@@ -423,7 +428,7 @@ class CallTools:
     def _tool_record_offer_response(self, proposal_id: str, accepted: bool) -> dict:
         arrangement_id = self._uc.record_offer_response.execute(self.call_id, proposal_id, accepted)
         if not accepted:
-            return {"recorded": True, "next_step": "Call propose_offer for the next option."}
+            return {"recorded": True, "next_step": _DECLINED_NEXT_STEP}
         self._arrangement_made = True
         logged = self._proposals.get(proposal_id)
         return {"arrangement_id": arrangement_id,
@@ -612,8 +617,9 @@ class CallTools:
         self.ended = True
         self.outcome = outcome
 
-    @staticmethod
-    def _result(call: ToolCall, content: dict, error: bool = False) -> ToolResult:
+    def _result(self, call: ToolCall, content: dict, error: bool = False) -> ToolResult:
+        if self.caller_hung_up and "next_step" in content:
+            content = {**content, "next_step": HUNG_UP_NEXT_STEP}
         return ToolResult(call.id, json.dumps(content, ensure_ascii=False), is_error=error)
 
 
@@ -637,6 +643,11 @@ _VERIFICATION_NEXT_STEP = {
         "with their own information. Do not mention any debt and do not say which item did not "
         "match. Then say goodbye.",
 }
+# B9: tras rechazar una propuesta, si el deudor dio otro monto se arma un parcial con ese monto.
+_DECLINED_NEXT_STEP = ("If the debtor offered a different amount they can pay, call "
+                       "propose_partial_payment with that amount; otherwise call propose_offer for the "
+                       "next option.")
+HUNG_UP_NEXT_STEP = "The caller already hung up. Do not say anything."
 _LAST_ATTEMPT_NEXT_STEP = (
     "Say the information did not match our records, without saying which item, then say exactly: "
     '"Please double-check the numbers, since this will be the last attempt I can make on this call." '

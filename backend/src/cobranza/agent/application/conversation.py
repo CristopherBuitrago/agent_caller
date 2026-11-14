@@ -104,6 +104,7 @@ class AgentSession:
 
     def hang_up(self) -> None:
         """El deudor colgó. El modelo elige el resultado; si no cierra, se cierra como volver a llamar."""
+        self._tools.caller_hung_up = True
         if not self.ended:
             self.call_event(HANG_UP_EVENT)
         self._tools.close_without_model(CallOutcome.CALLBACK_REQUESTED)
