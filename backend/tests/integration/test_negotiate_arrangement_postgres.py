@@ -72,6 +72,11 @@ def test_full_order_ends_in_a_last_resort_partial(use_cases, verified_jane, pool
     arrangement, payments = _saved(pool, arrangement_id)
     assert arrangement == ("partial", 48500, "active")
     assert [p[1] for p in payments] == [2500, 46000]
+    # B14: el sistema guarda en las Hardship en qué acuerdo terminó (no lo escribe la IA).
+    with pool.connection() as conn:
+        plan, = conn.execute("SELECT recommended_plan FROM hardship_assessments WHERE call_id = %s",
+                             (verified_jane,)).fetchone()
+    assert plan.startswith("partial: 2 payments, first $25.00 on ") and plan.endswith("total $485.00")
 
 
 def test_creating_an_arrangement_moves_the_account_to_ptp(use_cases, verified_jane, pool):

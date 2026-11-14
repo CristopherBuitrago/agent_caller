@@ -295,3 +295,20 @@ def test_a_month_end_plan_with_mid_month_installments_is_rejected():
     plan = build_plan(BALANCE, 2, date(2026, 11, 30), date(2026, 11, 13))
     altered = replace(plan, payments=(plan.payments[0], replace(plan.payments[1], due_date=date(2026, 12, 30))))
     assert _violation(validate_proposal, altered, BALANCE, date(2026, 11, 13)) is R.INVALID_SCHEDULE
+
+
+# --- B14: resumen del acuerdo para recommended_plan -------------------------------------
+
+from cobranza.domain.arrangement import (  # noqa: E402
+    ArrangementProposal as _Proposal,
+    ArrangementType as _Type,
+    ScheduledPayment as _Payment,
+    describe_arrangement,
+)
+
+
+def test_describe_arrangement_plan_and_full():
+    plan = _Proposal(_Type.PLAN, 48500, (_Payment(1, 4850, date(2026, 11, 13)), _Payment(2, 3640, date(2026, 12, 13))))
+    assert describe_arrangement(plan) == "plan: 2 payments, first $48.50 on 2026-11-13, total $485.00"
+    full = _Proposal(_Type.FULL, 148500, (_Payment(1, 148500, date(2026, 11, 13)),))
+    assert describe_arrangement(full) == "full: 1 payment, first $1,485.00 on 2026-11-13, total $1,485.00"

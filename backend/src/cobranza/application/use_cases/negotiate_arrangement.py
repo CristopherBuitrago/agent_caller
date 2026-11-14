@@ -23,6 +23,7 @@ from cobranza.domain.arrangement import (
     build_full,
     build_partial,
     build_plan,
+    describe_arrangement,
     is_last_resort_partial,
     requires_hardship,
     validate_proposal,
@@ -72,6 +73,13 @@ class _ArrangementGate:
         since = self._clock.now() - HARDSHIP_VALID_FOR
         if not self._hardships.exists_for_debtor_since(debtor_id, since):
             raise ArrangementRuleError(RuleViolation.HARDSHIP_REQUIRED)
+
+    def record_recommended_plan(self, call_id: str, proposal: ArrangementProposal) -> None:
+        """B14: si el deudor contestó las Hardship Questions (últimos 30 días), guarda en qué acuerdo
+        terminó. Lo escribe el sistema, nunca la IA."""
+        since = self._clock.now() - HARDSHIP_VALID_FOR
+        self._hardships.set_recommended_plan(self.verified_debtor_id(call_id), since,
+                                             describe_arrangement(proposal))
 
     def check(self, call_id: str, account_external_id: str) -> _Context:
         self.check_recorded_call(call_id)
@@ -219,7 +227,10 @@ class CreateArrangement:
         validate_proposal(proposal, context.account.current_balance_cents, context.today)
         if requires_hardship(proposal):
             self._gate.check_hardship_done(call_id)
-        return self._arrangements.create(call_id, context.account.id, proposal, STATUS_AFTER_ARRANGEMENT)
+        arrangement_id = self._arrangements.create(call_id, context.account.id, proposal,
+                                                   STATUS_AFTER_ARRANGEMENT)
+        self._gate.record_recommended_plan(call_id, proposal)
+        return arrangement_id
 
 
 class UnknownProposalError(ValueError):

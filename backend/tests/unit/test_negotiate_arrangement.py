@@ -94,6 +94,10 @@ class FakeHardships:
         self.checked = (debtor_id, since)
         return self.done
 
+    def set_recommended_plan(self, debtor_id, since, plan):
+        if self.done:   # sin Hardship en los últimos 30 días, no hay fila que actualizar
+            self.recommended_plan = plan
+
 
 def _all_rejected_log():
     """Registro de una llamada donde el deudor ya rechazó las 11 ofertas (hasta el pago inicial + 12 cuotas)."""
@@ -181,6 +185,27 @@ def test_create_also_checks_hardship():
     assert _violation(without_hardship[2].execute, "c1", "ACC-1", long_plan) is R.HARDSHIP_REQUIRED
     assert _violation(without_hardship[2].execute, "c1", "ACC-1", last_resort) is R.HARDSHIP_REQUIRED
     assert without_hardship[4].created == []
+
+
+def test_arrangement_after_hardship_fills_recommended_plan():
+    arrangements, hardships = FakeArrangements(), FakeHardships(done=True)
+    gate = _ArrangementGate(FakeCalls(), arrangements,
+                            GetDebtorByAccount(FakeDebtors(_debtor()), PhonenumbersPhoneService()),
+                            FixedClock(), hardships)
+    plan = ProposeArrangement(gate).execute("c1", "ACC-1", 4)
+    CreateArrangement(gate, arrangements).execute("c1", "ACC-1", plan)
+    assert hardships.recommended_plan.startswith("plan: 4 payments, first $")
+    assert hardships.recommended_plan.endswith("total $1,000.00")
+
+
+def test_arrangement_without_hardship_leaves_no_recommended_plan():
+    arrangements, hardships = FakeArrangements(), FakeHardships(done=False)
+    gate = _ArrangementGate(FakeCalls(), arrangements,
+                            GetDebtorByAccount(FakeDebtors(_debtor()), PhonenumbersPhoneService()),
+                            FixedClock(), hardships)
+    full = ProposeArrangement(gate).execute("c1", "ACC-1", 1)
+    CreateArrangement(gate, arrangements).execute("c1", "ACC-1", full)
+    assert not hasattr(hardships, "recommended_plan")
 
 
 # --- Hardship Questions -------------------------------------------------------

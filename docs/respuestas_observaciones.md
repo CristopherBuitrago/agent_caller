@@ -63,6 +63,7 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 | B7 | El agente no sabía hasta cuándo podía ir el primer pago | La herramienta le da la fecha límite (con N8) | Aplicada |
 | B8 | El agente no sabía cuántos intentos de verificación quedaban | Tras un intento fallido, el sistema le dice cuántos quedan (contando el límite de la llamada y el bloqueo de 24 horas). Si queda uno, el agente lo avisa: "Please double-check the numbers, since this will be the last attempt I can make on this call." | Aplicada (2026-11-13) |
 | B9 | Algunas instrucciones de las herramientas no cubrían casos reales | Si el deudor rechaza una propuesta y da otro monto, el agente arma un pago parcial con ese monto. Después de explicar la deuda, el agente pregunta "Would you like to take care of it today?" y ofrece en el turno siguiente, para no decir todo de una vez. Si el deudor ya colgó, el agente no habla. La promesa de "payment instructions" ya se había resuelto con los SMS (N1) | Aplicada (2026-11-13) |
+| B14 | No se guardaba en qué acuerdo terminaron las Hardship Questions | Al crear el acuerdo, el sistema guarda en las respuestas de Hardship un resumen del plan, p. ej. "plan: 13 payments, first $48.50 on 2026-11-13, total $485.00". Lo escribe el sistema, nunca la IA | Aplicada (2026-11-13) |
 | B10 | No había forma de enviar el link de pago | SMS de confirmación, aviso y link de pago (con N1) | Aplicada con proveedor de prueba |
 | B11 | La grabación empezaba antes de avisar | La grabación empieza al dar el aviso (con N3 y L2) | Aplicada |
 
@@ -81,5 +82,5 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 ## Siguen sin revisar
 
 - **Con el abogado:** L7.
-- **Técnicas:** 2 de backend (B14, B15).
+- **Técnicas:** 1 de backend (B15).
 - **Instrucciones del agente:** P1, P2, P4–P6 y P8–P12, en un solo ajuste al final.

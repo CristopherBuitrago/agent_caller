@@ -96,6 +96,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] B6: `get_account_details` da el motivo del rebote en palabras sencillas solo para R01 y R09; con otro código no da motivo y nunca dice el código (opción A). 386 pruebas pasan (2026-11-13)
 - [x] B8: `verify_identity` devuelve `attempts_left` tras un intento fallido; si queda 1, el agente avisa que es el último intento (opción A). 398 pruebas pasan (2026-11-13)
 - [x] B9: `next_step` corregidos: otro monto tras un rechazo → `propose_partial_payment`; la oferta va en el turno siguiente a la deuda; tras colgar, ninguna herramienta pide hablar (opción A). 403 pruebas pasan (2026-11-13)
+- [x] B14: al crear un acuerdo, el sistema llena `recommended_plan` en las Hardship más recientes del deudor (últimos 30 días) con un resumen corto (opción A). 406 pruebas pasan (2026-11-13)
 - [ ] Preguntar al jefe (B6, duda 7): lista de todos los códigos de rebote, qué significa cada uno, qué dice el agente y cuáles son disputa
 - [x] N12: al cerrar por verificación fallida o cambio de nombre, el agente da el número para devolver la llamada (`AGENT_CALLBACK_NUMBER`; si no está configurado, no se ofrece). 330 pruebas pasan (2026-11-12)
 - [ ] Preguntar al jefe (N12): confirmar la opción y cuál es el número de la línea de entrada que atiende el agente

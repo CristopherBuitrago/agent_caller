@@ -36,6 +36,16 @@ class PostgresHardshipRepository:
                  answers.recommended_plan),
             )
 
+    def set_recommended_plan(self, debtor_id: str, since: datetime, plan: str) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                """UPDATE hardship_assessments SET recommended_plan = %s
+                   WHERE id = (SELECT id FROM hardship_assessments
+                               WHERE debtor_id = %s AND created_at >= %s
+                               ORDER BY created_at DESC LIMIT 1)""",
+                (plan, debtor_id, since),
+            )
+
     def exists_for_debtor_since(self, debtor_id: str, since: datetime) -> bool:
         with self._pool.connection() as conn:
             row = conn.execute(

@@ -80,6 +80,16 @@ class ArrangementProposal:
     payments: tuple[ScheduledPayment, ...]
 
 
+def describe_arrangement(proposal: ArrangementProposal) -> str:
+    """Resumen corto del acuerdo para recommended_plan (B14), p. ej.
+    "plan: 13 payments, first $48.50 on 2026-11-13, total $485.00"."""
+    first = proposal.payments[0]
+    count = len(proposal.payments)
+    return (f"{proposal.type.value}: {count} payment{'s' if count != 1 else ''}, "
+            f"first ${first.amount_cents / 100:,.2f} on {first.due_date.isoformat()}, "
+            f"total ${proposal.total_amount_cents / 100:,.2f}")
+
+
 def is_last_resort_partial(proposal: ArrangementProposal) -> bool:
     first = proposal.payments[0].amount_cents
     return (proposal.type is ArrangementType.PARTIAL

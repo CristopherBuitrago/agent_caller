@@ -115,6 +115,7 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿Y si después sigue sin poder pagar? | "Se transfiere a un agente" |
 | ¿Cómo se registra una promesa de pago? | Se anota, con fecha y monto en `scheduled_payments` |
 | ¿Hay que repetir las Hardship Questions si el deudor vuelve a llamar? (B1) | No. Valen 30 días por deudor, en cualquier llamada (opción A, elegida por el desarrollador el 2026-11-13). Las ofertas sí empiezan de nuevo en cada llamada |
+| ¿Quién llena `recommended_plan`? (B14) | El sistema, al crear un acuerdo, si el deudor contestó las Hardship Questions en los últimos 30 días: guarda un resumen corto en las más recientes, p. ej. "plan: 13 payments, first $48.50 on 2026-11-13, total $485.00". La IA nunca lo escribe. Opción A, elegida por el desarrollador el 2026-11-13 |
 
 Sin pendientes.
 
