@@ -11,6 +11,7 @@ from cobranza.domain.identity import (
     CallVerificationState,
     IdentityRecord,
     VerificationOutcome as V,
+    attempts_left,
     first_name_changed,
     only_last_name_differs,
     names_match,
@@ -135,6 +136,27 @@ def test_five_failures_in_24h_locks_across_calls():
     assert _verify(uc, ssn="0000") is V.LOCKED      # 5.º fallo
     calls.calls["c2"] = FakeCall()                  # llama otra vez
     assert _verify(uc, call="c2") is V.LOCKED       # bloqueado aunque ahora acierte
+
+
+@pytest.mark.parametrize("in_call, in_window, expected", [
+    (0, 0, 2), (1, 1, 1), (2, 2, 0),   # límite por llamada
+    (0, 4, 1), (1, 4, 1), (0, 5, 0),   # límite de 24 horas
+    (3, 9, 0),                          # nunca negativo
+])
+def test_attempts_left_rule(in_call, in_window, expected):
+    assert attempts_left(in_call, in_window) == expected
+
+
+def test_attempts_left_after_one_failure_is_one():
+    uc, _ = _setup()
+    assert uc.attempts_left("c1", "jane") == 2
+    assert _verify(uc, ssn="0000") is V.FAILED
+    assert uc.attempts_left("c1", "jane") == 1
+
+
+def test_attempts_left_counts_failures_from_other_calls():
+    uc, _ = _setup(a=FakeCall(debtor_id="jane", attempts=2), b=FakeCall(debtor_id="jane", attempts=2))
+    assert uc.attempts_left("c1", "jane") == 1   # 4 fallos en 24 h: queda 1 antes del bloqueo
 
 
 def test_failures_older_than_24h_do_not_count():

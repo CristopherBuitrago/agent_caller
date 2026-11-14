@@ -27,6 +27,12 @@ class VerificationOutcome(Enum):
     IDENTITY_MISMATCH = "identity_mismatch"
 
 
+def attempts_left(failed_in_call: int, failed_in_window: int) -> int:
+    """Intentos que le quedan a quien llama antes de cerrar o bloquear (B8). Nunca negativo."""
+    return max(0, min(MAX_FAILED_ATTEMPTS_PER_CALL - failed_in_call,
+                      MAX_FAILED_ATTEMPTS_IN_WINDOW - failed_in_window))
+
+
 @dataclass(frozen=True)
 class IdentityRecord:
     """Lo guardado para verificar. dob y SSN vienen solo como hash; nunca en claro."""

@@ -60,6 +60,9 @@ class Stub:
         self.calls.append(args + tuple(kwargs.values()))
         return self._fn(*args, **kwargs) if self._fn else None
 
+    def attempts_left(self, call_id, debtor_id):
+        return getattr(self, "left", 1)
+
 
 PLAN2 = ArrangementProposal(ArrangementType.PLAN, 48500, (
     ScheduledPayment(1, 24250, date(2026, 11, 13)), ScheduledPayment(2, 24250, date(2026, 12, 13))))
@@ -176,6 +179,26 @@ def test_failed_verification_never_says_which_item_failed():
     tools, _ = _tools(verify=VerificationOutcome.FAILED)
     answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
     assert answer["outcome"] == "failed" and "without saying which item" in answer["next_step"]
+
+
+def test_failed_verification_warns_when_it_is_the_last_attempt():
+    tools, _ = _tools(verify=VerificationOutcome.FAILED)
+    answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert answer["attempts_left"] == 1
+    assert "this will be the last attempt I can make on this call" in answer["next_step"]
+
+
+def test_failed_verification_with_more_attempts_does_not_warn():
+    tools, uc = _tools(verify=VerificationOutcome.FAILED)
+    uc.verify_identity.left = 2
+    answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert answer["attempts_left"] == 2 and "last attempt" not in answer["next_step"]
+
+
+def test_attempts_left_only_comes_with_a_failed_attempt():
+    tools, _ = _tools(verify=VerificationOutcome.VERIFIED)
+    answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert "attempts_left" not in answer
 
 
 def test_shared_phone_verifies_the_person_who_said_their_name():

@@ -16,6 +16,7 @@ from cobranza.domain.identity import (
     MAX_FAILED_ATTEMPTS_IN_WINDOW,
     MAX_FAILED_ATTEMPTS_PER_CALL,
     VerificationOutcome,
+    attempts_left,
     first_name_changed,
     is_valid_ssn_last4,
     names_match,
@@ -88,6 +89,18 @@ class VerifyIdentity:
         if state.failed_attempts + 1 >= MAX_FAILED_ATTEMPTS_PER_CALL:
             return VerificationOutcome.MAX_ATTEMPTS_REACHED
         return VerificationOutcome.FAILED
+
+    def attempts_left(self, call_id: str, debtor_id: str) -> int:
+        """Cuántos intentos de verificación le quedan en esta llamada (B8).
+
+        Es el menor entre los que quedan en la llamada y los que quedan antes del bloqueo de 24 horas.
+        """
+        state = self._calls.get_verification_state(call_id)
+        if state is None:
+            raise ValueError(f"Llamada desconocida: {call_id}")
+        since = self._clock.now() - LOCKOUT_WINDOW
+        return attempts_left(state.failed_attempts,
+                             self._calls.count_failed_verifications_since(debtor_id, since))
 
     def _remove_from_outbound_list_if_inbound(self, call_id: str, debtor_id: str) -> None:
         """El deudor llamó y verificó su identidad: ya no hay que llamarlo (decisión del 2026-11-12).

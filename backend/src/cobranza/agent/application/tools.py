@@ -342,11 +342,19 @@ class CallTools:
         elif outcome is VerificationOutcome.IDENTITY_MISMATCH:
             self._close(CallOutcome.IDENTITY_MISMATCH)
         next_step = _VERIFICATION_NEXT_STEP[outcome]
+        result: dict[str, Any] = {"outcome": outcome.value}
+        if outcome is VerificationOutcome.FAILED:
+            # B8: el agente sabe cuántos intentos quedan; si es el último, se lo dice al deudor.
+            left = self._uc.verify_identity.attempts_left(self.call_id, debtor.id)
+            result["attempts_left"] = left
+            if left == 1:
+                next_step = _LAST_ATTEMPT_NEXT_STEP
         if outcome in _OFFER_CALLBACK_NUMBER and self._callback_number:
             # N12: quien no logra verificarse recibe el número de la línea que atiende el agente.
             next_step += (f' Before saying goodbye, say: "If you\'d like, you can call us back at '
                           f'{spoken_phone(self._callback_number)} whenever you have your information handy."')
-        return {"outcome": outcome.value, "next_step": next_step}
+        result["next_step"] = next_step
+        return result
 
     def _tool_get_account_details(self) -> dict:
         debtor = self._require_debtor()
@@ -629,6 +637,11 @@ _VERIFICATION_NEXT_STEP = {
         "with their own information. Do not mention any debt and do not say which item did not "
         "match. Then say goodbye.",
 }
+_LAST_ATTEMPT_NEXT_STEP = (
+    "Say the information did not match our records, without saying which item, then say exactly: "
+    '"Please double-check the numbers, since this will be the last attempt I can make on this call." '
+    "Ask for the full name, the last four digits of the SSN and the date of birth again, then call "
+    "verify_identity again.")
 # N12: al cerrar sin verificar, se ofrece el número para devolver la llamada (si está configurado).
 _OFFER_CALLBACK_NUMBER = frozenset({VerificationOutcome.MAX_ATTEMPTS_REACHED,
                                     VerificationOutcome.IDENTITY_MISMATCH})
