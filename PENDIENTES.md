@@ -106,6 +106,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [ ] Preguntar al jefe (N11): qué estado se le pone a la cuenta al marcarse en disputa, qué se hace con el resultado de la revisión (válida o no) y si se puede consultar en su base si un pago entró
 - [ ] Resolver una por una las observaciones del informe: S2, después negocio (N1–N15), backend (B1–B15) y prompt (P1–P12, en un solo cambio). Lo legal (L1–L7) se anota como supuesto
 - [x] Lote de prompt: P1, P4–P6, P8–P10 y P12 aplicadas; P2 resuelta con L2 y P11 con B8 y N12. Incluye preguntar fecha y número de confirmación antes de `record_dispute` (B5). 419 pruebas pasan (2026-11-13)
+- [x] Proveedores aprobados: AssemblyAI (voz a texto), Deepgram Aura-2 (texto a voz) y Pipecat; AWS sale del costo porque la empresa ya lo usa; la telefonía y los SMS van por Vaspian (sin Telnyx). Costo con 800 llamadas diarias: ~USD 1.966 al mes más Vaspian (2026-11-15)
 - [ ] Probar el chat con la API real y ajustar el prompt (falta `ANTHROPIC_API_KEY`)
 
 Correr las pruebas: `cd backend && docker compose run --rm --build app`

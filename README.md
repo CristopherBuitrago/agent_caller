@@ -449,6 +449,18 @@ Precios de referencia: twilio.com/voice/pricing/us, telnyx.com/pricing/call-cont
 - Aprobar Telnyx Pay over Voice y confirmar su precio por pago: bloquea la Función 6.
 - Aprobar telefonía, voz y servidores: no detiene el desarrollo, pero hace falta antes de pasar del chat de prueba a llamadas reales.
 
+### 9.2 Proveedores aprobados (2026-11-15)
+
+| Para qué | Decisión | Origen |
+| --- | --- | --- |
+| Voz a texto | AssemblyAI Universal-Streaming (~USD 0,0025/min, ~USD 240/mes con 800 llamadas diarias) en vez de Deepgram Nova-3 (~USD 739; ~461 con promoción). Claude advirtió que Deepgram no era el más barato. Si en el piloto entiende peor el audio telefónico, se cambia a Deepgram (queda detrás de una interfaz) | Desarrollador |
+| Texto a voz | Deepgram Aura-2 (USD 30 por millón de caracteres, ~USD 1.080/mes): la voz natural más barata encontrada. Polly Neural (~USD 576) y Aura-1 (~USD 540) son más baratos pero menos naturales | Desarrollador |
+| Orquestación | Pipecat (código abierto, sin costo de licencia) | Desarrollador |
+| Servidores | Fuera del cálculo: la empresa ya usa AWS | Desarrollador |
+| Telefonía y SMS | Vaspian, que la empresa ya tiene contratado. Telnyx sale del cálculo. Falta confirmar que Vaspian envía el audio en vivo (duda 5) y su costo por los minutos y SMS del agente | Desarrollador |
+
+Costo con 800 llamadas diarias: ~USD 1.966 al mes más lo que cobre Vaspian (~USD 0,08 por llamada más Vaspian); antes ~3.789 con Telnyx y AWS propio. Precios de AssemblyAI y Deepgram tomados de comparadores el 2026-11-15; confirmarlos en las páginas oficiales antes de contratar.
+
 ### 9.1 Novedades del jefe (2026-11-11, contadas por el desarrollador)
 
 | Tema | Lo que dijo el jefe | Origen |
