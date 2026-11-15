@@ -5,3 +5,5 @@ __pycache__/
 .venv/
 .env
 .env.*
+# Historial de las llamadas de prueba de la página web
+call_logs/

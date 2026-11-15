@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente de cobranza · historial</title>
+<style>
+  :root { --azul:#1F3A5F; --gris:#F2F4F7; --borde:#D0D5DD; --texto:#101828; --suave:#667085; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:#E9EDF2; color:var(--texto); }
+  .app { max-width: 980px; margin: 0 auto; min-height: 100vh; background:#fff; }
+  header { background:var(--azul); color:#fff; padding:14px 18px; display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; }
+  header h1 { margin:0; font-size:17px; }
+  header a, header button { color:#fff; font-size:13px; background:none; border:1px solid #ffffff66; border-radius:8px; padding:6px 10px; cursor:pointer; text-decoration:none; }
+  .wrap { display:grid; grid-template-columns: 320px 1fr; min-height: calc(100vh - 56px); }
+  #list { border-right:1px solid var(--borde); overflow-y:auto; }
+  .item { padding:10px 14px; border-bottom:1px solid var(--borde); cursor:pointer; font-size:13px; line-height:1.45; }
+  .item:hover, .item.sel { background:var(--gris); }
+  .item b { font-size:14px; }
+  .muted { color:var(--suave); }
+  .pill { display:inline-block; font-size:11px; padding:1px 7px; border-radius:10px; background:#E0EAFF; color:#1D3A8A; }
+  .pill.open { background:#FEF0C7; color:#93370D; }
+  #detail { padding:16px 18px; overflow-y:auto; }
+  .meta { background:var(--gris); border-radius:8px; padding:10px 12px; font-size:13px; line-height:1.6; margin-bottom:14px; }
+  .events { display:flex; flex-direction:column; gap:8px; }
+  .msg { max-width:80%; padding:9px 12px; border-radius:12px; font-size:14px; line-height:1.45; white-space:pre-wrap; }
+  .agent { background:var(--gris); align-self:flex-start; }
+  .debtor { background:var(--azul); color:#fff; align-self:flex-end; }
+  .who { font-size:11px; opacity:.7; margin-bottom:2px; }
+  .tool { align-self:stretch; font-family: ui-monospace, Consolas, monospace; font-size:12px; color:#344054; border-left:3px solid var(--borde); padding:4px 8px; background:#FAFBFC; white-space:pre-wrap; word-break:break-word; }
+  .tool.err { border-color:#F04438; }
+  .tool summary { cursor:pointer; color:var(--suave); }
+  .system { align-self:center; font-size:12px; color:var(--suave); }
+  .hide-tools .tool { display:none; }
+  @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; } #list { max-height: 40vh; border-right:0; border-bottom:1px solid var(--borde); } }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <h1>Historial de llamadas de prueba</h1>
+    <div>
+      <label style="font-size:13px"><input type="checkbox" id="showTools" checked> Ver herramientas</label>
+      <button id="reload">Actualizar</button>
+      <a href="/">Volver al chat</a>
+    </div>
+  </header>
+  <div class="wrap">
+    <div id="list"><div class="item muted">Cargando…</div></div>
+    <div id="detail"><p class="muted">Elija una llamada de la lista.</p></div>
+  </div>
+</div>
+<script>
+const $ = id => document.getElementById(id);
+const fmt = iso => iso ? new Date(iso).toLocaleString() : "—";
+function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+async function loadList() {
+  const items = await (await fetch("/api/history")).json();
+  const list = $("list"); list.innerHTML = "";
+  if (!items.length) { list.appendChild(el("div", "item muted", "Todavía no hay llamadas guardadas.")); return; }
+  for (const it of items) {
+    const div = el("div", "item");
+    const name = (it.scenario && it.scenario.label) || (it.scenario && (it.scenario.phone || it.scenario.account)) || it.call_id;
+    div.appendChild(el("b", null, name)); div.appendChild(el("br"));
+    div.appendChild(el("span", "muted", fmt(it.started_at) + " · " + it.turns + " mensajes del deudor "));
+    div.appendChild(el("span", "pill" + (it.outcome ? "" : " open"), it.outcome || "sin terminar"));
+    div.onclick = () => { document.querySelectorAll(".item").forEach(x => x.classList.remove("sel")); div.classList.add("sel"); show(it.call_id); };
+    list.appendChild(div);
+  }
+}
+
+async function show(id) {
+  const d = await (await fetch("/api/history/" + encodeURIComponent(id))).json();
+  const box = $("detail"); box.innerHTML = "";
+  const meta = el("div", "meta");
+  const name = (d.scenario && d.scenario.label) || "";
+  meta.innerHTML = "";
+  [["Caso", name], ["ID de la llamada", d.call_id], ["Inicio", fmt(d.started_at)], ["Fin", fmt(d.ended_at)],
+   ["Resultado", d.outcome || "sin terminar"], ["Resumen de la IA", d.summary || "—"]].forEach(([k, v]) => {
+    const row = el("div"); row.appendChild(el("b", null, k + ": ")); row.appendChild(document.createTextNode(v)); meta.appendChild(row);
+  });
+  box.appendChild(meta);
+  const events = el("div", "events");
+  for (const e of d.events) {
+    if (e.type === "agent" || e.type === "debtor") {
+      const m = el("div", "msg " + e.type);
+      m.appendChild(el("div", "who", (e.type === "agent" ? "Agente" : "Deudor") + " · " + new Date(e.at).toLocaleTimeString()));
+      m.appendChild(document.createTextNode(e.text));
+      events.appendChild(m);
+    } else if (e.type === "tool") {
+      const t = el("details", "tool" + (e.error ? " err" : ""));
+      t.appendChild(el("summary", null, "🔧 " + e.name + (e.error ? " (error)" : "")));
+      t.appendChild(el("div", null, "Entrada: " + JSON.stringify(e.input)));
+      t.appendChild(el("div", null, "Respuesta del sistema: " + e.result));
+      events.appendChild(t);
+    } else {
+      events.appendChild(el("div", "system", e.text + " · " + new Date(e.at).toLocaleTimeString()));
+    }
+  }
+  box.appendChild(events);
+}
+
+$("reload").onclick = loadList;
+$("showTools").onchange = e => $("app").classList.toggle("hide-tools", !e.target.checked);
+loadList();
+</script>
+</body>
+</html>

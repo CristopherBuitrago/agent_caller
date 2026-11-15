@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agente de cobranza · chat de prueba</title>
+<style>
+  :root { --azul:#1F3A5F; --gris:#F2F4F7; --borde:#D0D5DD; --texto:#101828; --suave:#667085; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:#E9EDF2; color:var(--texto); }
+  .app { max-width: 720px; margin: 0 auto; min-height: 100vh; display:flex; flex-direction:column; background:#fff; }
+  header { background:var(--azul); color:#fff; padding:14px 18px; }
+  header h1 { margin:0; font-size:17px; }
+  header p { margin:4px 0 0; font-size:13px; opacity:.85; }
+  .controls { padding:12px 18px; border-bottom:1px solid var(--borde); display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  select, button, input { font: inherit; font-size:14px; }
+  select { padding:8px; border:1px solid var(--borde); border-radius:8px; flex:1 1 260px; }
+  button { padding:8px 14px; border:0; border-radius:8px; cursor:pointer; background:var(--azul); color:#fff; }
+  button.secondary { background:#B42318; }
+  button:disabled { opacity:.45; cursor:default; }
+  label.toggle { font-size:13px; color:var(--suave); display:flex; gap:6px; align-items:center; }
+  .card { margin:10px 18px 0; padding:10px 12px; background:var(--gris); border-radius:8px; font-size:13px; line-height:1.5; }
+  #chat { flex:1; padding:16px 18px; overflow-y:auto; display:flex; flex-direction:column; gap:10px; }
+  .msg { max-width:82%; padding:10px 13px; border-radius:14px; font-size:15px; line-height:1.45; white-space:pre-wrap; }
+  .agent { background:var(--gris); align-self:flex-start; border-bottom-left-radius:4px; }
+  .debtor { background:var(--azul); color:#fff; align-self:flex-end; border-bottom-right-radius:4px; }
+  .who { font-size:11px; color:var(--suave); margin-bottom:2px; }
+  .debtor .who { color:#C7D2E3; }
+  .tool { align-self:flex-start; font-family: ui-monospace, Consolas, monospace; font-size:12px; color:var(--suave); border-left:3px solid var(--borde); padding:2px 8px; max-width:92%; word-break:break-word; }
+  .tool.err { border-color:#F04438; }
+  .system { align-self:center; font-size:13px; color:var(--suave); text-align:center; }
+  .typing { align-self:flex-start; font-size:13px; color:var(--suave); font-style:italic; }
+  form { display:flex; gap:8px; padding:12px 18px; border-top:1px solid var(--borde); }
+  form input { flex:1; padding:10px 12px; border:1px solid var(--borde); border-radius:10px; }
+  .hide-tools .tool { display:none; }
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <h1>Agente de cobranza · chat de prueba</h1>
+    <p>Usted hace de deudor y escribe en inglés. El agente usa las reglas reales del sistema.
+       · <a href="/historial" style="color:#fff">Ver historial</a></p>
+  </header>
+
+  <div class="controls">
+    <select id="scenario">
+      <option value='{"direction":"inbound","phone":"+13055550001"}'>Entrante · Jane Carter (NSF, debe USD 485)</option>
+      <option value='{"direction":"outbound","account":"ACC-T001"}'>Saliente · Jane Carter (NSF, debe USD 485)</option>
+      <option value='{"direction":"inbound","phone":"+15125550002"}'>Entrante · Mark Holloway (dos cuentas)</option>
+      <option value='{"direction":"outbound","account":"ACC-T003"}'>Saliente · Lucy Bennett (sin estado, debe USD 145)</option>
+      <option value='{"direction":"inbound","phone":"+13125550004"}'>Entrante · Carl Dawson (deuda en disputa)</option>
+    </select>
+    <button id="start">Iniciar llamada</button>
+    <button id="hangup" class="secondary" disabled>Colgar</button>
+    <label class="toggle"><input type="checkbox" id="showTools" checked> Ver herramientas</label>
+  </div>
+
+  <div class="card" id="card">
+    <b>Datos para verificarse.</b>
+    Jane Carter: últimos 4 del SSN <b>1234</b>, nacida el <b>March 14, 1985</b> ·
+    Mark Holloway: <b>5678</b>, <b>November 2, 1979</b> ·
+    Lucy Bennett: <b>4321</b>, <b>July 21, 1992</b> ·
+    Carl Dawson: <b>1111</b>, <b>January 30, 1988</b>
+  </div>
+
+  <div id="chat"><div class="system">Elija un caso y pulse «Iniciar llamada».</div></div>
+
+  <form id="form">
+    <input id="text" placeholder="Escriba como el deudor (en inglés)…" autocomplete="off" disabled>
+    <button id="send" disabled>Enviar</button>
+  </form>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let callId = null, busy = false;
+
+function add(cls, text, who) {
+  const div = document.createElement("div");
+  div.className = cls;
+  if (who) { const w = document.createElement("div"); w.className = "who"; w.textContent = who; div.appendChild(w); }
+  div.appendChild(document.createTextNode(text));
+  $("chat").appendChild(div);
+  $("chat").scrollTop = $("chat").scrollHeight;
+  return div;
+}
+function showTools(tools) {
+  for (const t of tools || []) add("tool" + (t.error ? " err" : ""), "🔧 " + t.name + " → " + t.result);
+}
+function setOpen(open) {
+  $("text").disabled = $("send").disabled = $("hangup").disabled = !open;
+  $("start").disabled = open; $("scenario").disabled = open;
+  if (open) $("text").focus();
+}
+function ended(outcome, summary) {
+  add("system", "Llamada terminada" + (outcome ? " · resultado: " + outcome : ""));
+  if (summary) add("system", "Resumen: " + summary);
+  callId = null; setOpen(false);
+}
+async function api(path, body) {
+  const r = await fetch(path, { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body || {}) });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.detail || ("Error " + r.status));
+  return data;
+}
+async function withTyping(fn) {
+  busy = true; const t = add("typing", "El agente está escribiendo…");
+  try { return await fn(); } finally { t.remove(); busy = false; }
+}
+
+$("showTools").onchange = e => $("app").classList.toggle("hide-tools", !e.target.checked);
+
+$("start").onclick = async () => {
+  $("chat").innerHTML = "";
+  $("start").disabled = true;
+  try {
+    const body = JSON.parse($("scenario").value);
+    body.label = $("scenario").selectedOptions[0].textContent;
+    const data = await withTyping(() => api("/api/calls", body));
+    callId = data.call_id;
+    showTools(data.tools);
+    add("msg agent", data.reply, "Agente");
+    setOpen(!data.ended);
+    if (data.ended) ended(data.outcome);
+  } catch (e) { add("system", "⚠️ " + e.message); $("start").disabled = false; }
+};
+
+$("form").onsubmit = async e => {
+  e.preventDefault();
+  const text = $("text").value.trim();
+  if (!text || !callId || busy) return;
+  $("text").value = "";
+  add("msg debtor", text, "Deudor");
+  try {
+    const data = await withTyping(() => api(`/api/calls/${callId}/messages`, { text }));
+    showTools(data.tools);
+    if (data.reply) add("msg agent", data.reply, "Agente");
+    if (data.ended) ended(data.outcome);
+  } catch (e) { add("system", "⚠️ " + e.message); }
+};
+
+$("hangup").onclick = async () => {
+  if (!callId) return;
+  const id = callId; setOpen(false);
+  try {
+    const data = await withTyping(() => api(`/api/calls/${id}/hangup`));
+    showTools(data.tools);
+    ended(data.outcome, data.summary);
+  } catch (e) { add("system", "⚠️ " + e.message); }
+};
+</script>
+</body>
+</html>

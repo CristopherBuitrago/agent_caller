@@ -92,6 +92,18 @@ class EndCall:
         return summary
 
 
+class AttachTranscript:
+    """Guarda en la llamada dónde quedó su conversación completa (calls.transcript_uri)."""
+
+    def __init__(self, calls: CallRepository):
+        self._calls = calls
+
+    def execute(self, call_id: str, uri: str) -> None:
+        if self._calls.get(call_id) is None:
+            raise ValueError(f"Llamada desconocida: {call_id}")
+        self._calls.set_transcript_uri(call_id, uri.strip())
+
+
 class ScheduleCallback:
     """N9 / B2: guarda el día y la hora que pidió la persona para que la vuelvan a llamar.
 

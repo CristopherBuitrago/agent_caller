@@ -44,5 +44,25 @@ services:
       - ./src:/app/src
       - ./tests:/app/tests
 
+  # Página web del chat de prueba (demo): docker compose up web  ->  http://localhost:8000
+  web:
+    build: .
+    profiles: ["web"]
+    command: uvicorn cobranza.agent.infrastructure.web:app --host 0.0.0.0 --port 8000
+    environment:
+      DATABASE_URL: postgresql://cobranza:cobranza_dev@db:5432/cobranza
+      PII_HMAC_KEY: dev-only-pii-key
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      CALL_LOG_DIR: /app/call_logs
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./src:/app/src
+      # Historial de las llamadas de prueba (un JSON por llamada). No se sube al repositorio.
+      - ./call_logs:/app/call_logs
+
 volumes:
   cobranza-data:

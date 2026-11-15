@@ -23,6 +23,10 @@ class CallRepository(Protocol):
 
     def close(self, call_id: str, outcome: CallOutcome, summary: str | None, ended_at: datetime) -> None: ...
 
+    def set_transcript_uri(self, call_id: str, uri: str) -> None:
+        """Dónde quedó el texto completo de la llamada (historial del chat de prueba)."""
+        ...
+
     # --- verificación de identidad (Función 2) ---
 
     def get_verification_state(self, call_id: str) -> CallVerificationState | None: ...

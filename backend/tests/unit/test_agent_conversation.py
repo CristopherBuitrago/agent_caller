@@ -756,3 +756,27 @@ def test_model_failure_saves_a_transfer_reason():
     tools, uc = _tools()
     AgentSession(tools, ScriptedModel(ConversationModelError("down"))).debtor_says("hello")
     assert "technical problem" in uc.end_call.calls[-1][-1]
+
+
+# --- "contestó otra persona" solo en salientes y sin verificar (prueba con la API real) ------
+
+@pytest.mark.parametrize("outcome", ["debtor_unavailable", "wrong_party"])
+def test_third_party_outcomes_become_callback_on_inbound_calls(outcome):
+    tools, _ = _tools()                                    # entrante
+    _run(tools, "end_call", outcome=outcome)
+    assert tools.outcome is CallOutcome.CALLBACK_REQUESTED
+
+
+@pytest.mark.parametrize("outcome", ["debtor_unavailable", "wrong_party"])
+def test_third_party_outcomes_become_callback_once_the_debtor_is_verified(outcome):
+    tools, _ = _tools(direction=CallDirection.OUTBOUND)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    _run(tools, "end_call", outcome=outcome)
+    assert tools.outcome is CallOutcome.CALLBACK_REQUESTED
+
+
+@pytest.mark.parametrize("outcome", ["debtor_unavailable", "wrong_party"])
+def test_third_party_outcomes_stay_on_outbound_calls_before_verification(outcome):
+    tools, _ = _tools(direction=CallDirection.OUTBOUND)
+    _run(tools, "end_call", outcome=outcome)
+    assert tools.outcome is CallOutcome(outcome)

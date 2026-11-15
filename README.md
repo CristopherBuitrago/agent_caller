@@ -165,6 +165,12 @@ Herramientas: `record_recording_consent`, `verify_identity`, `get_account_detail
 
 **Lote de instrucciones del agente (P1, P4–P6, P8–P10 y P12; frases aprobadas por el desarrollador el 2026-11-13):** frase de privacidad al pedir los datos y "I can share the reason once I confirm..." antes de verificar (P1); "You've reached L.O.F...." ante "who are you calling?" en entrantes (P12); repetir montos y fechas y esperar un "sí" claro, sin aceptar condiciones y corrigiendo cifras equivocadas (P4); no inventar y frase fija para el cargo por pago devuelto (P5); preguntar fecha y número de confirmación antes de `record_dispute`, y "Are you saying the payment went through?" ante la confusión (P6, con B5); deuda y oferta en turnos separados y montos redondeados hasta confirmar (P8); ofrecer la fecha del primer pago antes de agendar una devolución de llamada por falta de dinero (P9); `duration_type` vacío si no es claro y pregunta 4 adaptada si no tiene trabajo (P10). P2 quedó resuelta con L2 y P11 con B8 y N12.
 
+**Página web de chat e historial (2026-11-15):** el mismo agente en el navegador o el celular, para la demo. `docker compose up web` y abrir http://localhost:8000 (desde el celular, la IP del PC en la misma red, puerto 8000). Tiene 5 casos de prueba, los datos para verificarse a la vista y la opción de ver u ocultar las herramientas. Endpoints: `POST /api/calls`, `POST /api/calls/{id}/messages`, `POST /api/calls/{id}/hangup`.
+
+El **historial** (http://localhost:8000/historial, opción A elegida por el desarrollador) guarda cada llamada en `backend/call_logs/<call_id>.json` (no se sube al repositorio): la conversación completa con horas, cada herramienta con lo que respondió el sistema, el resultado y el resumen. Se escribe después de cada turno y la ruta queda en `calls.transcript_uri`. Los últimos 4 del SSN se guardan como `****`; la fecha de nacimiento queda en el texto, así que antes de usar datos reales hay que resolverlo. Las llamadas abiertas viven en memoria del servidor: sirve para la demo con un solo servidor.
+
+**Resultado al colgar (prueba con la API real, 2026-11-15):** Haiku cerraba como `debtor_unavailable` llamadas entrantes o con el deudor ya verificado. Ahora `wrong_party` y `debtor_unavailable` solo valen en salientes antes de verificar; si no, la llamada queda como `callback_requested`.
+
 **Cómo correrlo** (desde `backend/`, con la base levantada y la key en la terminal o en `backend/.env`):
 
 ```

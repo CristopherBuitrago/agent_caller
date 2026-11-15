@@ -87,3 +87,12 @@ def test_transfer_reason_and_debtor_unavailable_are_saved(use_cases, started_cal
                                  ([transferred, unavailable],)).fetchall())
     assert rows[transferred] == ("transferred_to_human", "Asked for a person")
     assert rows[unavailable] == ("debtor_unavailable", None)
+
+
+def test_transcript_uri_is_saved(use_cases, started_calls, pool):
+    call = use_cases.start_call.execute(CallDirection.INBOUND, "+13055550001")
+    started_calls.append(call)
+    use_cases.attach_transcript.execute(call, "/app/call_logs/x.json")
+    with pool.connection() as conn:
+        uri, = conn.execute("SELECT transcript_uri FROM calls WHERE id = %s", (call,)).fetchone()
+    assert uri == "/app/call_logs/x.json"

@@ -169,7 +169,8 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
           "Transfer the call to a representative. Ends your part of the call.",
           {"reason": {"type": "string"}}, ("reason",)),
     _spec("end_call",
-          "End the call with its outcome.",
+          "End the call with its outcome. wrong_party and debtor_unavailable are only for outbound "
+          "calls where someone other than the debtor answered.",
           {"outcome": {"type": "string", "enum": sorted(o.value for o in END_OUTCOMES)}},
           ("outcome",)),
 )
@@ -547,6 +548,11 @@ class CallTools:
             raise _ToolInputError(f"Use the matching tool for {outcome}")
         if call_outcome is CallOutcome.ARRANGEMENT_MADE and not self._arrangement_made:
             raise ValueError("No arrangement was accepted in this call")
+        if call_outcome in _THIRD_PARTY_OUTCOMES and (
+                self._direction is CallDirection.INBOUND or self._debtor is not None):
+            # "Contestó otra persona" solo existe en salientes y antes de verificar al deudor. Si no,
+            # la llamada queda como volver a llamar (prueba con la API real del 2026-11-15).
+            call_outcome = CallOutcome.CALLBACK_REQUESTED
         self._close(call_outcome)
         return {"ended": True, "next_step": "Say a short goodbye if you have not already."}
 
@@ -647,6 +653,7 @@ _VERIFICATION_NEXT_STEP = {
 _DECLINED_NEXT_STEP = ("If the debtor offered a different amount they can pay, call "
                        "propose_partial_payment with that amount; otherwise call propose_offer for the "
                        "next option.")
+_THIRD_PARTY_OUTCOMES = frozenset({CallOutcome.WRONG_PARTY, CallOutcome.DEBTOR_UNAVAILABLE})
 HUNG_UP_NEXT_STEP = "The caller already hung up. Do not say anything."
 _LAST_ATTEMPT_NEXT_STEP = (
     "Say the information did not match our records, without saying which item, then say exactly: "

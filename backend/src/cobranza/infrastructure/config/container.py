@@ -34,7 +34,13 @@ from cobranza.application.use_cases.payment_schedule import (
     ListPaymentsDue,
     ListPaymentsDueOn,
 )
-from cobranza.application.use_cases.register_call import EndCall, RecordRecordingConsent, ScheduleCallback, StartCall
+from cobranza.application.use_cases.register_call import (
+    AttachTranscript,
+    EndCall,
+    RecordRecordingConsent,
+    ScheduleCallback,
+    StartCall,
+)
 from cobranza.application.use_cases.verify_identity import VerifyIdentity
 from cobranza.infrastructure.repositories.in_memory_negotiation_log import InMemoryNegotiationLog
 from cobranza.infrastructure.repositories.postgres_arrangement_repository import PostgresArrangementRepository
@@ -83,6 +89,7 @@ class UseCases:
     break_overdue_arrangements: BreakOverdueArrangements
     get_last_contact: GetLastContact
     schedule_callback: ScheduleCallback
+    attach_transcript: AttachTranscript
 
 
 def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
@@ -141,4 +148,5 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         break_overdue_arrangements=BreakOverdueArrangements(ledger),
         get_last_contact=GetLastContact(calls),
         schedule_callback=ScheduleCallback(calls, clock),
+        attach_transcript=AttachTranscript(calls),
     )

@@ -54,6 +54,10 @@ class PostgresCallRepository:
                 (outcome.value, summary, ended_at, call_id),
             )
 
+    def set_transcript_uri(self, call_id: str, uri: str) -> None:
+        with self._pool.connection() as conn:
+            conn.execute("UPDATE calls SET transcript_uri = %s WHERE id = %s", (uri, call_id))
+
     # --- verificación de identidad ---
 
     def get_verification_state(self, call_id: str) -> CallVerificationState | None:

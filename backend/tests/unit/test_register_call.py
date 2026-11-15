@@ -325,3 +325,21 @@ def test_end_call_saves_the_transfer_reason_and_keeps_the_outcome():
         call_id, CallOutcome.ARRANGEMENT_MADE, "Agent: hi", transfer_reason="  wants to know how to pay  ")
     assert calls.closed[call_id][0] is CallOutcome.ARRANGEMENT_MADE
     assert calls.transfer_reasons[call_id] == "wants to know how to pay"
+
+
+# --- historial del chat de prueba: calls.transcript_uri ---------------------------------
+
+from cobranza.application.use_cases.register_call import AttachTranscript  # noqa: E402
+
+
+def test_attach_transcript_saves_the_path():
+    calls = FakeCalls()
+    calls.set_transcript_uri = lambda call_id, uri: setattr(calls, "uri", (call_id, uri))
+    call_id = calls.create(CallDirection.INBOUND, "+13055550001", NOW, None, None)
+    AttachTranscript(calls).execute(call_id, " /app/call_logs/call-1.json ")
+    assert calls.uri == (call_id, "/app/call_logs/call-1.json")
+
+
+def test_attach_transcript_needs_a_known_call():
+    with pytest.raises(ValueError):
+        AttachTranscript(FakeCalls()).execute("nope", "/x.json")
