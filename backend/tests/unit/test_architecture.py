@@ -1,13 +1,12 @@
-"""Reglas de arquitectura: hexagonal dentro de cada módulo y 3 módulos independientes.
+"""Reglas de arquitectura del núcleo (hexagonal) y su independencia de los otros 2 programas.
 
-Núcleo de cobranza (domain, application, infrastructure): reglas, casos de uso y base de datos.
-Agente de voz (agent): conversación con Claude, prompt y herramientas.
-Mensajería (messaging): SMS de confirmación y links de pago.
+Núcleo de cobranza (backend/, paquete cobranza): reglas, casos de uso y base de datos.
+Agente de voz (agente/, paquete cobranza_agent) y mensajería (messaging/, paquete
+cobranza_messaging) usan el núcleo; cada uno vigila sus propias reglas en su carpeta tests/.
 
 - domain no importa nada del proyecto ni librerías de infraestructura.
-- application (de cualquier módulo) no importa infraestructura.
-- El núcleo no conoce al agente ni a la mensajería; el agente y la mensajería no se conocen entre sí.
-  Ambos usan los casos de uso del núcleo, nunca sus repositorios directamente.
+- application no importa infraestructura.
+- El núcleo no conoce al agente ni a la mensajería.
 """
 
 import ast
@@ -17,19 +16,13 @@ import pytest
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "cobranza"
 LIBS = ("psycopg", "psycopg_pool", "phonenumbers", "anthropic")
-MODULES = ("cobranza.agent", "cobranza.messaging")
+OTHER_PROGRAMS = ("cobranza_agent", "cobranza_messaging")
 
-# Carpeta -> prefijos que no puede importar.
+# Carpeta -> prefijos que no puede importar ("" es todo el paquete).
 FORBIDDEN = {
-    "domain": ("cobranza.application", "cobranza.infrastructure", *MODULES, *LIBS),
-    "application": ("cobranza.infrastructure", *MODULES, *LIBS),
-    "infrastructure": MODULES,
-    "agent/application": ("cobranza.infrastructure", "cobranza.agent.infrastructure",
-                          "cobranza.messaging", *LIBS),
-    "agent": ("cobranza.messaging", "cobranza.infrastructure.repositories"),
-    "messaging/application": ("cobranza.infrastructure", "cobranza.messaging.infrastructure",
-                              "cobranza.agent", *LIBS),
-    "messaging": ("cobranza.agent", "cobranza.infrastructure.repositories"),
+    "": OTHER_PROGRAMS,
+    "domain": ("cobranza.application", "cobranza.infrastructure", *LIBS),
+    "application": ("cobranza.infrastructure", *LIBS),
 }
 
 

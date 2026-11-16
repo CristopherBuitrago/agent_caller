@@ -167,15 +167,15 @@ Herramientas: `record_recording_consent`, `verify_identity`, `get_account_detail
 
 **Página web de chat e historial (2026-11-15):** el mismo agente en el navegador o el celular, para la demo. `docker compose up web` y abrir http://localhost:8000 (desde el celular, la IP del PC en la misma red, puerto 8000). Tiene 5 casos de prueba, los datos para verificarse a la vista y la opción de ver u ocultar las herramientas. Endpoints: `POST /api/calls`, `POST /api/calls/{id}/messages`, `POST /api/calls/{id}/hangup`.
 
-El **historial** (http://localhost:8000/historial, opción A elegida por el desarrollador) guarda cada llamada en `backend/call_logs/<call_id>.json` (no se sube al repositorio): la conversación completa con horas, cada herramienta con lo que respondió el sistema, el resultado y el resumen. Se escribe después de cada turno y la ruta queda en `calls.transcript_uri`. Los últimos 4 del SSN se guardan como `****`; la fecha de nacimiento queda en el texto, así que antes de usar datos reales hay que resolverlo. Las llamadas abiertas viven en memoria del servidor: sirve para la demo con un solo servidor.
+El **historial** (http://localhost:8000/historial, opción A elegida por el desarrollador) guarda cada llamada en `agente/call_logs/<call_id>.json` (no se sube al repositorio): la conversación completa con horas, cada herramienta con lo que respondió el sistema, el resultado y el resumen. Se escribe después de cada turno y la ruta queda en `calls.transcript_uri`. Los últimos 4 del SSN se guardan como `****`; la fecha de nacimiento queda en el texto, así que antes de usar datos reales hay que resolverlo. Las llamadas abiertas viven en memoria del servidor: sirve para la demo con un solo servidor.
 
 **Resultado al colgar (prueba con la API real, 2026-11-15):** Haiku cerraba como `debtor_unavailable` llamadas entrantes o con el deudor ya verificado. Ahora `wrong_party` y `debtor_unavailable` solo valen en salientes antes de verificar; si no, la llamada queda como `callback_requested`.
 
-**Cómo correrlo** (desde `backend/`, con la base levantada y la key en la terminal o en `backend/.env`):
+**Cómo correrlo** (desde la raíz del repositorio, con la base levantada y la key en la terminal o en `.env` en la raíz):
 
 ```
-docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --entrante +13055550001
-docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --saliente ACC-T001
+docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --entrante +13055550001
+docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --saliente ACC-T001
 ```
 
 Datos para verificar a TEST-001: Jane Carter, últimos 4 del SSN 1234, nacida el 14 de marzo de 1985 (saldo USD 485, ACC-T001). Los demás casos están en `backend/db/init/002_seed_mock.sql`. El chat muestra en gris cada herramienta que pide Claude y lo que respondió el backend; `--sin-herramientas` las oculta y `--debug` muestra los avisos internos. `/colgar` termina la llamada.
@@ -198,14 +198,17 @@ Datos para verificar a TEST-001: Jane Carter, últimos 4 del SSN 1234, nacida el
 | Pregunta | Respuesta | Origen |
 | --- | --- | --- |
 | ¿Separar las reglas de negocio, el agente y la campaña de SMS? | Un solo repositorio con 3 módulos y 3 programas que arrancan por su cuenta, compartiendo la base. Opción A, elegida por el desarrollador ("veo que todo queda demasiado amontonado") | Desarrollador |
+| ¿Sacar el agente y la mensajería de `backend/`? | Sí, a carpetas propias en la raíz, cada una con su `pyproject.toml`, Dockerfile y pruebas. El agente y la mensajería instalan el núcleo como librería y siguen llamando a sus casos de uso directamente; el paso a HTTPS va aparte (2026-11-16) | Desarrollador |
 
-| Módulo | Carpeta | Qué hace | Cómo corre |
+| Programa | Carpeta (paquete) | Qué hace | Cómo corre |
 | --- | --- | --- | --- |
-| Núcleo de cobranza | `domain/`, `application/`, `infrastructure/` | Reglas, casos de uso, base de datos y avisos de pago | Servidor siempre encendido (API, pendiente) |
-| Agente de voz | `agent/` | Conversación con Claude, prompt (`agent/application/prompts/`) y herramientas | Un proceso por llamada |
-| Mensajería | `messaging/` | SMS de confirmación y links de pago | Tarea programada diaria |
+| Núcleo de cobranza | `backend/` (`cobranza`) | Reglas, casos de uso, base de datos (`backend/db/`) y avisos de pago | Servidor siempre encendido (API, pendiente) |
+| Agente de voz | `agente/` (`cobranza_agent`) | Conversación con Claude, prompt (`application/prompts/`), herramientas, chat y página web | Un proceso por llamada |
+| Mensajería | `messaging/` (`cobranza_messaging`) | SMS de confirmación, recordatorios y links de pago | Tarea programada diaria |
 
-Reglas (las vigila `tests/unit/test_architecture.py`): el núcleo no conoce al agente ni a la mensajería; el agente y la mensajería no se conocen entre sí y usan los casos de uso del núcleo, nunca sus repositorios. Si algún día hacen falta servicios separados, ya están divididos.
+El `docker-compose.yml` está en la raíz: la base y un servicio por programa (`backend`, `agente`, `messaging` y `web`). Sin comando, cada servicio corre sus pruebas. Las fixtures de PostgreSQL de las pruebas de integración viven en `cobranza.testing.postgres_fixtures` y las usan los tres.
+
+Reglas (cada programa vigila las suyas en `tests/unit/test_architecture.py`): el núcleo no conoce al agente ni a la mensajería; el agente y la mensajería no se conocen entre sí y usan los casos de uso del núcleo, nunca sus repositorios.
 
 ### N1: cómo paga el deudor un pago agendado (2026-11-12)
 
@@ -218,7 +221,7 @@ Reglas (las vigila `tests/unit/test_architecture.py`): el núcleo no conoce al a
 | ¿La empresa tiene página o link de pago con su procesador? | "Muy probablemente"; por confirmar con el jefe | Desarrollador |
 
 Cómo quedó construido:
-- Módulo `messaging/`: `SendArrangementConfirmations` (acuerdos de los últimos 7 días sin confirmación) y `SendDuePaymentLinks` (cuotas pendientes que vencen hasta la fecha dada). Tarea programada: `python -m cobranza.messaging.infrastructure.run [--fecha AAAA-MM-DD]`; se puede correr varias veces sin repetir mensajes.
+- Programa `messaging/` (paquete `cobranza_messaging`): `SendArrangementConfirmations` (acuerdos de los últimos 7 días sin confirmación) y `SendDuePaymentLinks` (cuotas pendientes que vencen hasta la fecha dada). Tarea programada: `docker compose run --rm messaging python -m cobranza_messaging.infrastructure.run [--fecha AAAA-MM-DD]`; se puede correr varias veces sin repetir mensajes.
 - Tabla `sms_messages`: una confirmación por acuerdo y un link por cuota (índices únicos). Un envío fallido se reintenta en la siguiente corrida.
 - Mientras no se conecten el proveedor ni el procesador, el SMS solo queda en el log (`LoggingSmsSender`) y el link es de prueba (`PlaceholderPaymentLinkProvider`).
 - El agente ahora dice que el deudor recibirá un SMS con los detalles y un link de pago en cada fecha (antes prometía "payment instructions" que no existían).

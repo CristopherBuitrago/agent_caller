@@ -1,7 +1,7 @@
 """Contenedor del núcleo: conecta cada caso de uso con las implementaciones de sus interfaces.
 
 Para cambiar a la base real se cambian los repositorios aquí, y nada más. El agente de voz
-(cobranza.agent) y la mensajería (cobranza.messaging) tienen sus propios contenedores y usan
+(cobranza_agent) y la mensajería (cobranza_messaging) tienen sus propios contenedores y usan
 los casos de uso que arma este.
 """
 

@@ -1,11 +1,12 @@
+# Se construye desde la raíz del repositorio (ver docker-compose.yml).
 FROM python:3.12-slim
 
-WORKDIR /app
+WORKDIR /app/backend
 
-COPY pyproject.toml .
-COPY src ./src
+COPY backend/pyproject.toml .
+COPY backend/src ./src
 RUN pip install --no-cache-dir -e ".[dev]"
 
-COPY tests ./tests
+COPY backend/tests ./tests
 
 CMD ["pytest", "-q"]

@@ -1,0 +1,100 @@
+name: cobranza
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql://cobranza:cobranza_dev@db:5432/cobranza
+  PII_HMAC_KEY: dev-only-pii-key
+  # Se toma de la terminal o de un archivo .env en la raíz del repositorio (no se sube).
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+
+x-needs-db: &needs-db
+  depends_on:
+    db:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:16
+    container_name: cobranza-db
+    environment:
+      POSTGRES_DB: cobranza
+      POSTGRES_USER: cobranza
+      POSTGRES_PASSWORD: cobranza_dev
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cobranza -d cobranza"]
+      interval: 2s
+      retries: 30
+    volumes:
+      # Los .sql de esta carpeta se ejecutan en orden alfabético solo la primera vez
+      # que se crea el volumen. Para recrear: docker compose down -v && docker compose up -d
+      - ./backend/db/init:/docker-entrypoint-initdb.d:ro
+      - cobranza-data:/var/lib/postgresql/data
+
+  # Los 3 programas no arrancan con `docker compose up`. Sin comando, cada uno corre sus pruebas:
+  #   docker compose run --rm --build backend
+  #   docker compose run --rm --build agente
+  #   docker compose run --rm --build messaging
+  #
+  # Núcleo: reglas, casos de uso y tareas diarias.
+  #   docker compose run --rm backend python -m cobranza.infrastructure.controllers.build_outbound_list
+  #                                          -> lista de llamadas salientes del día
+  backend:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    profiles: ["tools"]
+    environment: *app-env
+    <<: *needs-db
+    volumes:
+      - ./backend/src:/app/backend/src
+      - ./backend/tests:/app/backend/tests
+
+  # Agente de voz.
+  #   docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --entrante +13055550001
+  #                                          -> chat de prueba con Claude (necesita ANTHROPIC_API_KEY)
+  agente:
+    build: { context: ., dockerfile: agente/Dockerfile }
+    profiles: ["tools"]
+    environment:
+      <<: *app-env
+      # N12: línea de entrada que atiende el agente, para quien no logra verificarse (por confirmar).
+      AGENT_CALLBACK_NUMBER: ${AGENT_CALLBACK_NUMBER:-}
+    <<: *needs-db
+    volumes:
+      - ./backend/src:/app/backend/src
+      - ./agente/src:/app/agente/src
+      - ./agente/tests:/app/agente/tests
+
+  # Mensajería.
+  #   docker compose run --rm messaging python -m cobranza_messaging.infrastructure.run
+  #                                          -> tarea diaria de SMS (confirmaciones y links de pago)
+  messaging:
+    build: { context: ., dockerfile: messaging/Dockerfile }
+    profiles: ["tools"]
+    environment: *app-env
+    <<: *needs-db
+    volumes:
+      - ./backend/src:/app/backend/src
+      - ./messaging/src:/app/messaging/src
+      - ./messaging/tests:/app/messaging/tests
+
+  # Página web del chat de prueba (demo): docker compose up web  ->  http://localhost:8000
+  web:
+    build: { context: ., dockerfile: agente/Dockerfile }
+    profiles: ["web"]
+    command: uvicorn cobranza_agent.infrastructure.web:app --host 0.0.0.0 --port 8000
+    environment:
+      <<: *app-env
+      CALL_LOG_DIR: /app/call_logs
+    ports:
+      - "8000:8000"
+    <<: *needs-db
+    volumes:
+      - ./backend/src:/app/backend/src
+      - ./agente/src:/app/agente/src
+      # Historial de las llamadas de prueba (un JSON por llamada). No se sube al repositorio.
+      - ./agente/call_logs:/app/call_logs
+
+volumes:
+  cobranza-data:
+    # Mismo volumen que cuando el compose estaba en backend/: se conservan los datos.
+    name: backend_cobranza-data

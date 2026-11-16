@@ -72,7 +72,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] S1 (simulación 8, verificación por tanteo): si quien llama cambia el nombre de pila entre intentos, `VerifyIdentity` devuelve `identity_mismatch` sin revisar los datos, cuenta un intento fallido y la llamada se cierra con el resultado nuevo `identity_mismatch` (agregado al CHECK de `calls.outcome`). 242 pruebas pasan (2026-11-12)
 - [x] S2 (simulación 8): se pide deletrear el apellido solo si el SSN, la fecha y el nombre de pila coinciden y solo falla el apellido; si no, es un intento fallido normal (`only_last_name_differs`). 251 pruebas pasan (2026-11-12)
 - [x] Arquitectura en 3 módulos (núcleo, `agent/`, `messaging/`) en el mismo repositorio, con reglas en `test_architecture.py`. Sin cambios de comportamiento; 256 pruebas pasan (2026-11-12)
-- [x] N1: SMS de confirmación del acuerdo y link de pago en cada fecha (módulo `messaging/`, tabla `sms_messages`, tarea `cobranza.messaging.infrastructure.run`). Proveedor y link de prueba hasta que el jefe confirme el proveedor ("empieza por V") y la página de pago. 269 pruebas pasan (2026-11-12)
+- [x] N1: SMS de confirmación del acuerdo y link de pago en cada fecha (módulo `messaging/`, tabla `sms_messages`, tarea `cobranza_messaging.infrastructure.run`). Proveedor y link de prueba hasta que el jefe confirme el proveedor ("empieza por V") y la página de pago. 269 pruebas pasan (2026-11-12)
 - [x] Lista diaria de salientes (pedido del jefe): tabla `outbound_call_list`, tarea `cobranza.infrastructure.controllers.build_outbound_list`, filtros de Reg F (7 llamadas en 7 días y 7 días tras una conversación). El deudor que llama y verifica su identidad sale de la lista. 279 pruebas pasan (2026-11-12)
 - [x] N2: la verificación queda como está (nombre completo + últimos 4 del SSN + fecha, dichos por el deudor). Confirmado por el jefe el 2026-11-13 (2026-11-12)
 - [x] N3: en salientes, el saludo solo pregunta por el deudor; el aviso de grabación va cuando confirma que es él y antes de verificar; la grabación empieza con su "sí" (`CallRecorder`, hoy de desarrollo). El texto del saludo va en el cambio de prompt (P1–P12). 281 pruebas pasan (2026-11-12)
@@ -109,14 +109,15 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] Proveedores aprobados: AssemblyAI (voz a texto), Deepgram Aura-2 (texto a voz) y Pipecat; AWS sale del costo porque la empresa ya lo usa; la telefonía y los SMS van por Vaspian (sin Telnyx). Costo con 800 llamadas diarias: ~USD 1.966 al mes más Vaspian (2026-11-15)
 - [x] `ANTHROPIC_API_KEY` conseguida (USD 5 de créditos) y probada con la API real (2026-11-15)
 - [x] Página web de chat (FastAPI, `docker compose up web`) e historial de llamadas (`/historial`, JSON por llamada y `calls.transcript_uri`). `wrong_party` y `debtor_unavailable` solo en salientes sin verificar. 443 pruebas pasan (2026-11-15)
+- [x] Agente y mensajería fuera de `backend/`: carpetas `agente/` (`cobranza_agent`) y `messaging/` (`cobranza_messaging`) en la raíz, cada una con su `pyproject.toml`, Dockerfile y pruebas; `docker-compose.yml` en la raíz. Sin cambios de comportamiento; se borró de la base una llamada de prueba de la página web que quedó abierta y hacía fallar 4 pruebas de la lista de salientes. 443 pruebas pasan (2026-11-16)
 - [ ] Ajustes vistos con la API real: decir los montos en palabras ("four hundred fifty dollars") y no decir "I'm calling from" en entrantes
 - [ ] Probar el chat con la API real y ajustar el prompt (las 7 simulaciones con Haiku 5.5)
 
-Correr las pruebas: `cd backend && docker compose run --rm --build app`
+Correr las pruebas (desde la raíz; cada programa corre las suyas): `docker compose run --rm --build backend`, `docker compose run --rm --build agente` y `docker compose run --rm --build messaging`
 
-Chat de prueba: `cd backend && docker compose run --rm app python -m cobranza.agent.infrastructure.chat_cli --entrante +13055550001` (necesita `ANTHROPIC_API_KEY`; ver README, paso 8)
+Chat de prueba: `docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --entrante +13055550001` (necesita `ANTHROPIC_API_KEY`; ver README, paso 8)
 
-Levantar la base: `cd backend && docker compose up -d` (puerto 5433, usuario `cobranza`, clave `cobranza_dev`).
+Levantar la base (desde la raíz): `docker compose up -d` (puerto 5433, usuario `cobranza`, clave `cobranza_dev`).
 Recrear desde cero: `docker compose down -v && docker compose up -d`.
 
 ## Borrador del modelo de datos (por ajustar)
