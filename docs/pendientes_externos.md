@@ -1,6 +1,6 @@
 # Agente de cobranza NSF: lo que falta y no depende del desarrollo
 
-Actualizado: 2026-11-15. Live Oak Financial.
+Actualizado: 2026-11-15. Live Oac Financial.
 
 **Dónde estamos:** el backend del agente está construido y probado (419 pruebas automáticas). Todas las observaciones del informe de simulaciones y de la prueba del 2026-11-11 quedaron resueltas, salvo una legal (L7). Lo que sigue en este documento son respuestas, datos y accesos que solo puede dar la empresa. Sin ellos el agente no puede pasar del chat de prueba a llamadas reales.
 

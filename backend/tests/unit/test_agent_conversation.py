@@ -321,9 +321,9 @@ def test_hang_up_closes_the_call_even_if_the_model_does_not():
 
 
 def test_system_prompt_has_no_placeholders_left():
-    prompt = render_system_prompt("Live Oak Financial", "L.O.F.")
+    prompt = render_system_prompt("Live Oac Financial", "L.O.F.")
     assert "{{" not in prompt and DISCLOSURE in prompt
-    assert "L.O.F." in prompt and "Live Oak Financial" in prompt
+    assert "L.O.F." in prompt and "Live Oac Financial" in prompt
     assert all(q in prompt for q in HARDSHIP_QUESTIONS)
     assert all(spec.name in prompt for spec in TOOL_SPECS)
 
@@ -344,7 +344,7 @@ def test_system_prompt_has_no_placeholders_left():
     "in the coming weeks",                                              # P10
 ])
 def test_system_prompt_has_the_approved_phrases(phrase):
-    assert phrase in render_system_prompt("Live Oak Financial", "L.O.F.")
+    assert phrase in render_system_prompt("Live Oac Financial", "L.O.F.")
 
 
 # --- implementación con Claude (cliente falso) ---------------------------------------------
@@ -663,7 +663,7 @@ def test_last_contact_needs_verification():
 # --- N7: una aceptación con duda no cierra el acuerdo ---------------------------------------
 
 def test_prompt_says_a_doubtful_yes_does_not_create_the_agreement():
-    prompt = render_system_prompt("Live Oak Financial", "L.O.F.")
+    prompt = render_system_prompt("Live Oac Financial", "L.O.F.")
     assert "Only a clear yes counts" in prompt
     assert "how much could you comfortably pay each month?" in prompt
     assert "`max_payment_dollars`" in prompt
@@ -718,7 +718,7 @@ def test_bad_time_format_asks_to_retry():
 # --- N14: angustia y amenazas -----------------------------------------------------------------
 
 def test_prompt_keeps_calm_with_distress_and_threats_and_never_transfers_for_it():
-    prompt = render_system_prompt("Live Oak Financial", "L.O.F.")
+    prompt = render_system_prompt("Live Oac Financial", "L.O.F.")
     assert "This is only a debt, there is a solution" in prompt
     assert "let them be the one to hang up" in prompt
     assert "Never hang up or transfer because of a threat or an insult" in prompt

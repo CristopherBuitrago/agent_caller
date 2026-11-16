@@ -12,7 +12,7 @@ from cobranza.infrastructure.config.container import UseCases
 from cobranza.infrastructure.services.system_clock import SystemClock
 
 # L3: el nombre completo solo se dice al deudor verificado; antes, solo las siglas.
-DEFAULT_COMPANY_NAME = "Live Oak Financial"
+DEFAULT_COMPANY_NAME = "Live Oac Financial"
 DEFAULT_COMPANY_SHORT = "L.O.F."
 
 

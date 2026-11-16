@@ -89,7 +89,7 @@ Actualizado: 2026-11-13. Referencia: `docs/Informe_Simulaciones_Agente_Cobranza_
 | --- | --- | --- | --- |
 | L1 | Volver a llamar a quien pidió no ser llamado | Sigue lo decidido en N13: solo cuenta el pedido explícito | Decidida |
 | L2 | Consentimiento de grabación | Solo se **informa** que la llamada puede ser grabada, sin preguntar ni esperar respuesta: "This call may be recorded for quality and compliance purposes." Cambia N3 y la Función 3 (hoy se pregunta). Si el deudor dice que no quiere ser grabado, el agente le explica que es un requisito y, si insiste, cierra la llamada sin hablar de la deuda (`recording_refused`; opción b, desarrollador, 2026-11-12) | Aplicada |
-| L3 | Qué se le dice a un tercero | La empresa es **Live Oak Financial**. El nombre completo solo se dice cuando la persona ya está verificada. Antes de verificar, lo máximo que se dice son las siglas **"L.O.F."** | Aplicada |
+| L3 | Qué se le dice a un tercero | La empresa es **Live Oac Financial**. El nombre completo solo se dice cuando la persona ya está verificada. Antes de verificar, lo máximo que se dice son las siglas **"L.O.F."** | Aplicada |
 | L4 | Límite de 7 llamadas en 7 días (Reg F) | **Sí:** cuentan las devoluciones de llamada, las llamadas fallidas y las llamadas del agente sumadas a las de los cobradores | Decidida |
 | L5 | Disputas | Sigue lo decidido en N11 (en pausa) | En pausa |
 | L6 | Aviso "This communication is from a debt collector" | Es totalmente legal: se deja el aviso como está | Decidida (sin cambios) |

@@ -1,4 +1,4 @@
-"""Genera la propuesta del agente de cobranza NSF para Live Oak Financial (español e inglés).
+"""Genera la propuesta del agente de cobranza NSF para Live Oac Financial (español e inglés).
 
 Uso (dentro de un contenedor con reportlab instalado, desde docs/):
     python generar_propuesta.py es      ->  /tmp/Propuesta_Agente_Cobranza_NSF_ES.pdf
@@ -45,7 +45,7 @@ TEXT = {
     "es": {
         "out": "/tmp/Propuesta_Agente_Cobranza_NSF_ES.pdf",
         "title": "Propuesta: agente de cobranza con inteligencia artificial para cuentas NSF",
-        "subtitle": "Live Oak Financial · Llamadas entrantes y salientes · Noviembre de 2026",
+        "subtitle": "Live Oac Financial · Llamadas entrantes y salientes · Noviembre de 2026",
         "footer": "Propuesta: agente de cobranza NSF",
         "page": "Página",
         "s1": "1. Propuesta",
@@ -181,7 +181,7 @@ TEXT = {
     "en": {
         "out": "/tmp/Proposal_NSF_Collection_Agent_EN.pdf",
         "title": "Proposal: AI collection agent for NSF accounts",
-        "subtitle": "Live Oak Financial · Inbound and outbound calls · November 2026",
+        "subtitle": "Live Oac Financial · Inbound and outbound calls · November 2026",
         "footer": "Proposal: NSF collection agent",
         "page": "Page",
         "s1": "1. Proposal",
@@ -470,7 +470,7 @@ def build(lang):
         canvas.restoreState()
 
     doc = SimpleDocTemplate(t["out"], pagesize=letter, leftMargin=1.7 * cm, rightMargin=1.7 * cm,
-                            topMargin=1.6 * cm, bottomMargin=1.8 * cm, title=t["title"], author="Live Oak Financial")
+                            topMargin=1.6 * cm, bottomMargin=1.8 * cm, title=t["title"], author="Live Oac Financial")
     doc.build(s, onFirstPage=footer, onLaterPages=footer)
     print("ok", t["out"])
 
