@@ -35,14 +35,15 @@ def started_calls(pool):
     ids = []
     with pool.connection() as conn:
         accounts = conn.execute(
-            "SELECT id, status, is_disputed FROM accounts WHERE external_id LIKE 'ACC-T%'").fetchall()
+            "SELECT id, status, is_disputed, current_balance_cents FROM accounts "
+            "WHERE external_id LIKE 'ACC-T%'").fetchall()
         debtors = conn.execute("SELECT id, do_not_call FROM debtors WHERE external_id LIKE 'TEST-%'").fetchall()
     yield ids
     with pool.connection() as conn:
-        # Los casos de uso cambian estas marcas; se restauran para las demás pruebas.
-        for account_id, status, is_disputed in accounts:
-            conn.execute("UPDATE accounts SET status = %s, is_disputed = %s WHERE id = %s",
-                         (status, is_disputed, account_id))
+        # Los casos de uso cambian estas marcas (y el saldo al pagar todo); se restauran para las demás pruebas.
+        for account_id, status, is_disputed, balance in accounts:
+            conn.execute("UPDATE accounts SET status = %s, is_disputed = %s, current_balance_cents = %s "
+                         "WHERE id = %s", (status, is_disputed, balance, account_id))
         for debtor_id, do_not_call in debtors:
             conn.execute("UPDATE debtors SET do_not_call = %s WHERE id = %s", (do_not_call, debtor_id))
         conn.execute("DELETE FROM hardship_assessments WHERE call_id = ANY(%s::uuid[])", (ids,))

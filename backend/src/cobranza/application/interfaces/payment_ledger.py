@@ -16,9 +16,10 @@ class PaymentLedger(Protocol):
     """
 
     def record_result(self, scheduled_payment_id: str, reference: str, amount_cents: int,
-                      status: str, processed_at: datetime) -> RecordedPayment | None:
+                      status: str, processed_at: datetime, paid_account_status: str) -> RecordedPayment | None:
         """Guarda el resultado en una transacción. Si es `approved`, la cuota queda pagada y, si ya
-        no quedan cuotas pendientes, el acuerdo pasa a `completed`.
+        no quedan cuotas pendientes, el acuerdo pasa a `completed` y la cuenta a `paid_account_status`
+        con saldo 0.
 
         Devuelve None si esa referencia ya se había registrado (el procesador puede avisar dos veces).
         Lanza ValueError si la cuota no existe.

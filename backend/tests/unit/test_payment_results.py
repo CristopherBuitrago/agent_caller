@@ -15,8 +15,10 @@ class FakeLedger:
         self.recorded = []
         self.broken_calls = []
 
-    def record_result(self, scheduled_payment_id, reference, amount_cents, status, processed_at):
-        self.recorded.append((scheduled_payment_id, reference, amount_cents, status, processed_at))
+    def record_result(self, scheduled_payment_id, reference, amount_cents, status, processed_at,
+                      paid_account_status):
+        self.recorded.append((scheduled_payment_id, reference, amount_cents, status, processed_at,
+                              paid_account_status))
         return RecordedPayment("arr-1", False)
 
     def break_overdue(self, due_on_or_before, account_status):
@@ -27,7 +29,7 @@ class FakeLedger:
 def test_payment_result_is_recorded():
     ledger = FakeLedger()
     RecordPaymentResult(ledger).execute("sp-1", "  REF-123 ", 9000, "approved", NOW)
-    assert ledger.recorded == [("sp-1", "REF-123", 9000, "approved", NOW)]
+    assert ledger.recorded == [("sp-1", "REF-123", 9000, "approved", NOW, "PAID")]  # PAID al pagar todo
 
 
 @pytest.mark.parametrize("status, amount, reference", [

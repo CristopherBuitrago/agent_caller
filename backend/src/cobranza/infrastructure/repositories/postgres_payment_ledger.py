@@ -13,8 +13,8 @@ class PostgresPaymentLedger:
         self._pool = pool
 
     def record_result(self, scheduled_payment_id: str, reference: str, amount_cents: int,
-                      status: str, processed_at: datetime) -> RecordedPayment | None:
-        # Todo en una transacción: el resultado, la cuota y el acuerdo.
+                      status: str, processed_at: datetime, paid_account_status: str) -> RecordedPayment | None:
+        # Todo en una transacción: el resultado, la cuota, el acuerdo y la cuenta.
         with self._pool.connection() as conn:
             payment = conn.execute(
                 "SELECT arrangement_id::text FROM scheduled_payments WHERE id = %s",
@@ -41,14 +41,23 @@ class PostgresPaymentLedger:
                        WHERE id = %s AND status IN ('pending', 'failed')""",
                     (processed_at, scheduled_payment_id),
                 )
-                completed = conn.execute(
+                completed_row = conn.execute(
                     """UPDATE payment_arrangements SET status = 'completed'
                        WHERE id = %s AND status = 'active'
                          AND NOT EXISTS (SELECT 1 FROM scheduled_payments
                                          WHERE arrangement_id = %s AND status <> 'paid')
-                       RETURNING id""",
+                       RETURNING account_id""",
                     (arrangement_id, arrangement_id),
-                ).fetchone() is not None
+                ).fetchone()
+                completed = completed_row is not None
+                if completed:
+                    # Duda 1 (jefe, 2026-11-17): cuenta pagada, saldo en 0.
+                    conn.execute(
+                        """UPDATE accounts SET status = %s, current_balance_cents = 0,
+                                              status_updated_at = now(), updated_at = now()
+                           WHERE id = %s""",
+                        (paid_account_status, completed_row[0]),
+                    )
         return RecordedPayment(arrangement_id, completed)
 
     def break_overdue(self, due_on_or_before: date, account_status: str) -> list[str]:

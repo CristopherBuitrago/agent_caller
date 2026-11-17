@@ -12,6 +12,8 @@ Salió una nueva duda: **¿qué estado se le pone a la cuenta cuando el deudor p
 
 **Jefe (2026-11-17):** cuando se paga la cuenta, pasa a `PAID`. Falta que confirme el nombre exacto del estado en su sistema.
 
+Construido el 2026-11-17: al completarse el acuerdo, la cuenta pasa a `PAID` con saldo 0. Si el nombre real es otro, se cambia en un solo lugar.
+
 ### 2. Aviso de pago del procesador
 
 Resolviendo la **observación de negocio N10** (y la N1, *"No había forma de que el deudor pagara un pago agendado"*).

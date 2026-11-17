@@ -13,6 +13,9 @@ from datetime import date
 COLLECTABLE_STATUSES = frozenset({"NSF"})
 # N11 (jefe, 2026-11-12): al registrarse una disputa, la cuenta pasa a este estado (además de is_disputed).
 ACCOUNT_STATUS_DISPUTE = "DISPUTE"
+# Duda 1 (jefe, 2026-11-17): al pagarse todas las cuotas la cuenta pasa a este estado, con saldo 0.
+# Falta que confirme el nombre exacto del estado en su sistema; si es otro, se cambia solo aquí.
+ACCOUNT_STATUS_PAID = "PAID"
 
 
 @dataclass(frozen=True)

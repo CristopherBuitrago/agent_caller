@@ -1,6 +1,7 @@
 """N10: resultados de pago y acuerdos rotos (decisión del jefe, 2026-11-12).
 
-- Cada pago que avisa el procesador se registra; si se pagan todas las cuotas, el acuerdo se completa.
+- Cada pago que avisa el procesador se registra; si se pagan todas las cuotas, el acuerdo se completa
+  y la cuenta pasa a PAID con saldo 0 (jefe, 2026-11-17; el nombre del estado está por confirmar).
 - Si 5 días después de su fecha una cuota sigue sin pagar, el acuerdo queda roto y la cuenta vuelve
   a NSF, con lo que entra de nuevo a la lista diaria de salientes. Sin alerta: la empresa revisa los
   acuerdos rotos con sus reportes semanales y mensuales.
@@ -9,6 +10,7 @@
 from datetime import date, datetime, timedelta
 
 from cobranza.application.interfaces.payment_ledger import PaymentLedger, RecordedPayment
+from cobranza.domain.debtor import ACCOUNT_STATUS_PAID
 
 PAYMENT_RESULT_STATUSES = frozenset({"approved", "declined", "error"})
 DAYS_OF_GRACE = 5
@@ -28,7 +30,7 @@ class RecordPaymentResult:
         if amount_cents <= 0 or not reference.strip():
             raise ValueError("El pago necesita un monto positivo y una referencia")
         return self._ledger.record_result(scheduled_payment_id, reference.strip(), amount_cents, status,
-                                          processed_at)
+                                          processed_at, ACCOUNT_STATUS_PAID)
 
 
 class BreakOverdueArrangements:

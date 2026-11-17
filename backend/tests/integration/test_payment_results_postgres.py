@@ -24,6 +24,13 @@ def jane_partial(use_cases, started_calls):
     return arrangement_id
 
 
+def _balance(pool, arrangement_id):
+    with pool.connection() as conn:
+        return conn.execute(
+            "SELECT a.current_balance_cents FROM payment_arrangements pa JOIN accounts a ON a.id = pa.account_id "
+            "WHERE pa.id = %s", (arrangement_id,)).fetchone()[0]
+
+
 def _state(pool, arrangement_id):
     with pool.connection() as conn:
         arrangement = conn.execute(
@@ -35,15 +42,24 @@ def _state(pool, arrangement_id):
     return arrangement, payments
 
 
-def test_paying_every_installment_completes_the_arrangement(use_cases, pool, jane_partial):
+def test_paying_every_installment_completes_the_arrangement_and_the_account_is_paid(use_cases, pool, jane_partial):
     (_, _), [(first, _, _), (second, _, _)] = _state(pool, jane_partial)
     first_result = use_cases.record_payment_result.execute(first, "REF-A", 9000, "approved", NOW)
     assert first_result.arrangement_completed is False
+    assert _state(pool, jane_partial)[0][1] == "PTP"     # con una cuota sin pagar sigue en PTP
     assert use_cases.record_payment_result.execute(first, "REF-A", 9000, "approved", NOW) is None  # aviso repetido
     assert use_cases.record_payment_result.execute(second, "REF-B", 39500, "approved", NOW).arrangement_completed
     (arrangement_status, account_status), payments = _state(pool, jane_partial)
     assert arrangement_status == "completed" and [p[1] for p in payments] == ["paid", "paid"]
-    assert account_status == "PTP"   # el estado al pagar todo está por definir con el jefe
+    assert account_status == "PAID" and _balance(pool, jane_partial) == 0   # duda 1 (jefe, 2026-11-17)
+    assert jane_partial not in [str(a) for a in use_cases.break_overdue_arrangements.execute(date(2027, 6, 1))]
+
+
+def test_a_declined_last_installment_keeps_the_account_in_ptp(use_cases, pool, jane_partial):
+    (_, _), [(first, _, _), (second, _, _)] = _state(pool, jane_partial)
+    use_cases.record_payment_result.execute(first, "REF-C1", 9000, "approved", NOW)
+    assert not use_cases.record_payment_result.execute(second, "REF-C2", 39500, "declined", NOW).arrangement_completed
+    assert _state(pool, jane_partial)[0] == ("active", "PTP") and _balance(pool, jane_partial) == 48500
 
 
 def test_a_declined_payment_does_not_mark_the_installment_paid(use_cases, pool, jane_partial):
