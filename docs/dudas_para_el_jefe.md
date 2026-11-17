@@ -58,6 +58,12 @@ Salió una nueva duda (ligada a la duda 5, la transferencia por Vaspian):
 
 Mientras tanto, B5 queda en pausa (2026-11-13). El agente preguntará la fecha del pago y el número de confirmación antes de registrar la disputa, para que queden al menos en el resumen de la llamada.
 
+### 8. El saldo no baja cuota por cuota
+
+Resolviendo la **duda 1** (cuenta pagada), que viene de la **observación de negocio N10**, que dice: *"Qué pasa después de que el deudor acepta el acuerdo"* (respuesta del jefe, 2026-11-17: al pagarse todas las cuotas la cuenta pasa a `PAID`; construido con saldo 0).
+
+Salió una nueva duda: **mientras el deudor va pagando las cuotas, el saldo de la cuenta no baja**. Solo pasa a 0 cuando se paga la última. ¿El saldo lo debe ir actualizando nuestro sistema con cada pago, o lo maneja el CRM de la empresa (Actos Software o Lariat Software) y nosotros solo lo leemos? Importa para que los reportes y lo que dice el agente muestren el saldo real si el deudor vuelve a llamar con un acuerdo a medio pagar.
+
 ## Resueltas
 
 ### 7. Todos los códigos de rebote del pago
