@@ -19,7 +19,7 @@ Resumen de lo que se hizo entre el 2026-10-28 y el 2026-11-17, para que cualquie
    - se anota la decisión con fecha y origen en `README.md` (regla vigente) y en `PENDIENTES.md` (si deja algo abierto);
    - se regeneran los PDF que cambien.
 5. Antes de cada commit y push se muestra el cambio y se espera el OK.
-6. Las dudas nuevas para el jefe van en `docs/dudas_para_el_jefe.md`, diciendo de qué observación salieron.
+6. Las dudas nuevas para el jefe van en `docs/para_el_jefe/dudas_para_el_jefe.md`, diciendo de qué observación salieron.
 7. Los documentos que lee el jefe no le atribuyen pedidos al "desarrollador".
 8. Nunca se le piden credenciales al desarrollador. El push usa las credenciales guardadas; si el proxy da error 407, se reintenta.
 
@@ -119,7 +119,11 @@ Ya se entregaron o ya se resolvieron. Están en el historial de git; para recupe
 
 - `docs/simulacion_2…7_2026-11-11.md` y `docs/notas_simulacion_2026-11-11.md`: las simulaciones.
 - `docs/Informe_Simulaciones_Agente_Cobranza_NSF.pdf` y `docs/generar_informe_simulaciones.py`: el informe con las observaciones.
-- `docs/respuestas_observaciones.md`, su PDF y su generador: las respuestas a las observaciones. Sus funciones de PDF pasaron a `docs/pdf_desde_md.py`.
+- `docs/respuestas_observaciones.md`, su PDF y su generador: las respuestas a las observaciones. Sus funciones de PDF pasaron a `docs/scripts/pdf_desde_md.py`.
 - `docs/Backend_Agente_Cobranza_NSF_v3.pdf`: el documento del backend entregado el 2026-11-10.
 - `docs/diagrama_eer_modelo_actual.jpg`: el diagrama de nuestra base, ya desactualizado. La fuente real es `backend/db/init/001_schema.sql`.
 - La versión larga de `README.md` y de `PENDIENTES.md`, con cada respuesta textual del jefe y del desarrollador.
+
+## Orden de `docs/` (2026-11-17)
+
+`docs/` se ordenó por tema: `para_el_jefe/` (lo que espera respuesta), `propuesta/` (lo entregado al cliente) y `scripts/` (cómo se generan los PDF y los Word). Los dos generadores casi iguales se unieron en `scripts/generar_pdf.py`, que deja cada PDF al lado de su `.md`. Los archivos pasaron a nombres cortos en minúsculas (por ejemplo, `Propuesta_Agente_Cobranza_NSF_ES.pdf` → `propuesta/propuesta_es.pdf`). El detalle está en `docs/README.md`.

@@ -1,11 +1,12 @@
 """Genera la propuesta del agente de cobranza NSF para Live Oac Financial (español e inglés).
 
-Uso (dentro de un contenedor con reportlab instalado, desde docs/):
-    python generar_propuesta.py es      ->  /tmp/Propuesta_Agente_Cobranza_NSF_ES.pdf
-    python generar_propuesta.py en      ->  /tmp/Proposal_NSF_Collection_Agent_EN.pdf
+Uso (dentro de un contenedor con reportlab instalado, desde docs/; deja el PDF en docs/propuesta/):
+    python scripts/generar_propuesta.py es   ->  propuesta/propuesta_es.pdf
+    python scripts/generar_propuesta.py en   ->  propuesta/proposal_en.pdf
 """
 
 import sys
+from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
@@ -13,6 +14,9 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import (Flowable, KeepTogether, PageBreak, Paragraph, SimpleDocTemplate, Spacer,
                                 Table, TableStyle)
+
+# Los PDF y los Word quedan en docs/propuesta/ (este script está en docs/scripts/).
+OUT_DIR = Path(__file__).resolve().parents[1] / "propuesta"
 
 AZUL = colors.HexColor("#1F3A5F")
 AZUL_CLARO = colors.HexColor("#E8EEF7")
@@ -43,7 +47,7 @@ BOXL = ParagraphStyle("BXL", parent=BOX, alignment=0)
 
 TEXT = {
     "es": {
-        "out": "/tmp/Propuesta_Agente_Cobranza_NSF_ES.pdf",
+        "out": str(OUT_DIR / "propuesta_es.pdf"),
         "title": "Propuesta: agente de cobranza con inteligencia artificial para cuentas NSF",
         "subtitle": "Live Oac Financial · Llamadas entrantes y salientes · Noviembre de 2026",
         "footer": "Propuesta: agente de cobranza NSF",
@@ -179,7 +183,7 @@ TEXT = {
         ],
     },
     "en": {
-        "out": "/tmp/Proposal_NSF_Collection_Agent_EN.pdf",
+        "out": str(OUT_DIR / "proposal_en.pdf"),
         "title": "Proposal: AI collection agent for NSF accounts",
         "subtitle": "Live Oac Financial · Inbound and outbound calls · November 2026",
         "footer": "Proposal: NSF collection agent",

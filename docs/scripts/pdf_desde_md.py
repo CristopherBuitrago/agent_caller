@@ -2,7 +2,7 @@
 
 Entiende títulos (# y ##), párrafos, viñetas (- ) y tablas. En una columna "Estado", la primera palabra
 (Aplicada, Decidida, Por confirmar, En pausa, Pendiente) sale en color. Cada generador
-(generar_pendientes_externos.py, generar_preguntas_proveedores.py) pone su nombre de archivo y su pie de página.
+(generar_pdf.py) pone el nombre del archivo y el pie de página.
 """
 
 import html

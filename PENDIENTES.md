@@ -4,7 +4,7 @@ Actualizado: 2026-11-17. Solo lo que falta. Lo hecho está en `CONTEXTO.md` y en
 
 ## Esperando a la empresa
 
-Para mandárselo al jefe están `docs/pendientes_externos.md` y `docs/preguntas_proveedores.md`.
+Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `docs/para_el_jefe/preguntas_proveedores.md`.
 
 - [ ] Correr las 7 simulaciones con Haiku 5.5. Hay una clave con USD 5 de créditos desde el 2026-11-15; para producción, la cuenta tiene que ser de la empresa. El criterio es cero errores en montos, verificación y avisos legales
 - [ ] Cuentas de AssemblyAI y Deepgram
@@ -20,7 +20,7 @@ Para mandárselo al jefe están `docs/pendientes_externos.md` y `docs/preguntas_
 - [ ] Lariat (o Actos): diagrama EER, forma de conexión (API o base), qué se lee y qué se escribe, y ambiente de prueba. Incluye si el resultado de la llamada es una fila nueva o actualiza un registro
 - [ ] Cuenta y región de AWS
 - [ ] Resultados actuales de los cobradores con cuentas NSF, para comparar el piloto
-- [ ] Dudas del jefe (`docs/dudas_para_el_jefe.md`):
+- [ ] Dudas del jefe (`docs/para_el_jefe/dudas_para_el_jefe.md`):
   - 1: nombre exacto del estado `PAID`;
   - 2: procesador;
   - 4: número de la línea de entrada;

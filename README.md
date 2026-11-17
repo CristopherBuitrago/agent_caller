@@ -11,7 +11,7 @@ Agente de IA que llama y atiende a deudores con pagos devueltos por falta de fon
   - conectar Vaspian, el procesador de pagos y Lariat;
   - instalar en AWS;
   - el piloto.
-- **Lo que espera respuesta de la empresa:** `docs/pendientes_externos.md` y `docs/preguntas_proveedores.md`.
+- **Lo que espera respuesta de la empresa:** `docs/para_el_jefe/pendientes_externos.md` y `docs/para_el_jefe/preguntas_proveedores.md`.
 - **Historia del proyecto:** cómo llegamos aquí y quién decidió qué está en `CONTEXTO.md`. Lo que falta hacer está en `PENDIENTES.md`.
 
 ## Cómo correrlo
@@ -177,10 +177,10 @@ Ninguna fue revisada por un abogado:
 
 ## Documentos (`docs/`)
 
-| Archivo | Qué es |
+| Carpeta | Qué tiene |
 | --- | --- |
-| `pendientes_externos.md` y su PDF | Lo que falta y no depende del desarrollo: urgente, dudas para el jefe, proveedores y legal |
-| `preguntas_proveedores.md` y su PDF | Lo que necesitamos de la empresa y las preguntas para Vaspian, el procesador de pagos y Lariat |
-| `dudas_para_el_jefe.md` | Cada duda con la observación de la que salió y las respuestas del jefe |
-| `Propuesta_Agente_Cobranza_NSF_ES` y `Proposal_NSF_Collection_Agent_EN` (PDF y Word) | La propuesta entregada a la empresa |
-| `generar_*.py` y `pdf_desde_md.py` | Generan los PDF a partir de los .md. Se corren dentro de un contenedor con reportlab |
+| `docs/para_el_jefe/` | Lo que espera respuesta de la empresa: pendientes externos y preguntas para los proveedores (cada `.md` con su PDF al lado), y las dudas para el jefe |
+| `docs/propuesta/` | La propuesta entregada a la empresa, en español e inglés, en PDF y Word |
+| `docs/scripts/` | Los scripts que generan los PDF y los Word |
+
+Cómo regenerar cada documento: `docs/README.md`.

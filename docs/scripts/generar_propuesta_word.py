@@ -1,8 +1,8 @@
 """Genera la propuesta en Word (.docx), editable, con el mismo contenido de generar_propuesta.py.
 
 Uso (contenedor con reportlab, pypdfium2, pillow y python-docx, desde docs/):
-    python generar_propuesta_word.py es   ->  /tmp/Propuesta_Agente_Cobranza_NSF_ES.docx
-    python generar_propuesta_word.py en   ->  /tmp/Proposal_NSF_Collection_Agent_EN.docx
+    python scripts/generar_propuesta_word.py es   ->  propuesta/propuesta_es.docx
+    python scripts/generar_propuesta_word.py en   ->  propuesta/proposal_en.docx
 
 El diagrama de flujo va como imagen (se dibuja con el mismo código del PDF).
 """
