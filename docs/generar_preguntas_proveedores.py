@@ -1,6 +1,6 @@
 """Genera el PDF de lo que necesitamos de la empresa y las preguntas para los proveedores, a partir de preguntas_proveedores.md.
 
-Usa el mismo formato que generar_respuestas_observaciones.py. El .md es la única fuente.
+Usa las funciones de pdf_desde_md.py. El .md es la única fuente.
 
 Uso (dentro de un contenedor con reportlab instalado, desde docs/):
     python generar_preguntas_proveedores.py preguntas_proveedores.md
@@ -14,7 +14,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.lib.units import cm
 from reportlab.platypus import SimpleDocTemplate
 
-from generar_respuestas_observaciones import H2, parse
+from pdf_desde_md import H2, parse
 
 H2.keepWithNext = True  # que un título no quede solo al final de una página
 

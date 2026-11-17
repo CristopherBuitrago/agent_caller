@@ -10,7 +10,7 @@ Actualizado: 2026-11-17. Live Oac Financial.
 
 | # | Qué falta | Qué desbloquea | Estado |
 | --- | --- | --- | --- |
-| 1 | La clave de la API de Anthropic (`ANTHROPIC_API_KEY`) | Probar el agente con Claude Haiku 5.5, el modelo de producción. Con ella se repiten las 7 simulaciones; el criterio es cero errores en montos, verificación y avisos legales | **Pendiente** |
+| 1 | Una cuenta de Anthropic de la empresa, con créditos para el piloto y producción. Ya hay una clave de prueba con USD 5 de créditos, con la que se probó el agente con la API real (2026-11-15) | Repetir las 7 simulaciones con Claude Haiku 5.5, el modelo de producción (el criterio es cero errores en montos, verificación y avisos legales), y después el piloto | **Pendiente** |
 | 2 | Documentación y credenciales de Vaspian para el audio en vivo (duda 5). **Jefe (2026-11-17): sí puede enviar el audio de la llamada en vivo al agente** | Que el agente atienda llamadas reales por la telefonía que la empresa ya tiene | **Decidida** |
 | 3 | El procesador de pagos y su aviso de pago (duda 2) | El link de pago en los SMS y saber quién pagó. Sin el aviso, la tarea que marca los acuerdos rotos sigue apagada | **Pendiente** |
 | 4 | El diagrama EER y el acceso a la base real (Actos Software, en migración a Lariat Software) | Conectar el agente a los datos reales de los deudores. Hoy trabaja con 509 deudores simulados | **Pendiente** |
@@ -35,7 +35,7 @@ Lo que se sabe de cada servicio que necesita una llamada real. Ya están elegido
 
 | Servicio | Proveedor | Qué falta | Estado |
 | --- | --- | --- | --- |
-| Conversación, resumen y respaldo de la IA | Anthropic: Claude Haiku 5.5, con Claude Sonnet 5.5 de respaldo | La clave de la API | **Decidida** |
+| Conversación, resumen y respaldo de la IA | Anthropic: Claude Haiku 5.5, con Claude Sonnet 5.5 de respaldo | Una cuenta de la empresa con créditos (hoy hay una clave de prueba con USD 5) | **Decidida** |
 | Telefonía: marcador, llamadas entrantes y grabación | Vaspian (la que ya usa la empresa). La negociación para pasar a Zoom está en pausa | Ya se confirmó que envía el audio en vivo al agente (jefe, 2026-11-17). Falta cómo transfiere a los cobradores (duda 5), y cuánto cuestan los minutos y SMS adicionales del agente según el contrato de la empresa | **Por confirmar** |
 | SMS: confirmación, aviso y link de pago | Vaspian | Su API para enviar SMS y las credenciales (duda 5). Hoy los SMS quedan en un registro de prueba | **Por confirmar** |
 | Pago con tarjeta (IVR PCI) | Por elegir. Depende de lo que ofrezcan Vaspian y el procesador de pagos | Elegir proveedor y procesador (duda 2). Bloquea la Función 6: el deudor teclea la tarjeta en un sistema certificado y la IA nunca la ve | **Pendiente** |

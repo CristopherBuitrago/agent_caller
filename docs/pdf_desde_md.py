@@ -1,23 +1,19 @@
-"""Genera el PDF de las respuestas a las observaciones a partir de respuestas_observaciones.md.
+"""Funciones compartidas para generar los PDF de docs/ a partir de un .md.
 
-El .md es la única fuente: se edita el .md y se vuelve a generar el PDF.
-
-Uso (dentro del contenedor del backend, con reportlab instalado):
-    python generar_respuestas_observaciones.py respuestas_observaciones.md
-El PDF queda en /tmp; copiarlo a docs/.
+Entiende títulos (# y ##), párrafos, viñetas (- ) y tablas. En una columna "Estado", la primera palabra
+(Aplicada, Decidida, Por confirmar, En pausa, Pendiente) sale en color. Cada generador
+(generar_pendientes_externos.py, generar_preguntas_proveedores.py) pone su nombre de archivo y su pie de página.
 """
 
 import html
 import re
-import sys
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Paragraph, Spacer, Table, TableStyle
 
-OUT = "/tmp/Respuestas_Observaciones_Agente_Cobranza_NSF.pdf"
 AZUL = colors.HexColor("#1F3A5F")
 GRIS = colors.HexColor("#F2F4F7")
 BORDE = colors.HexColor("#C9D1DC")
@@ -112,22 +108,3 @@ def parse(markdown: str) -> list:
             story.append(Paragraph(inline(line), BODY))
     return story
 
-
-def footer(canvas, doc):
-    canvas.saveState()
-    canvas.setFont("Helvetica", 7.5)
-    canvas.setFillColor(colors.HexColor("#667085"))
-    canvas.drawString(1.7 * cm, 1.1 * cm, "Agente de cobranza NSF  |  Respuestas a las observaciones")
-    canvas.drawRightString(letter[0] - 1.7 * cm, 1.1 * cm, f"Página {doc.page}")
-    canvas.restoreState()
-
-
-if __name__ == "__main__":
-    source = sys.argv[1] if len(sys.argv) > 1 else "respuestas_observaciones.md"
-    with open(source, encoding="utf-8") as f:
-        story = parse(f.read())
-    doc = SimpleDocTemplate(OUT, pagesize=letter, leftMargin=1.7 * cm, rightMargin=1.7 * cm, topMargin=1.6 * cm,
-                            bottomMargin=1.8 * cm, title="Respuestas a las observaciones del agente de cobranza NSF",
-                            author="Agente de cobranza NSF")
-    doc.build(story, onFirstPage=footer, onLaterPages=footer)
-    print("ok", OUT)
