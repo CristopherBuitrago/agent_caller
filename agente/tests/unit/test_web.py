@@ -6,7 +6,7 @@ from cobranza_agent.application.conversation import AgentReply
 from cobranza_agent.application.conversation_model import ToolCall, ToolResult
 from cobranza_agent.infrastructure.call_log import CallLogStore
 from cobranza_agent.infrastructure.web import create_app
-from cobranza.domain.call import CallDirection, CallOutcome
+from cobranza_agent.application.call import CallDirection, CallOutcome
 
 
 class FakeSession:

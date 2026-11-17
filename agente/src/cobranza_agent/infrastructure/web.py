@@ -2,7 +2,7 @@
 
 Usa el mismo agente que el chat de terminal: Claude conversa y las herramientas aplican las reglas.
 
-Uso (desde backend/, con la base levantada y ANTHROPIC_API_KEY en backend/.env):
+Uso (desde la raíz, con ANTHROPIC_API_KEY en .env; levanta también la base y la API del backend):
     docker compose up web        ->  http://localhost:8000   (historial: /historial)
 
 Endpoints:
@@ -14,6 +14,7 @@ Endpoints:
 
 Las llamadas abiertas viven en memoria de este proceso (sirve para la demo con un solo servidor).
 El historial se guarda en archivos JSON (CALL_LOG_DIR) y su ruta queda en calls.transcript_uri.
+No toca la base: todo lo pide a la API del backend (BACKEND_URL, AGENT_API_KEY).
 """
 
 import os
@@ -28,10 +29,10 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 
+from cobranza_agent.application.call import CallDirection
 from cobranza_agent.application.conversation import AgentReply, AgentSession, ToolObserver
 from cobranza_agent.application.conversation_model import ToolCall, ToolResult
 from cobranza_agent.infrastructure.call_log import CallLog, CallLogStore
-from cobranza.domain.call import CallDirection
 
 STATIC = Path(__file__).resolve().parent / "static"
 # Lo que se muestra de cada herramienta en el chat (las respuestas largas se cortan).
@@ -180,34 +181,26 @@ def _record_tool(call: _OpenCall, tool_call: ToolCall, result: ToolResult) -> No
 
 
 def _production_app() -> FastAPI:
-    """App real: PostgreSQL + Claude. Se arma al arrancar el servidor."""
-    from psycopg_pool import ConnectionPool
-
-    from cobranza_agent.infrastructure.container import build_agent
-    from cobranza.infrastructure.config.container import build_use_cases
+    """App real: API del backend + Claude."""
+    from cobranza_agent.infrastructure.container import build_agent, build_backend
 
     state: dict = {}
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         if not os.environ.get("ANTHROPIC_API_KEY"):
-            raise RuntimeError("Falta ANTHROPIC_API_KEY (en backend/.env)")
-        with ConnectionPool(os.environ["DATABASE_URL"], min_size=1, max_size=4) as pool:
-            state["use_cases"] = build_use_cases(pool, os.environ["PII_HMAC_KEY"])
-            state["agent"] = build_agent(state["use_cases"])
-            yield
+            raise RuntimeError("Falta ANTHROPIC_API_KEY (en el .env de la raíz)")
+        state["backend"] = build_backend()
+        state["agent"] = build_agent(state["backend"])
+        yield
 
     def open_call(direction: CallDirection, phone: str | None, account: str | None,
                   on_tool: ToolObserver) -> tuple[AgentSession, AgentReply]:
-        if direction is CallDirection.OUTBOUND:
-            debtor = state["use_cases"].get_debtor_by_account.execute(account)
-            if debtor is None:
-                raise LookupError(f"No existe la cuenta {account}")
-            phone = debtor.phone_primary
+        # Saliente: el backend busca el teléfono de la cuenta; si no existe, lanza LookupError.
         return state["agent"].execute(direction, phone, account, on_tool=on_tool)
 
     def on_log_saved(call_id: str, uri: str) -> None:
-        state["use_cases"].attach_transcript.execute(call_id, uri)
+        state["backend"].attach_log(call_id, uri)
 
     store = CallLogStore(Path(os.environ.get("CALL_LOG_DIR", "call_logs")))
     return create_app(open_call, lifespan, store, on_log_saved)

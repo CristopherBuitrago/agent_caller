@@ -1,12 +1,12 @@
 """Chat de prueba en la terminal: una persona escribe como si fuera el deudor y Claude responde
-como el agente, con las mismas reglas y la misma base que tendrá la llamada de voz.
+como el agente, con las mismas reglas (las del backend, por su API) que tendrá la llamada de voz.
 
-Uso (desde backend/):
-    docker compose run --rm app python -m cobranza_agent.infrastructure.chat_cli --entrante +13055550001
-    docker compose run --rm app python -m cobranza_agent.infrastructure.chat_cli --saliente ACC-T001
+Uso (desde la raíz; levanta también la base y la API del backend):
+    docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --entrante +13055550001
+    docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --saliente ACC-T001
 
 Comandos durante el chat: /colgar (el deudor cuelga) y /salir.
-Necesita ANTHROPIC_API_KEY, DATABASE_URL y PII_HMAC_KEY.
+Necesita ANTHROPIC_API_KEY, BACKEND_URL y AGENT_API_KEY.
 """
 
 import argparse
@@ -16,12 +16,9 @@ import os
 import sys
 import textwrap
 
-from psycopg_pool import ConnectionPool
-
+from cobranza_agent.application.call import CallDirection
 from cobranza_agent.application.conversation_model import ToolCall, ToolResult
-from cobranza.domain.call import CallDirection
 from cobranza_agent.infrastructure.container import DEFAULT_COMPANY_NAME, DEFAULT_COMPANY_SHORT, build_agent
-from cobranza.infrastructure.config.container import build_use_cases
 
 GREY, CYAN, YELLOW, RESET = "\033[90m", "\033[36m", "\033[33m", "\033[0m"
 
@@ -63,40 +60,37 @@ def main() -> int:
         print("Falta ANTHROPIC_API_KEY.", file=sys.stderr)
         return 2
 
-    with ConnectionPool(os.environ["DATABASE_URL"], min_size=1, max_size=2) as pool:
-        use_cases = build_use_cases(pool, os.environ["PII_HMAC_KEY"])
-        agent = build_agent(use_cases, company_name=args.empresa, company_short=args.siglas)
-        on_tool = None if args.sin_herramientas else _show_tool
+    agent = build_agent(company_name=args.empresa, company_short=args.siglas)
+    on_tool = None if args.sin_herramientas else _show_tool
+    if args.entrante:
+        session, reply = agent.execute(CallDirection.INBOUND, args.entrante, on_tool=on_tool)
+    else:
+        try:
+            session, reply = agent.execute(CallDirection.OUTBOUND, None, args.saliente,
+                                           on_tool=on_tool)
+        except LookupError:
+            print(f"No existe la cuenta {args.saliente}.", file=sys.stderr)
+            return 2
 
-        if args.entrante:
-            session, reply = agent.execute(CallDirection.INBOUND, args.entrante, on_tool=on_tool)
-        else:
-            debtor = use_cases.get_debtor_by_account.execute(args.saliente)
-            if debtor is None:
-                print(f"No existe la cuenta {args.saliente}.", file=sys.stderr)
-                return 2
-            session, reply = agent.execute(CallDirection.OUTBOUND, debtor.phone_primary,
-                                           args.saliente, on_tool=on_tool)
+    print(f"{GREY}Llamada {session.call_id}. Escribe como el deudor; /colgar o /salir para terminar.{RESET}")
+    _print_agent(reply.text)
+    while not session.ended:
+        try:
+            text = input(f"\n{YELLOW}Deudor:{RESET} ").strip()
+        except (EOFError, KeyboardInterrupt):
+            text = "/colgar"
+        if not text:
+            continue
+        if text in ("/colgar", "/salir"):
+            session.hang_up()
+            break
+        _print_agent(session.debtor_says(text).text)
 
-        print(f"{GREY}Llamada {session.call_id}. Escribe como el deudor; /colgar o /salir para terminar.{RESET}")
-        _print_agent(reply.text)
-        while not session.ended:
-            try:
-                text = input(f"\n{YELLOW}Deudor:{RESET} ").strip()
-            except (EOFError, KeyboardInterrupt):
-                text = "/colgar"
-            if not text:
-                continue
-            if text in ("/colgar", "/salir"):
-                session.hang_up()
-                break
-            _print_agent(session.debtor_says(text).text)
-
-        outcome = session.outcome
-        print(f"\n{GREY}Llamada terminada. Resultado: {outcome.value if outcome else 'sin resultado'}")
-        if session.summary:
-            print("Resumen: " + textwrap.fill(session.summary, 100, subsequent_indent="         "))
-        print(RESET, end="")
+    outcome = session.outcome
+    print(f"\n{GREY}Llamada terminada. Resultado: {outcome.value if outcome else 'sin resultado'}")
+    if session.summary:
+        print("Resumen: " + textwrap.fill(session.summary, 100, subsequent_indent="         "))
+    print(RESET, end="")
     return 0
 
 

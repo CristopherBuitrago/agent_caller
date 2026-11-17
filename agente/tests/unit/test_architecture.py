@@ -1,8 +1,8 @@
-"""Reglas de arquitectura de el agente de voz (cobranza_agent).
+"""Reglas de arquitectura del agente de voz (cobranza_agent).
 
-- application no importa infraestructura (ni la del núcleo ni la propia) ni librerías externas.
+- application no importa su infraestructura ni librerías externas.
 - No conoce al otro programa (cobranza_messaging).
-- Usa los casos de uso del núcleo (paquete cobranza), nunca sus repositorios directamente.
+- No importa el núcleo (paquete cobranza): todo se lo pide a la API del backend por HTTP.
 """
 
 import ast
@@ -15,8 +15,8 @@ LIBS = ("psycopg", "psycopg_pool", "phonenumbers", "anthropic", "fastapi", "uvic
 
 # Carpeta -> prefijos que no puede importar ("" es todo el paquete).
 FORBIDDEN = {
-    "": ("cobranza_messaging", "cobranza.infrastructure.repositories"),
-    "application": ("cobranza.infrastructure", "cobranza_agent.infrastructure", "cobranza_messaging", *LIBS),
+    "": ("cobranza_messaging", "cobranza."),
+    "application": ("cobranza_agent.infrastructure", "cobranza_messaging", "httpx", *LIBS),
 }
 
 
@@ -36,6 +36,6 @@ def test_folder_does_not_import_what_it_must_not(folder):
         f"{py.relative_to(SRC)} importa {name}"
         for py in (SRC / folder).rglob("*.py")
         for name in _imports(py)
-        if name.startswith(FORBIDDEN[folder])
+        if name.startswith(FORBIDDEN[folder]) or name == "cobranza"
     ]
     assert violations == []

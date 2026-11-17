@@ -110,6 +110,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] `ANTHROPIC_API_KEY` conseguida (USD 5 de créditos) y probada con la API real (2026-11-15)
 - [x] Página web de chat (FastAPI, `docker compose up web`) e historial de llamadas (`/historial`, JSON por llamada y `calls.transcript_uri`). `wrong_party` y `debtor_unavailable` solo en salientes sin verificar. 443 pruebas pasan (2026-11-15)
 - [x] Agente y mensajería fuera de `backend/`: carpetas `agente/` (`cobranza_agent`) y `messaging/` (`cobranza_messaging`) en la raíz, cada una con su `pyproject.toml`, Dockerfile y pruebas; `docker-compose.yml` en la raíz. Sin cambios de comportamiento; se borró de la base una llamada de prueba de la página web que quedó abierta y hacía fallar 4 pruebas de la lista de salientes. 443 pruebas pasan (2026-11-16)
+- [x] Herramientas del agente por HTTPS (aprobado con API key, 2026-11-16): `CallTools` pasó al backend (`cobranza.application.agent_tools`) y se publica en 7 endpoints con `X-API-Key` (servicio `api`, puerto 8001). El agente ya no importa el núcleo: el chat y la página web le piden todo a la API. 490 pruebas pasan (396 backend, 75 agente, 19 messaging) (2026-11-16)
 - [ ] Ajustes vistos con la API real: decir los montos en palabras ("four hundred fifty dollars") y no decir "I'm calling from" en entrantes
 - [ ] Probar el chat con la API real y ajustar el prompt (las 7 simulaciones con Haiku 5.5)
 
@@ -117,7 +118,7 @@ Correr las pruebas (desde la raíz; cada programa corre las suyas): `docker comp
 
 Chat de prueba: `docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --entrante +13055550001` (necesita `ANTHROPIC_API_KEY`; ver README, paso 8)
 
-Levantar la base (desde la raíz): `docker compose up -d` (puerto 5433, usuario `cobranza`, clave `cobranza_dev`).
+Levantar la base y la API del backend (desde la raíz): `docker compose up -d` (API en http://localhost:8001/docs; base en el puerto 5433, usuario `cobranza`, clave `cobranza_dev`).
 Recrear desde cero: `docker compose down -v && docker compose up -d`.
 
 ## Borrador del modelo de datos (por ajustar)

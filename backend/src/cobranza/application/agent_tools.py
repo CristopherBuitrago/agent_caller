@@ -1,6 +1,7 @@
-"""Paso 8: las herramientas que el modelo puede pedir durante la llamada.
+"""Las herramientas del agente de voz: lo que el modelo puede pedir durante una llamada.
 
-Cada herramienta llama a un caso de uso. El modelo solo conversa: los montos, las fechas, el
+Viven en el núcleo y se publican por HTTP (cobranza.infrastructure.api), así las usa nuestro
+agente (carpeta agente/) o cualquier plataforma de voz externa. Cada herramienta llama a un caso de uso. El modelo solo conversa: los montos, las fechas, el
 orden de las ofertas y lo que se guarda los deciden los casos de uso. Cada respuesta incluye
 `next_step`, una instrucción corta de qué hacer después, para que el modelo no improvise.
 """
@@ -13,7 +14,6 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 from typing import Any
 
-from cobranza_agent.application.conversation_model import ToolCall, ToolResult, ToolSpec
 from cobranza.application.interfaces.clock import Clock
 from cobranza.application.interfaces.negotiation_log import LoggedProposal
 from cobranza.application.use_cases.contact_history import GetLastContact
@@ -44,6 +44,28 @@ from cobranza.domain.debtor import AccountSummary, DebtorSummary
 from cobranza.domain.hardship import HardshipAnswers, HardshipDuration
 from cobranza.domain.identity import VerificationOutcome, names_match
 
+@dataclass(frozen=True)
+class ToolSpec:
+    """Una herramienta que el modelo puede pedir. input_schema es JSON Schema."""
+    name: str
+    description: str
+    input_schema: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ToolCall:
+    id: str
+    name: str
+    input: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class ToolResult:
+    tool_call_id: str
+    content: str
+    is_error: bool = False
+
+
 # Aviso de cobranza (FDCPA). Se dice tal cual, justo después de verificar la identidad.
 DISCLOSURE = ("This is an attempt to collect a debt, and any information obtained will be used "
               "for that purpose. This communication is from a debt collector.")
@@ -51,7 +73,7 @@ DISCLOSURE = ("This is an attempt to collect a debt, and any information obtaine
 
 @dataclass(frozen=True)
 class AgentUseCases:
-    """Los casos de uso que necesita el agente. Los arma infrastructure/config/container.py."""
+    """Los casos de uso que necesitan las herramientas. Los arma infrastructure/api/app.py."""
     find_debtors_by_phone: FindDebtorsByPhone
     get_debtor_by_account: GetDebtorByAccount
     record_recording_consent: RecordRecordingConsent

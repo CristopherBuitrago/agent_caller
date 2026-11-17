@@ -165,13 +165,13 @@ Herramientas: `record_recording_consent`, `verify_identity`, `get_account_detail
 
 **Lote de instrucciones del agente (P1, P4–P6, P8–P10 y P12; frases aprobadas por el desarrollador el 2026-11-13):** frase de privacidad al pedir los datos y "I can share the reason once I confirm..." antes de verificar (P1); "You've reached L.O.F...." ante "who are you calling?" en entrantes (P12); repetir montos y fechas y esperar un "sí" claro, sin aceptar condiciones y corrigiendo cifras equivocadas (P4); no inventar y frase fija para el cargo por pago devuelto (P5); preguntar fecha y número de confirmación antes de `record_dispute`, y "Are you saying the payment went through?" ante la confusión (P6, con B5); deuda y oferta en turnos separados y montos redondeados hasta confirmar (P8); ofrecer la fecha del primer pago antes de agendar una devolución de llamada por falta de dinero (P9); `duration_type` vacío si no es claro y pregunta 4 adaptada si no tiene trabajo (P10). P2 quedó resuelta con L2 y P11 con B8 y N12.
 
-**Página web de chat e historial (2026-11-15):** el mismo agente en el navegador o el celular, para la demo. `docker compose up web` y abrir http://localhost:8000 (desde el celular, la IP del PC en la misma red, puerto 8000). Tiene 5 casos de prueba, los datos para verificarse a la vista y la opción de ver u ocultar las herramientas. Endpoints: `POST /api/calls`, `POST /api/calls/{id}/messages`, `POST /api/calls/{id}/hangup`.
+**Página web de chat e historial (2026-11-15):** el mismo agente en el navegador o el celular, para la demo. `docker compose up web` (levanta también la base y la API) y abrir http://localhost:8000 (desde el celular, la IP del PC en la misma red, puerto 8000). Tiene 5 casos de prueba, los datos para verificarse a la vista y la opción de ver u ocultar las herramientas. Endpoints: `POST /api/calls`, `POST /api/calls/{id}/messages`, `POST /api/calls/{id}/hangup`.
 
 El **historial** (http://localhost:8000/historial, opción A elegida por el desarrollador) guarda cada llamada en `agente/call_logs/<call_id>.json` (no se sube al repositorio): la conversación completa con horas, cada herramienta con lo que respondió el sistema, el resultado y el resumen. Se escribe después de cada turno y la ruta queda en `calls.transcript_uri`. Los últimos 4 del SSN se guardan como `****`; la fecha de nacimiento queda en el texto, así que antes de usar datos reales hay que resolverlo. Las llamadas abiertas viven en memoria del servidor: sirve para la demo con un solo servidor.
 
 **Resultado al colgar (prueba con la API real, 2026-11-15):** Haiku cerraba como `debtor_unavailable` llamadas entrantes o con el deudor ya verificado. Ahora `wrong_party` y `debtor_unavailable` solo valen en salientes antes de verificar; si no, la llamada queda como `callback_requested`.
 
-**Cómo correrlo** (desde la raíz del repositorio, con la base levantada y la key en la terminal o en `.env` en la raíz):
+**Cómo correrlo** (desde la raíz del repositorio, con la key en la terminal o en `.env` en la raíz; el agente habla con la API del backend, que arranca sola):
 
 ```
 docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --entrante +13055550001
@@ -198,17 +198,38 @@ Datos para verificar a TEST-001: Jane Carter, últimos 4 del SSN 1234, nacida el
 | Pregunta | Respuesta | Origen |
 | --- | --- | --- |
 | ¿Separar las reglas de negocio, el agente y la campaña de SMS? | Un solo repositorio con 3 módulos y 3 programas que arrancan por su cuenta, compartiendo la base. Opción A, elegida por el desarrollador ("veo que todo queda demasiado amontonado") | Desarrollador |
-| ¿Sacar el agente y la mensajería de `backend/`? | Sí, a carpetas propias en la raíz, cada una con su `pyproject.toml`, Dockerfile y pruebas. El agente y la mensajería instalan el núcleo como librería y siguen llamando a sus casos de uso directamente; el paso a HTTPS va aparte (2026-11-16) | Desarrollador |
+| ¿Sacar el agente y la mensajería de `backend/`? | Sí, a carpetas propias en la raíz, cada una con su `pyproject.toml`, Dockerfile y pruebas. La mensajería instala el núcleo como librería; el agente pasó después a hablarle por HTTP (2026-11-16) | Desarrollador |
+| ¿Herramientas del agente por HTTPS? | Sí: el backend publica las 13 herramientas en una API y el agente deja de importar el núcleo. Cualquier plataforma de voz externa (Vaspian, Retell, Vapi) puede usar los mismos endpoints (2026-11-16) | Desarrollador |
+| ¿API key o JWT? | API key (`X-API-Key`): aquí solo hablan programas (el agente o la plataforma de voz con el backend). JWT queda para un futuro panel del equipo, con usuarios y permisos (2026-11-16) | Desarrollador |
 
 | Programa | Carpeta (paquete) | Qué hace | Cómo corre |
 | --- | --- | --- | --- |
-| Núcleo de cobranza | `backend/` (`cobranza`) | Reglas, casos de uso, base de datos (`backend/db/`) y avisos de pago | Servidor siempre encendido (API, pendiente) |
-| Agente de voz | `agente/` (`cobranza_agent`) | Conversación con Claude, prompt (`application/prompts/`), herramientas, chat y página web | Un proceso por llamada |
+| Núcleo de cobranza | `backend/` (`cobranza`) | Reglas, casos de uso, base de datos (`backend/db/`), herramientas del agente (`application/agent_tools.py`) y su API | Servidor siempre encendido (`api`, puerto 8001) |
+| Agente de voz | `agente/` (`cobranza_agent`) | Conversación con Claude, prompt (`application/prompts/`), chat y página web. Las herramientas las pide a la API | Un proceso por llamada |
 | Mensajería | `messaging/` (`cobranza_messaging`) | SMS de confirmación, recordatorios y links de pago | Tarea programada diaria |
 
-El `docker-compose.yml` está en la raíz: la base y un servicio por programa (`backend`, `agente`, `messaging` y `web`). Sin comando, cada servicio corre sus pruebas. Las fixtures de PostgreSQL de las pruebas de integración viven en `cobranza.testing.postgres_fixtures` y las usan los tres.
+El `docker-compose.yml` está en la raíz: `docker compose up -d` levanta la base y la API; además hay un servicio por programa (`backend`, `agente`, `messaging` y `web`). Sin comando, cada servicio corre sus pruebas. Las fixtures de PostgreSQL de las pruebas de integración viven en `cobranza.testing.postgres_fixtures` y las usan los tres.
 
-Reglas (cada programa vigila las suyas en `tests/unit/test_architecture.py`): el núcleo no conoce al agente ni a la mensajería; el agente y la mensajería no se conocen entre sí y usan los casos de uso del núcleo, nunca sus repositorios.
+Reglas (cada programa vigila las suyas en `tests/unit/test_architecture.py`): el núcleo no conoce al agente ni a la mensajería; el agente no importa el núcleo (todo por HTTP); la mensajería usa los casos de uso del núcleo, nunca sus repositorios; el agente y la mensajería no se conocen entre sí.
+
+### API de las herramientas del agente (2026-11-16)
+
+`cobranza.infrastructure.api.app`, servicio `api` del compose (http://localhost:8001/docs). Todos los endpoints piden el encabezado `X-API-Key` (`AGENT_API_KEY`; en local, `dev-only-agent-key` si no se define en `.env`); sin la clave correcta responden 401. En AWS, el HTTPS lo pone el balanceador.
+
+| Endpoint | Para qué |
+| --- | --- |
+| `GET /api/agent/tools` | Las 13 herramientas con sus campos, el aviso FDCPA y las Hardship Questions (el agente arma su prompt con esto) |
+| `POST /api/agent/calls` | Abre una llamada: entrante con `phone`, saliente con `account` (el backend busca el teléfono). Devuelve `call_id`, el nombre del deudor en salientes y la fecha |
+| `POST /api/agent/calls/{call_id}/tools/{nombre}` | Ejecuta una herramienta; el cuerpo son sus campos. Devuelve `result` (con `next_step`), `is_error` y el estado de la llamada |
+| `GET /api/agent/calls/{call_id}` | Estado: si terminó, el resultado, el resumen y si se transfirió |
+| `PUT /api/agent/calls/{call_id}/transcript` | La conversación hasta ahora (`text`, para el resumen al cerrar) y la ruta del historial (`log_uri`, va a `calls.transcript_uri`) |
+| `POST /api/agent/calls/{call_id}/hangup` | El deudor colgó: desde ahí ninguna herramienta pide hablar |
+| `POST /api/agent/calls/{call_id}/close` | Cierra sin el modelo, solo como `transferred_to_human` o `callback_requested` (sin consentimiento de grabación queda `recording_refused`) |
+
+- Los errores de una herramienta (regla incumplida, dato mal formado, herramienta desconocida, llamada terminada) responden 200 con `is_error` y un `next_step`: son instrucciones para el modelo.
+- Las llamadas abiertas viven en memoria del servidor (sirve con un solo servidor); una terminada se puede consultar durante 1 hora.
+- `AGENT_CALLBACK_NUMBER` (N12) ahora se configura en el `api`.
+- Pruebas: `test_api.py` (backend) y `test_http_call_backend.py` (agente); las llamadas completas de `test_agent_chat_postgres.py` pasan por la API real en memoria y la base.
 
 ### N1: cómo paga el deudor un pago agendado (2026-11-12)
 

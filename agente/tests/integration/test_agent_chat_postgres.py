@@ -1,14 +1,33 @@
 """Paso 8 de punta a punta contra PostgreSQL, con un modelo guionado en lugar de Claude.
 
-Recorre una llamada completa con TEST-001 (Jane Carter, ACC-T001, USD 485): grabación,
+El agente habla con la API real del backend (HTTP, con X-API-Key), levantada en memoria con
+TestClient; el backend usa la base real. Recorre una llamada completa con TEST-001 (Jane Carter, ACC-T001, USD 485): grabación,
 verificación, oferta rechazada, oferta aceptada y cierre. Las reglas y lo guardado son reales.
 """
 
 import json
 
+from fastapi.testclient import TestClient
+
+from cobranza.infrastructure.api.app import build_api_deps, create_app
+from cobranza.infrastructure.services.system_clock import SystemClock
+from cobranza_agent.application.call import CallDirection, CallOutcome
+from cobranza_agent.application.conversation import render_system_prompt
 from cobranza_agent.application.conversation_model import ModelTurn, ToolCall
-from cobranza.domain.call import CallDirection, CallOutcome
 from cobranza_agent.infrastructure.container import build_agent
+from cobranza_agent.infrastructure.http_call_backend import HttpCallBackend
+
+API_KEY = "e2e-key"
+
+
+def _backend(use_cases):
+    """La API del backend en memoria: el agente le habla por HTTP como en producción."""
+    deps = build_api_deps(use_cases, SystemClock())
+    return HttpCallBackend("http://api", API_KEY, TestClient(create_app(lambda: deps, API_KEY)))
+
+
+def _agent(use_cases, model):
+    return build_agent(_backend(use_cases), model=model)
 
 
 class GuionModel:
@@ -45,6 +64,13 @@ def _call_row(pool, call_id):
         return conn.execute("SELECT outcome, summary FROM calls WHERE id = %s", (call_id,)).fetchone()
 
 
+def test_prompt_mentions_every_tool_the_backend_publishes(use_cases):
+    catalog = _backend(use_cases).catalog()
+    prompt = render_system_prompt("Live Oac Financial", "L.O.F.", catalog)
+    assert len(catalog.tools) == 13 and all(t.name in prompt for t in catalog.tools)
+    assert "{{" not in prompt and catalog.disclosure in prompt
+
+
 def test_inbound_chat_ends_in_an_arrangement(use_cases, started_calls, pool):
     model = GuionModel(
         say("Hi, thanks for calling. This call is recorded. Is that okay?"),
@@ -63,7 +89,7 @@ def test_inbound_chat_ends_in_an_arrangement(use_cases, started_calls, pool):
         say("", ("end_call", {"outcome": "arrangement_made"})),
         say("You're all set. Thank you, goodbye."),
     )
-    session, greeting = build_agent(use_cases, model=model).execute(CallDirection.INBOUND, "+13055550001")
+    session, greeting = _agent(use_cases, model).execute(CallDirection.INBOUND, "+13055550001")
     started_calls.append(session.call_id)
     assert "recorded" in greeting.text
 
@@ -99,7 +125,7 @@ def test_ai_cannot_skip_verification_or_invent_an_arrangement(use_cases, started
             ("end_call", {"outcome": "arrangement_made"})),
         say("Let me verify your identity first."),
     )
-    session, _ = build_agent(use_cases, model=model).execute(CallDirection.INBOUND, "+13055550001")
+    session, _ = _agent(use_cases, model).execute(CallDirection.INBOUND, "+13055550001")
     started_calls.append(session.call_id)
     session.debtor_says("Sure")
     session.debtor_says("Just give me a deal")
@@ -119,7 +145,7 @@ def test_refused_recording_ends_without_discussing_the_debt(use_cases, started_c
         say("", ("end_call", {"outcome": "recording_refused"})),
         say("I understand. Goodbye."),
     )
-    session, _ = build_agent(use_cases, model=model).execute(CallDirection.INBOUND, "+13055550001")
+    session, _ = _agent(use_cases, model).execute(CallDirection.INBOUND, "+13055550001")
     started_calls.append(session.call_id)
     reply = session.debtor_says("No, I don't want to be recorded")
     assert reply.call_ended and reply.outcome is CallOutcome.RECORDING_REFUSED
@@ -132,7 +158,7 @@ JANE = ("verify_identity", {"full_name": "Jane Carter", "ssn_last4": "1234", "da
 
 
 def _start(use_cases, started_calls, model, direction=CallDirection.INBOUND, account=None):
-    session, greeting = build_agent(use_cases, model=model).execute(direction, "+13055550001", account)
+    session, greeting = _agent(use_cases, model).execute(direction, "+13055550001", account)
     started_calls.append(session.call_id)
     return session, greeting
 

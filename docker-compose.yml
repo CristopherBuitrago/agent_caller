@@ -6,6 +6,9 @@ x-app-env: &app-env
   # Se toma de la terminal o de un archivo .env en la raíz del repositorio (no se sube).
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
 
+# Clave de la API del backend (encabezado X-API-Key). En producción va en los secretos de AWS.
+x-agent-key: &agent-key ${AGENT_API_KEY:-dev-only-agent-key}
+
 x-needs-db: &needs-db
   depends_on:
     db:
@@ -31,7 +34,8 @@ services:
       - ./backend/db/init:/docker-entrypoint-initdb.d:ro
       - cobranza-data:/var/lib/postgresql/data
 
-  # Los 3 programas no arrancan con `docker compose up`. Sin comando, cada uno corre sus pruebas:
+  # `docker compose up -d` levanta la base y la API del backend. Los 3 programas no arrancan solos;
+  # sin comando, cada uno corre sus pruebas:
   #   docker compose run --rm --build backend
   #   docker compose run --rm --build agente
   #   docker compose run --rm --build messaging
@@ -48,17 +52,42 @@ services:
       - ./backend/src:/app/backend/src
       - ./backend/tests:/app/backend/tests
 
-  # Agente de voz.
+  # API del backend: las herramientas del agente por HTTP (X-API-Key). Arranca con la base.
+  #   http://localhost:8001/docs   (documentación de los endpoints)
+  api:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    command: uvicorn cobranza.infrastructure.api.app:production_app --factory --host 0.0.0.0 --port 8001
+    environment:
+      <<: *app-env
+      AGENT_API_KEY: *agent-key
+      # N12: línea de entrada que atiende el agente, para quien no logra verificarse (por confirmar).
+      AGENT_CALLBACK_NUMBER: ${AGENT_CALLBACK_NUMBER:-}
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/docs')"]
+      interval: 2s
+      retries: 30
+    <<: *needs-db
+    volumes:
+      - ./backend/src:/app/backend/src
+
+  # Agente de voz: no toca la base, le pide todo a la API del backend.
   #   docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --entrante +13055550001
   #                                          -> chat de prueba con Claude (necesita ANTHROPIC_API_KEY)
+  # Sus pruebas de punta a punta levantan la API en memoria y usan la base (por eso DATABASE_URL).
   agente:
     build: { context: ., dockerfile: agente/Dockerfile }
     profiles: ["tools"]
     environment:
       <<: *app-env
-      # N12: línea de entrada que atiende el agente, para quien no logra verificarse (por confirmar).
-      AGENT_CALLBACK_NUMBER: ${AGENT_CALLBACK_NUMBER:-}
-    <<: *needs-db
+      BACKEND_URL: http://api:8001
+      AGENT_API_KEY: *agent-key
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_healthy
     volumes:
       - ./backend/src:/app/backend/src
       - ./agente/src:/app/agente/src
@@ -83,13 +112,16 @@ services:
     profiles: ["web"]
     command: uvicorn cobranza_agent.infrastructure.web:app --host 0.0.0.0 --port 8000
     environment:
-      <<: *app-env
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      BACKEND_URL: http://api:8001
+      AGENT_API_KEY: *agent-key
       CALL_LOG_DIR: /app/call_logs
     ports:
       - "8000:8000"
-    <<: *needs-db
+    depends_on:
+      api:
+        condition: service_healthy
     volumes:
-      - ./backend/src:/app/backend/src
       - ./agente/src:/app/agente/src
       # Historial de las llamadas de prueba (un JSON por llamada). No se sube al repositorio.
       - ./agente/call_logs:/app/call_logs

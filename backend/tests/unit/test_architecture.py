@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 
 SRC = Path(__file__).resolve().parents[2] / "src" / "cobranza"
-LIBS = ("psycopg", "psycopg_pool", "phonenumbers", "anthropic")
+LIBS = ("psycopg", "psycopg_pool", "phonenumbers", "anthropic", "fastapi", "uvicorn")
 OTHER_PROGRAMS = ("cobranza_agent", "cobranza_messaging")
 
 # Carpeta -> prefijos que no puede importar ("" es todo el paquete).

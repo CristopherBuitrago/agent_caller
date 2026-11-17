@@ -16,9 +16,11 @@ from cobranza_agent.application.conversation_model import (
     ToolResult,
     ToolSpec,
 )
-from cobranza.infrastructure.services.claude_call_summarizer import BACKUP_MODEL, PRIMARY_MODEL
 
 log = logging.getLogger(__name__)
+
+PRIMARY_MODEL = "claude-haiku-5-5"
+BACKUP_MODEL = "claude-sonnet-5-5"   # solo si el principal rechaza o falla
 
 MAX_TOKENS = 4096
 # En una llamada importa la rapidez: el flujo y las reglas ya los fijan el prompt y las herramientas.
