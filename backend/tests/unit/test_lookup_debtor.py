@@ -11,7 +11,7 @@ def _account(status="NSF", disputed=False, ext="ACC-1") -> AccountSummary:
     return AccountSummary(
         id=ext, external_id=ext, creditor_name="Acme", account_number_masked="****0001",
         current_balance_cents=10000, status=status, payment_method="ACH",
-        nsf_amount_cents=9000, nsf_fee_cents=1000, nsf_date=None, nsf_return_code="R01",
+        nsf_amount_cents=9000, nsf_fee_cents=1000, nsf_date=None, nsf_return_code="NSF",
         is_disputed=disputed,
     )
 

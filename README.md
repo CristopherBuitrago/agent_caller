@@ -38,7 +38,7 @@ Las funciones 1 a 5 y la 7 tienen sus preguntas respondidas y están construidas
 | ¿Cómo se identifica a quien llama? | "agente recibe num y busca" (por el teléfono) |
 | ¿Cómo entrega el resultado el job de NSF (salientes)? | Primero "Por definir". Respondido el 2026-11-12: no hay job externo; el sistema consulta la base cada día y arma la lista de salientes del día. Si un deudor de la lista llama antes y verifica su identidad, se le saca (ver "Lista diaria de llamadas salientes") |
 | Saliente sin ubicación | "Se hace la cobranza normal y se deduce por el codigo de area" |
-| ¿Qué le dice el agente si pregunta por qué rebotó el pago? (B6) | Decidido por el desarrollador el 2026-11-13 (opción A): solo para los códigos de NSF da el motivo en palabras sencillas (R01: no había fondos suficientes; R09: los fondos todavía no estaban disponibles). Con cualquier otro código no da motivo y dice que un representante puede dar los detalles. Nunca dice el código |
+| ¿Qué le dice el agente sobre por qué rebotó el pago? (B6 y duda 7) | Primero se decidió dar el motivo solo para R01 y R09 (2026-11-13). **Jefe (2026-11-17):** la empresa solo maneja el código `NSF` (*Not Sufficient Funds*), y esa es la razón real. El agente la dice como un hecho al explicar la deuda: *"there were not enough funds on your card"* (pago con tarjeta) o *"in your account"* (ACH o cheque). Con cualquier otro valor no da motivo y dice que un representante puede dar los detalles. Nunca dice el código |
 
 ### Función 2: verificar identidad
 

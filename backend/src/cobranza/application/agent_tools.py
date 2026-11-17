@@ -98,12 +98,17 @@ _DEFAULT_ZONE = ZoneInfo("America/New_York")
 
 _LOWEST_OFFER_OF_STAGE = frozenset({LAST_INSTALLMENTS_BEFORE_HARDSHIP, LAST_OFFER})
 
-# B6 (2026-11-13): motivo del rebote en palabras sencillas, solo para los dos códigos de NSF. Con
-# cualquier otro código no se da motivo (podría ser una disputa) y nunca se dice el código.
-_RETURN_REASONS = {
-    "R01": "there were not enough funds in the account",
-    "R09": "the funds were not available yet when the bank processed it",
-}
+# B6 y duda 7 (jefe, 2026-11-17): la empresa solo maneja el código NSF (Not Sufficient Funds) y es la
+# razón real del rebote: el agente la dice como un hecho. Con cualquier otro valor no se da motivo, y
+# nunca se dice el código.
+_NSF_RETURN_CODE = "NSF"
+
+
+def _return_reason(account: AccountSummary) -> str | None:
+    if (account.nsf_return_code or "").strip().upper() != _NSF_RETURN_CODE:
+        return None
+    where = "on your card" if (account.payment_method or "").strip().upper() == "CARD" else "in your account"
+    return f"there were not enough funds {where}"
 
 _DATE = {"type": "string", "description": "Date as YYYY-MM-DD."}
 _ACCOUNT_REF = {"type": "string", "description": "account_ref returned by get_account_details."}
@@ -390,12 +395,12 @@ class CallTools:
             result["other_accounts"] = (f"{others} other account(s) must be handled by a "
                                         "representative. Do not give their details.")
         result["next_step"] = (
-            "Explain calmly that a recent payment was returned by the bank, give the creditor and "
-            "the balance, and end your turn with: \"Would you like to take care of it today?\" Call "
-            "propose_offer only after they answer, so the offer goes in your next turn. If the debtor "
-            "already said how much they can pay, call propose_offer now with max_payment_dollars. "
-            "If they ask why it was returned, say the "
-            "returned_payment reason in your own words; if there is no reason, say a "
+            "Explain calmly that a recent payment was returned by the bank and why, using the "
+            "returned_payment reason as a fact (do not soften it or suggest it may be wrong), give "
+            "the creditor and the balance, and end your turn with: \"Would you like to take care of "
+            "it today?\" Call propose_offer only after they answer, so the offer goes in your next "
+            "turn. If the debtor already said how much they can pay, call propose_offer now with "
+            "max_payment_dollars. If there is no reason and they ask why it was returned, say a "
             "representative can give them the details." if collectable else
             "You cannot handle these accounts. Transfer with transfer_to_human.")
         return result
@@ -615,7 +620,7 @@ class CallTools:
                 "returned_payment_fee": dollars(account.nsf_fee_cents),
                 "date": account.nsf_date.isoformat() if account.nsf_date else None,
             }
-            reason = _RETURN_REASONS.get((account.nsf_return_code or "").strip().upper())
+            reason = _return_reason(account)
             if reason:
                 view["returned_payment"]["reason"] = reason
         return view

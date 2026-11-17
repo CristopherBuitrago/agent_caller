@@ -56,7 +56,7 @@ def _debtor():
     account = AccountSummary(
         id="acc-uuid", external_id="ACC-1", creditor_name="Acme", account_number_masked="****0001",
         current_balance_cents=10000, status="NSF", payment_method="ACH", nsf_amount_cents=9000,
-        nsf_fee_cents=1000, nsf_date=None, nsf_return_code="R01", is_disputed=False,
+        nsf_fee_cents=1000, nsf_date=None, nsf_return_code="NSF", is_disputed=False,
     )
     return DebtorSummary(
         id="deb-uuid", external_id="DEB-1", first_name="Jane", last_name="Doe",

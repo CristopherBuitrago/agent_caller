@@ -52,16 +52,16 @@ INSERT INTO accounts (external_id, debtor_id, creditor_name, account_number_mask
 SELECT a.ext, d.id, a.creditor, a.masked, a.orig, a.orig, a.fee, a.balance,
        a.method, a.status, a.nsf_date::date, a.code, a.disputed
 FROM (VALUES
-    ('ACC-T001',  'TEST-001', 'Lakeside Auto Finance',   '****4821', 45000,  3500, 48500,  'ACH',   'NSF',            '2026-10-10', 'R01', false),
-    ('ACC-T002a', 'TEST-002', 'Brightwater Utilities',   '****1190', 18000,  2500, 20500,  'CHECK', 'NSF',            '2026-10-01', 'R01', false),
-    ('ACC-T002b', 'TEST-002', 'Summit Health Partners',  '****7734', 92000,  3500, 95500,  'ACH',   'NSF',            '2026-09-15', 'R01', false),
-    ('ACC-T003',  'TEST-003', 'Pinecrest Wireless',      '****3008', 12000,  2500, 14500,  'CARD',  'NSF',            '2026-10-05', 'R01', false),
-    ('ACC-T004',  'TEST-004', 'Northgate Property Mgmt', '****5512', 150000, 3900, 153900, 'ACH',   'NSF',            '2026-09-28', 'R01', true),
-    ('ACC-T005',  'TEST-005', 'Lakeside Auto Finance',   '****6620', 38000,  3500, 41500,  'ACH',   'NSF',            '2026-10-12', 'R01', false),
-    ('ACC-T006',  'TEST-006', 'Brightwater Utilities',   '****8841', 9000,   2500, 0,      'CHECK', 'PAID',           '2026-08-20', 'R01', false),
-    ('ACC-T007',  'TEST-007', 'Pinecrest Wireless',      '****2201', 15000,  2500, 17500,  'ACH',   'NSF',            '2026-10-08', 'R01', false),
-    ('ACC-T008',  'TEST-008', 'Summit Health Partners',  '****9017', 64000,  3500, 67500,  'ACH',   'third_attempt',  '2026-09-02', 'R09', false),
-    ('ACC-T009',  'TEST-009', 'Northgate Property Mgmt', '****4470', 110000, 3900, 113900, 'ACH',   'fourth_attempt', '2026-08-25', 'R01', false)
+    ('ACC-T001',  'TEST-001', 'Lakeside Auto Finance',   '****4821', 45000,  3500, 48500,  'ACH',   'NSF',            '2026-10-10', 'NSF', false),
+    ('ACC-T002a', 'TEST-002', 'Brightwater Utilities',   '****1190', 18000,  2500, 20500,  'CHECK', 'NSF',            '2026-10-01', 'NSF', false),
+    ('ACC-T002b', 'TEST-002', 'Summit Health Partners',  '****7734', 92000,  3500, 95500,  'ACH',   'NSF',            '2026-09-15', 'NSF', false),
+    ('ACC-T003',  'TEST-003', 'Pinecrest Wireless',      '****3008', 12000,  2500, 14500,  'CARD',  'NSF',            '2026-10-05', 'NSF', false),
+    ('ACC-T004',  'TEST-004', 'Northgate Property Mgmt', '****5512', 150000, 3900, 153900, 'ACH',   'NSF',            '2026-09-28', 'NSF', true),
+    ('ACC-T005',  'TEST-005', 'Lakeside Auto Finance',   '****6620', 38000,  3500, 41500,  'ACH',   'NSF',            '2026-10-12', 'NSF', false),
+    ('ACC-T006',  'TEST-006', 'Brightwater Utilities',   '****8841', 9000,   2500, 0,      'CHECK', 'PAID',           '2026-08-20', 'NSF', false),
+    ('ACC-T007',  'TEST-007', 'Pinecrest Wireless',      '****2201', 15000,  2500, 17500,  'ACH',   'NSF',            '2026-10-08', 'NSF', false),
+    ('ACC-T008',  'TEST-008', 'Summit Health Partners',  '****9017', 64000,  3500, 67500,  'ACH',   'third_attempt',  '2026-09-02', 'NSF', false),
+    ('ACC-T009',  'TEST-009', 'Northgate Property Mgmt', '****4470', 110000, 3900, 113900, 'ACH',   'fourth_attempt', '2026-08-25', 'NSF', false)
 ) AS a (ext, debtor_ext, creditor, masked, orig, fee, balance, method, status, nsf_date, code, disputed)
 JOIN debtors d ON d.external_id = a.debtor_ext;
 
@@ -114,7 +114,7 @@ SELECT 'ACC-' || lpad(gen.g::text, 6, '0') || '-' || n,
        (ARRAY['ACH','CHECK','CARD'])[1 + (gen.g + n) % 3],
        r.status,
        date '2026-10-28' - (random() * 90)::int,
-       CASE WHEN random() < 0.85 THEN 'R01' ELSE 'R09' END,
+       'NSF',  -- duda 7 (jefe, 2026-11-17): la empresa solo maneja el código NSF
        r.status = 'DISPUTE'
 FROM gen
 JOIN debtors d ON d.external_id = 'DEB-' || lpad(gen.g::text, 6, '0')

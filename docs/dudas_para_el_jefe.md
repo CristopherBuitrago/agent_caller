@@ -10,6 +10,8 @@ Resolviendo la **observación de negocio N10**, que dice: *"Qué pasa después d
 
 Salió una nueva duda: **¿qué estado se le pone a la cuenta cuando el deudor paga todas las cuotas?** Hoy el acuerdo pasa a `completed`, pero la cuenta se queda en `PTP`. ¿Pasa a `PAID`, a `CLOSED` o a otro estado del sistema de la empresa?
 
+**Jefe (2026-11-17):** cuando se paga la cuenta, pasa a `PAID`. Falta que confirme el nombre exacto del estado en su sistema.
+
 ### 2. Aviso de pago del procesador
 
 Resolviendo la **observación de negocio N10** (y la N1, *"No había forma de que el deudor pagara un pago agendado"*).
@@ -29,6 +31,8 @@ Resolviendo la **observación de negocio N12**, que dice: *"Quien no lograba ver
 
 Falta el dato: **¿cuál es ese número?** Ya está construido: basta con ponerlo en `AGENT_CALLBACK_NUMBER`.
 
+**Jefe (2026-11-17):** todavía no hay número.
+
 ### 5. Vaspian: audio en vivo y SMS
 
 Resolviendo la **observación de negocio N15**, que dice: *"Proveedor de telefonía y programa de los cobradores"* (respuesta del jefe: Vaspian es el marcador, recibe las entrantes y envía los SMS; el CRM es Actos Software, en migración a Lariat Software).
@@ -38,6 +42,8 @@ Salieron nuevas dudas:
 - **¿Vaspian puede enviar el audio de la llamada en vivo al agente** (por ejemplo, por WebSocket o SIP) y recibir su voz de vuelta? Sin esto, el agente de voz no puede atender llamadas por Vaspian.
 - ¿Vaspian tiene una API para **enviar SMS** desde el sistema? ¿Quién puede dar la documentación y las credenciales?
 - ¿Cómo se **transfiere** una llamada del agente a la cola de los cobradores, y se puede enviar con la llamada el motivo de la transferencia?
+
+**Jefe (2026-11-17):** **sí, Vaspian puede enviar el audio de la llamada en vivo al agente.** Siguen pendientes la API de SMS, la transferencia con el motivo, la documentación y las credenciales.
 
 ### 6. Disputas: ¿transferir en la llamada o revisar después?
 
@@ -50,13 +56,15 @@ Salió una nueva duda (ligada a la duda 5, la transferencia por Vaspian):
 
 Mientras tanto, B5 queda en pausa (2026-11-13). El agente preguntará la fecha del pago y el número de confirmación antes de registrar la disputa, para que queden al menos en el resumen de la llamada.
 
+## Resueltas
+
 ### 7. Todos los códigos de rebote del pago
 
 Resolviendo la **observación técnica B6**, que dice: *"get_account_details no devuelve el motivo del rebote"* (decidido el 2026-11-13: el agente da el motivo solo para R01, fondos insuficientes, y R09, fondos todavía no disponibles; con cualquier otro código dice que un representante puede dar los detalles).
 
 Salió una nueva duda: **necesitamos la lista de todos los códigos de rebote que maneja la empresa** (ACH como R02, R03, R08, R10, y los de cheques y tarjetas, si usan otros). Para cada uno: qué significa y qué debe decir o hacer el agente. Así el agente puede explicarlos todos y no tiene que transferir a un representante solo por eso. Importante saber cuáles se tratan como disputa (por ejemplo, "pago no autorizado").
 
-## Resueltas
+**Jefe (2026-11-17):** la empresa solo maneja un código: `NSF` (*Not Sufficient Funds*, fondos insuficientes). No usa los códigos ACH (R01, R09, etc.).
 
 ### 3. Día de cobro del deudor y fecha del primer pago
 

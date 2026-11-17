@@ -31,11 +31,12 @@ from cobranza.domain.identity import VerificationOutcome
 
 # --- datos y dobles ---------------------------------------------------------------------
 
-def _debtor(debtor_id="deb-1", first="Jane", last="Carter", status="NSF", return_code="R01"):
+def _debtor(debtor_id="deb-1", first="Jane", last="Carter", status="NSF", return_code="NSF",
+            payment_method="ACH"):
     account = AccountSummary(
         id=f"acc-{debtor_id}", external_id=f"ACC-{debtor_id}", creditor_name="Lakeside Auto Finance",
         account_number_masked="****4821", current_balance_cents=48500, status=status,
-        payment_method="ACH", nsf_amount_cents=45000, nsf_fee_cents=3500, nsf_date=date(2026, 10, 10),
+        payment_method=payment_method, nsf_amount_cents=45000, nsf_fee_cents=3500, nsf_date=date(2026, 10, 10),
         nsf_return_code=return_code, is_disputed=False,
     )
     return DebtorSummary(id=debtor_id, external_id="TEST-001", first_name=first, last_name=last,
@@ -124,19 +125,21 @@ def test_verified_caller_hears_the_disclosure_and_sees_only_safe_fields():
     assert "1985" not in json.dumps(details) and "1234" not in json.dumps(details)
 
 
-@pytest.mark.parametrize("code, reason", [
-    ("R01", "there were not enough funds in the account"),
-    ("r09", "the funds were not available yet when the bank processed it"),
+@pytest.mark.parametrize("code, method, reason", [
+    ("NSF", "CARD", "there were not enough funds on your card"),
+    ("nsf", "ACH", "there were not enough funds in your account"),
+    ("NSF", "CHECK", "there were not enough funds in your account"),
 ])
-def test_account_details_give_the_nsf_return_reason_in_plain_words(code, reason):
-    tools, _ = _tools(debtors=(_debtor(return_code=code),))
+def test_account_details_give_the_nsf_reason_as_a_fact(code, method, reason):
+    tools, _ = _tools(debtors=(_debtor(return_code=code, payment_method=method),))
     _run(tools, "verify_identity", **VERIFY_JANE)
     details, _ = _run(tools, "get_account_details")
     assert details["accounts"][0]["returned_payment"]["reason"] == reason
-    assert code.upper() not in json.dumps(details)
+    assert "NSF" not in json.dumps(details)
+    assert "as a fact" in details["next_step"]
 
 
-@pytest.mark.parametrize("code", ["R02", "R10", None])
+@pytest.mark.parametrize("code", ["R01", "R10", None])
 def test_other_return_codes_give_no_reason_and_never_the_code(code):
     tools, _ = _tools(debtors=(_debtor(return_code=code),))
     _run(tools, "verify_identity", **VERIFY_JANE)

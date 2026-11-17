@@ -64,7 +64,7 @@ CREATE TABLE accounts (
     status                 text NOT NULL,
     status_updated_at      timestamptz NOT NULL DEFAULT now(),
     nsf_date               date,
-    nsf_return_code        text,                   -- p. ej. R01
+    nsf_return_code        text,                   -- 'NSF' (Not Sufficient Funds), el único que maneja la empresa
     is_disputed            boolean NOT NULL DEFAULT false,
     created_at             timestamptz NOT NULL DEFAULT now(),
     updated_at             timestamptz NOT NULL DEFAULT now()
