@@ -99,6 +99,7 @@ Documento de arquitectura: https://claude.ai/artifact/CLGgKwmBLiJpngybRoFjtu
 - [x] B14: al crear un acuerdo, el sistema llena `recommended_plan` en las Hardship más recientes del deudor (últimos 30 días) con un resumen corto (opción A). 406 pruebas pasan (2026-11-13)
 - [x] B15: informativa; una propuesta rechazada no se reacepta, se arma otra igual. Se deja como está y se documenta (opción A, 2026-11-13)
 - [ ] Preguntar al jefe (B6, duda 7): lista de todos los códigos de rebote, qué significa cada uno, qué dice el agente y cuáles son disputa
+- [x] Prueba `agente/tests/unit/test_backend_contract.py`: la copia de `CallDirection` y `CallOutcome` del agente debe tener los mismos valores que `cobranza.domain.call`; falla si el backend cambia uno y la copia no (2026-11-17). 77 pruebas del agente pasan
 - [x] N12: al cerrar por verificación fallida o cambio de nombre, el agente da el número para devolver la llamada (`AGENT_CALLBACK_NUMBER`; si no está configurado, no se ofrece). 330 pruebas pasan (2026-11-12)
 - [ ] Preguntar al jefe (N12): confirmar la opción y cuál es el número de la línea de entrada que atiende el agente
 - [x] L2, L3 y P3: aviso de grabación sin pregunta, "L.O.F." antes de verificar y "Live Oac Financial" después, frases fijas para terceros. Los SMS dicen "L.O.F.". 330 pruebas pasan (2026-11-12)
