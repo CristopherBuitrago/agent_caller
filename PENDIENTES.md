@@ -33,7 +33,7 @@ Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `do
 
 ## Desarrollo que se puede hacer ya
 
-En el orden propuesto el 2026-11-17:
+En el orden propuesto el 2026-11-17. El detalle técnico de cada uno está en el `docs/en_construccion.md` de su servicio (`backend/`, `agente/` o `messaging/`):
 
 - [ ] Capa de voz con Pipecat (AssemblyAI y Deepgram), probada con el micrófono. Necesita las claves
 - [ ] Endpoint para recibir el aviso de pago en la API (llama a `RecordPaymentResult`) y lector de reporte diario, probados con avisos falsos. Al conectarlo, activar `break_overdue_arrangements` (`PAYMENT_RESULTS_CONNECTED=true`)

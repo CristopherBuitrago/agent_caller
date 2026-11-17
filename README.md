@@ -44,6 +44,8 @@ Es hexagonal: `domain`, `application` (`interfaces` y `use_cases`) e `infrastruc
 | Agente | `agente/` (`cobranza_agent`) | Conversación con Claude, prompt (`application/prompts/agent_system_prompt.md`), chat y página web. Las herramientas se las pide a la API | Un proceso por llamada |
 | Mensajería | `messaging/` (`cobranza_messaging`) | SMS de confirmación, aviso 3 días antes y link de pago | Tarea programada diaria |
 
+Cada programa correrá en su propio contenedor y tiene su README técnico, que explica qué es, su stack, su arquitectura, qué expone, su configuración y cómo probarlo: [`backend/README.md`](backend/README.md), [`agente/README.md`](agente/README.md) y [`messaging/README.md`](messaging/README.md). En la carpeta `docs/` de cada uno están su seguridad, lo que falta y cómo separarlo a su propio repositorio.
+
 **Reglas de arquitectura** (cada programa las revisa en `tests/unit/test_architecture.py`):
 - El núcleo no conoce al agente ni a la mensajería.
 - El agente no importa el núcleo: todo lo pide por HTTP. Su copia de `CallDirection` y `CallOutcome` la revisa `test_backend_contract.py`.

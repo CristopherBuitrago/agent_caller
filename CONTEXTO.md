@@ -127,3 +127,7 @@ Ya se entregaron o ya se resolvieron. Están en el historial de git; para recupe
 ## Orden de `docs/` (2026-11-17)
 
 `docs/` se ordenó por tema: `para_el_jefe/` (lo que espera respuesta), `propuesta/` (lo entregado al cliente) y `scripts/` (cómo se generan los PDF y los Word). Los dos generadores casi iguales se unieron en `scripts/generar_pdf.py`, que deja cada PDF al lado de su `.md`. Los archivos pasaron a nombres cortos en minúsculas (por ejemplo, `Propuesta_Agente_Cobranza_NSF_ES.pdf` → `propuesta/propuesta_es.pdf`). El detalle está en `docs/README.md`.
+
+## READMEs por servicio (2026-11-17)
+
+Como cada programa correrá en su propio contenedor, cada uno tiene su `README.md`, que sirve de referencia de lo que ya funciona y está probado: qué es, qué hace y qué no, dónde encaja, stack, arquitectura, qué expone y consume, configuración, y cómo correrlo y probarlo. Lo que cambia seguido va en su propia carpeta `docs/`: `seguridad.md`, `en_construccion.md` y `separacion.md` (qué lo ata a este repositorio y cómo separarlo). Las reglas de negocio siguen solo en el README de la raíz.
