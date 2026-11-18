@@ -321,6 +321,8 @@ class CallTools:
         self._proposals: dict[str, LoggedProposal] = {}
         self._arrangement_made = False
         self._recording_refused = False
+        self._recording_notice_given = False  # en salientes, se da cuando la persona confirma ser el deudor
+        self._third_party_rechecked = False   # hallazgo 4: ya se le pidió confirmar quién contestó
         self.ended = False
         self.outcome: CallOutcome | None = None
         self.summary: str | None = None
@@ -367,6 +369,7 @@ class CallTools:
             self._recording_refused = True
             return {"recorded": True, "next_step": "Do not mention any account. Say goodbye politely "
                     "and call end_call with outcome recording_refused."}
+        self._recording_notice_given = True
         return {"recorded": True, "next_step": "Verify identity before discussing anything else."}
 
     def _tool_verify_identity(self, full_name: str, ssn_last4: str, date_of_birth: str,
@@ -605,6 +608,18 @@ class CallTools:
             raise _ToolInputError(f"Use the matching tool for {outcome}")
         if call_outcome is CallOutcome.ARRANGEMENT_MADE and not self._arrangement_made:
             raise ValueError("No arrangement was accepted in this call")
+        if (call_outcome in _THIRD_PARTY_OUTCOMES and self._direction is CallDirection.OUTBOUND
+                and self._debtor is None and self._recording_notice_given and not self._third_party_rechecked):
+            # Hallazgo 4 (simulación 7 con Haiku): el agente dio el aviso de grabación, que en salientes
+            # solo se da cuando la persona confirma ser el deudor, y en el mismo turno cerró como "otra
+            # persona". La primera vez se le pide confirmar; si la persona dice que no es, la segunda vale.
+            self._third_party_rechecked = True
+            debtor = self._debtor_for_callback()
+            name = f"{debtor.first_name} {debtor.last_name}" if debtor else "the account holder"
+            return {"error": "confirm_who_answered", "next_step":
+                    "Do not end the call yet: you already treated this person as the debtor (you gave the "
+                    f'recording notice). If you are not sure who you are speaking with, ask: "Am I speaking '
+                    f'with {name}?" Only if they clearly say they are not, call end_call again.'}
         if call_outcome in _THIRD_PARTY_OUTCOMES and (
                 self._direction is CallDirection.INBOUND or self._debtor is not None):
             # "Contestó otra persona" solo existe en salientes y antes de verificar al deudor. Si no,

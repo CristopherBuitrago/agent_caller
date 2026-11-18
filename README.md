@@ -82,7 +82,7 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
 
 ### Saludo, grabación e identidad
 - **Llamada entrante:** el saludo incluye el aviso de grabación.
-- **Llamada saliente:** primero solo pregunta por el deudor. Cuando la persona confirma que es él, el agente se identifica y da el aviso de grabación. La grabación empieza ahí, así que a un tercero no se le graba ni se le dice nada (N3).
+- **Llamada saliente:** primero solo pregunta por el deudor. Si no queda claro quién contestó, pregunta *"Am I speaking with [nombre]?"*; solo lo trata como otra persona cuando dice claramente que no es el deudor. Si ya le dio el aviso de grabación, el sistema rechaza el primer intento de cerrar como "otra persona" y le pide confirmar (hallazgo 4; desarrollador, opción A, 2026-11-18). Cuando la persona confirma que es él, el agente se identifica y da el aviso de grabación. La grabación empieza ahí, así que a un tercero no se le graba ni se le dice nada (N3).
 - **Grabación:** solo se informa, sin preguntar (L2, jefe). Si el deudor no quiere ser grabado, se le explica que es un requisito. Si insiste, la llamada se cierra como `recording_refused` sin hablar de la deuda.
 - **Nombre de la empresa:** antes de verificar solo se dice "L.O.F."; después, "Live Oac Financial" (L3, jefe).
 - **Verificación:** el deudor dice su nombre completo, los últimos 4 del SSN y su fecha de nacimiento (N2, confirmado por el jefe el 2026-11-13).

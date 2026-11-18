@@ -635,3 +635,16 @@ def test_question_number_is_required():
     _run(tools, "verify_identity", **VERIFY_JANE)
     answer, is_error = _run(tools, "record_hardship_answers", situation_description="Lost her job")
     assert is_error
+
+
+# --- hallazgo 4: no cerrar como "otra persona" a quien ya se trató como el deudor -------------
+
+@pytest.mark.parametrize("outcome", ["debtor_unavailable", "wrong_party"])
+def test_third_party_close_after_the_recording_notice_asks_to_confirm_first(outcome):
+    tools, _ = _tools(direction=CallDirection.OUTBOUND)
+    _run(tools, "record_recording_consent", accepted=True)     # solo se da si dijo ser el deudor
+    first, _ = _run(tools, "end_call", outcome=outcome)
+    assert first["error"] == "confirm_who_answered" and not tools.ended
+    assert '"Am I speaking with Jane Carter?"' in first["next_step"]
+    second, _ = _run(tools, "end_call", outcome=outcome)        # la persona dijo que no es
+    assert second["ended"] is True and tools.outcome is CallOutcome(outcome)

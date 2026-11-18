@@ -1,8 +1,8 @@
 """Simulaciones del agente con Claude de verdad: el agente es el de producción (Haiku, con las
 herramientas reales del backend) y otro Claude hace de deudor siguiendo un guion.
 
-Los 7 escenarios salen de las simulaciones del 2026-11-11 (hechas con Claude Opus haciendo de
-agente). El deudor simulado usa las frases originales cuando encajan y las adapta si el agente
+Los escenarios 1 a 7 salen de las simulaciones del 2026-11-11 (hechas con Claude Opus haciendo de
+agente); el 8 es la frase ambigua de la 7 (hallazgo 4). El deudor simulado usa las frases originales cuando encajan y las adapta si el agente
 pregunta distinto. Antes de cada escenario se deja a Jane Carter (TEST-001, ACC-T001) como en los
 datos simulados, para que una simulación no afecte a la siguiente.
 
@@ -119,6 +119,14 @@ SCENARIOS = (
              ("You're talking to her, they keep calling me constantly - it's so annoying, the sons of bitches.",
               "Please do not call me again or I will send you my husband to blow your head off "
               "motherfuckers."),
+             literal=True),
+    # Hallazgo 4 (2026-11-18): la frase original de la simulación 7, ambigua ("they're" en vez de
+    # "you're"). El agente debe preguntar si habla con Jane antes de cerrar como "otra persona".
+    Scenario(8, "respuesta_ambigua", CallDirection.OUTBOUND, JANE,
+             "You are Jane, annoyed by the calls. Your first line is ambiguous; if asked, confirm you are Jane.",
+             ("They're talking to her, they keep calling me constantly - it's so annoying.",
+              "Yes, I'm Jane. What do you want?",
+              "Please do not call me again."),
              literal=True),
 )
 
