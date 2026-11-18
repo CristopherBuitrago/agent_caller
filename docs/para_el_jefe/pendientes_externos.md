@@ -1,6 +1,6 @@
 # Agente de cobranza NSF: lo que falta y no depende del desarrollo
 
-Actualizado: 2026-11-17. Live Oac Financial.
+Actualizado: 2026-11-18. Live Oac Financial.
 
 **Dónde estamos:** el backend del agente está construido y probado (419 pruebas automáticas). Todas las observaciones del informe de simulaciones y de la prueba del 2026-11-11 quedaron resueltas, salvo una legal (L7). Lo que sigue en este documento son respuestas, datos y accesos que solo puede dar la empresa. Sin ellos el agente no puede pasar del chat de prueba a llamadas reales.
 
@@ -28,6 +28,7 @@ Salieron mientras se resolvían las observaciones. La duda 3 ya quedó resuelta.
 | 6 | Disputas | Cuando alguien disputa la deuda, ¿se le transfiere en la misma llamada a un cobrador o se registra y alguien la revisa después? ¿La base de la empresa ya guarda los detalles de una disputa (fecha del pago, medio, número de confirmación, notas)? Si no, se propone una tabla con esos campos **Por qué importa:** Hoy solo queda la marca de disputa y el estado `DISPUTE`. Mientras tanto, el agente pregunta la fecha y el número de confirmación y quedan en el resumen | **Pendiente** |
 | 7 | Códigos de rebote | La lista de todos los códigos que maneja la empresa (ACH como R02, R03, R08, R10, y los de cheques y tarjetas). Para cada uno: qué significa, qué dice el agente y cuáles se tratan como disputa (por ejemplo, "pago no autorizado") **Jefe (2026-11-17):** la empresa solo maneja el código `NSF` (*Not Sufficient Funds*). Ya aplicado: el agente dice que no había fondos suficientes en la tarjeta o en la cuenta | **Decidida** |
 | 8 | Saldo cuota por cuota | Mientras el deudor va pagando las cuotas, el saldo de la cuenta no baja; solo pasa a 0 al pagarse la última. **¿El saldo lo actualiza nuestro sistema con cada pago, o lo maneja el CRM (Actos Software o Lariat Software) y nosotros solo lo leemos?** **Por qué importa:** Que los reportes y el agente muestren el saldo real si el deudor vuelve a llamar con un acuerdo a medio pagar | **Pendiente** |
+| 9 | Confirmar el acuerdo por SMS | **Propuesta (2026-11-18):** al cerrar el acuerdo, el deudor recibe durante el día un SMS con un link para confirmarlo. Al confirmar, queda prueba escrita del acuerdo y su consentimiento para los SMS de aviso y de pago. **¿Qué pasa si nunca confirma?** ¿Se reenvía el SMS? ¿Lo llama un cobrador o el agente? ¿En cuántos días? **Por qué importa:** Sin consentimiento no se le envían avisos ni links, y el acuerdo probablemente se rompa. También la revisa el abogado (ver L7) | **Pendiente** |
 
 ## 3. Proveedores
 
@@ -64,4 +65,4 @@ Antes: ~USD 3.789 al mes. Cambia porque la voz a texto pasa a AssemblyAI (~USD 4
 
 | # | Tema | Qué hay que revisar | Estado |
 | --- | --- | --- | --- |
-| L7 | Deudores vulnerables y SMS | Las obligaciones con deudores en situación vulnerable, y el consentimiento, la forma de darse de baja y el texto de los SMS de cobranza. Lo revisa el abogado de la empresa en EE. UU. | **Pendiente** |
+| L7 | Deudores vulnerables y SMS | Las obligaciones con deudores en situación vulnerable, y el consentimiento, la forma de darse de baja y el texto de los SMS de cobranza. También qué muestra la página de confirmación del acuerdo por SMS y su texto de consentimiento (duda 9). Lo revisa el abogado de la empresa en EE. UU. | **Pendiente** |

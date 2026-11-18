@@ -64,6 +64,27 @@ Resolviendo la **duda 1** (cuenta pagada), que viene de la **observación de neg
 
 Salió una nueva duda: **mientras el deudor va pagando las cuotas, el saldo de la cuenta no baja**. Solo pasa a 0 cuando se paga la última. ¿El saldo lo debe ir actualizando nuestro sistema con cada pago, o lo maneja el CRM de la empresa (Actos Software o Lariat Software) y nosotros solo lo leemos? Importa para que los reportes y lo que dice el agente muestren el saldo real si el deudor vuelve a llamar con un acuerdo a medio pagar.
 
+### 9. Confirmar el acuerdo con un link por SMS
+
+Resolviendo el **hallazgo 5 de las simulaciones con Haiku** (2026-11-18), que dice: *"El agente no sabía explicar cómo se paga"* (ya corregido: el agente explica que llega un SMS de confirmación, un aviso 3 días antes y un link de pago seguro el día de cada cuota).
+
+Salió una propuesta nueva (2026-11-18). Al cerrar el acuerdo, el agente diría: *"Today you'll get a text with a link to confirm your arrangement. Once you confirm it, we'll send you a reminder three days before each payment and a secure payment link on each payment date."*
+
+Durante el día llega un SMS con un link a una página de la empresa. Ahí el deudor ve sus montos y fechas y toca "Confirmar". Con eso:
+
+- queda prueba escrita de que aceptó el acuerdo;
+- da su consentimiento para recibir los SMS de aviso y de pago;
+- se confirma que su número recibe SMS.
+
+No hace falta que el SMS llegue al instante: basta con que Vaspian tenga una API para enviar SMS (duda 5).
+
+Preguntas:
+
+- **Para el jefe: ¿qué pasa si el deudor nunca confirma?** Sin su consentimiento no se le enviarían los avisos ni los links, y el acuerdo probablemente se rompería a los 5 días. ¿Se le reenvía el SMS una vez? ¿Lo llama un cobrador o el agente? ¿En cuántos días?
+- **Para el abogado (con L7): qué muestra la página y qué texto de consentimiento usa.** Si otra persona abre el link en el teléfono del deudor, ver montos y un acreedor puede revelar la deuda. Se propone pedir un dato antes de mostrarla (por ejemplo, los últimos 4 del SSN).
+
+Se construye cuando el jefe y el abogado respondan y Vaspian confirme su API de SMS. Es una página web nueva y toca el modelo de datos (el link, su vencimiento, la fecha de confirmación y el consentimiento): los campos se presentan antes de construir.
+
 ## Resueltas
 
 ### 7. Todos los códigos de rebote del pago
