@@ -34,6 +34,7 @@ El comportamiento esperado del agente (saludo, verificación, negociación, disp
 | Modelo | SDK de Anthropic: Claude Haiku 5.5 (`effort: low`, con caché del prompt) y Claude Sonnet 5.5 de respaldo |
 | Cliente HTTP del backend | httpx |
 | Página web de demo | FastAPI y Uvicorn, con HTML estático (`infrastructure/static/`) |
+| Voz (opcional, grupo `voz`) | Pipecat 1.16.0: detección de voz Silero, AssemblyAI (voz a texto), Deepgram Aura-2 (texto a voz) y WebRTC para el navegador |
 | Pruebas | pytest. Las pruebas de punta a punta levantan en memoria la API del backend, con su base |
 
 ## Arquitectura
@@ -52,6 +53,7 @@ src/cobranza_agent/
     ├── claude_conversation_model.py   adaptador de ConversationModel con la API de Anthropic
     ├── http_call_backend.py           adaptador de CallBackend con la API del backend
     ├── container.py                   arma el agente; nombre de la empresa y siglas por defecto
+    ├── voice/                         capa de voz: agent_processor.py (puente Pipecat ↔ AgentSession) y bot.py (WebRTC)
     ├── chat_cli.py                    chat de prueba en la terminal
     ├── web.py y static/               página web de demo e historial
     └── call_log.py                    historial: un JSON por llamada
@@ -115,6 +117,9 @@ Opciones del chat:
 | `BACKEND_URL` | No | `http://localhost:8001` | Dónde está la API del backend |
 | `AGENT_API_KEY` | Sí | vacía | La misma clave que espera el backend en `X-API-Key` |
 | `CALL_LOG_DIR` | No | `call_logs` | Carpeta del historial de la página web (no se sube al repositorio) |
+| `ASSEMBLYAI_API_KEY` y `DEEPGRAM_API_KEY` | Solo para la voz | — | Voz a texto y texto a voz |
+| `DEEPGRAM_VOICE` | No | `aura-2-helena-en` | La voz del agente |
+| `VOICE_DEMO_PHONE` | No | `+13055550001` | Desde qué teléfono "llama" el deudor en la demo de voz |
 
 ## Correr y probar en local
 
@@ -124,6 +129,7 @@ Todo se corre desde la raíz del repositorio, con el `docker-compose.yml` compar
 | --- | --- |
 | Chat de prueba | `docker compose run --rm agente python -m cobranza_agent.infrastructure.chat_cli --entrante +13055550001` |
 | Página web | `docker compose up web` → http://localhost:8000. Desde el celular: la IP del PC en la misma red, puerto 8000 |
+| Voz en el navegador (en construcción) | `docker compose up voz` → http://localhost:7860, permitir el micrófono. Necesita las claves de AssemblyAI y Deepgram |
 | Pruebas | `docker compose run --rm --build agente` |
 
 **Pruebas (77):**

@@ -11,7 +11,7 @@ RUN pip install --no-cache-dir -e ".[dev]"
 WORKDIR /app/agente
 COPY agente/pyproject.toml .
 COPY agente/src ./src
-RUN pip install --no-cache-dir -e ".[dev]"
+RUN pip install --no-cache-dir -e ".[dev,voz]"
 
 COPY agente/tests ./tests
 

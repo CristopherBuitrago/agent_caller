@@ -15,6 +15,9 @@ dependencies = [
 # Las pruebas de punta a punta levantan la API del backend en memoria: necesitan el núcleo
 # (carpeta backend/), que el Dockerfile instala aparte.
 dev = ["pytest>=8"]
+# Capa de voz (Pipecat): detección de voz, AssemblyAI, Deepgram y WebRTC para probar en el navegador.
+# Versión fija: Pipecat cambia seguido y su API se revisó en la 1.16.0.
+voz = ["pipecat-ai[deepgram,webrtc,silero,runner]==1.16.0"]
 
 [build-system]
 requires = ["setuptools>=69"]

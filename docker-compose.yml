@@ -109,6 +109,28 @@ services:
       - ./messaging/src:/app/messaging/src
       - ./messaging/tests:/app/messaging/tests
 
+  # Agente de voz por el navegador (WebRTC), para probar sin Vaspian:
+  #   docker compose up voz   ->  http://localhost:7860  (permitir el micrófono)
+  # Necesita ANTHROPIC_API_KEY, ASSEMBLYAI_API_KEY y DEEPGRAM_API_KEY en .env.
+  voz:
+    build: { context: ., dockerfile: agente/Dockerfile }
+    profiles: ["voz"]
+    command: python -m cobranza_agent.infrastructure.voice.bot --host 0.0.0.0 --port 7860
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY:-}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      DEEPGRAM_VOICE: ${DEEPGRAM_VOICE:-aura-2-helena-en}
+      BACKEND_URL: http://api:8001
+      AGENT_API_KEY: *agent-key
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./agente/src:/app/agente/src
+
   # Página web del chat de prueba (demo): docker compose up web  ->  http://localhost:8000
   web:
     build: { context: ., dockerfile: agente/Dockerfile }
