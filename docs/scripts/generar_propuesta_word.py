@@ -178,6 +178,11 @@ def build(lang):
     for note in t["inv_notes"]:
         body(doc, note, 9.5, style="List Bullet")
 
+    heading(doc, t["s7"])
+    body(doc, t["s7_intro"])
+    for item in t["s7_items"]:
+        body(doc, item, 9.5, style="List Bullet")
+
     doc.core_properties.title = t["title"]
     doc.save(out)
     print("ok", out)

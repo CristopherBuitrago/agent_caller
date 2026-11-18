@@ -153,6 +153,24 @@ TEXT = {
             "paga directamente.",
             "Las funciones nuevas que estén fuera de este alcance se cotizan aparte.",
         ],
+        "s7": "7. Propiedad del código y licencia de uso",
+        "s7_intro": "La empresa no compra el software del agente: recibe una licencia para usarlo. El Desarrollador "
+                    "es quien implementa, opera y mantiene el agente.",
+        "s7_items": [
+            "<b>Propiedad.</b> El software del agente (código fuente, instrucciones del modelo de IA, reglas de "
+            "negocio programadas, pruebas, documentación técnica y diseño), con sus mejoras y versiones futuras, es y "
+            "sigue siendo propiedad exclusiva del Desarrollador, aunque se instale en los servidores de la empresa.",
+            "<b>Licencia.</b> La empresa recibe una licencia de uso no exclusiva e intransferible, solo para su propia "
+            "operación de cobranza, mientras el servicio esté vigente y los pagos estén al día.",
+            "<b>Restricciones.</b> Sin autorización escrita del Desarrollador, la empresa no puede vender, ceder, "
+            "sublicenciar, copiar, modificar ni entregar el software a terceros, ni crear productos derivados de él.",
+            "<b>Uso por el Desarrollador.</b> El Desarrollador puede usar y licenciar el software a otras empresas, "
+            "sin usar ni revelar datos de Live Oac Financial.",
+            "<b>Datos.</b> Los datos de los deudores, las cuentas y las llamadas son de la empresa. El Desarrollador "
+            "solo los usa para prestar el servicio y los mantiene confidenciales.",
+            "<b>Fin del servicio.</b> Si el servicio termina, termina la licencia: el software se desinstala y la "
+            "empresa conserva sus datos, que se le entregan en un formato estándar (por ejemplo, CSV).",
+        ],
         "s5": "5. Proveedores y costos",
         "have_title": "Lo que la empresa ya tiene (sin costo nuevo)",
         "have_head": ["Servicio", "Proveedor", "Uso"],
@@ -292,6 +310,24 @@ TEXT = {
             "It does not include provider costs (~USD 1,966 per month at 800 calls per day), which the company pays "
             "directly.",
             "New features outside this scope are quoted separately.",
+        ],
+        "s7": "7. Code ownership and license",
+        "s7_intro": "The company does not buy the agent's software: it receives a license to use it. The Developer "
+                    "implements, runs, and maintains the agent.",
+        "s7_items": [
+            "<b>Ownership.</b> The agent's software (source code, AI model instructions, programmed business rules, "
+            "tests, technical documentation, and design), including its improvements and future versions, is and "
+            "remains the exclusive property of the Developer, even when installed on the company's servers.",
+            "<b>License.</b> The company receives a non-exclusive, non-transferable license to use the software, only "
+            "for its own collection operations, while the service is active and payments are up to date.",
+            "<b>Restrictions.</b> Without the Developer's written permission, the company may not sell, assign, "
+            "sublicense, copy, modify, or give the software to third parties, or create derivative products from it.",
+            "<b>Use by the Developer.</b> The Developer may use and license the software to other companies, without "
+            "using or disclosing any Live Oac Financial data.",
+            "<b>Data.</b> Debtor, account, and call data belong to the company. The Developer uses it only to provide "
+            "the service and keeps it confidential.",
+            "<b>End of service.</b> If the service ends, the license ends: the software is uninstalled and the company "
+            "keeps its data, delivered in a standard format (for example, CSV).",
         ],
         "s5": "5. Providers and costs",
         "have_title": "Already in place (no new cost)",
@@ -464,6 +500,11 @@ def build(lang):
     s.append(table(t["inv_head"], t["inv"], [3.6 * cm, W - 7.4 * cm, 3.8 * cm]))
     s.append(Spacer(1, 6))
     s += [Paragraph(n, BUL, bulletText="•") for n in t["inv_notes"]]
+
+    s.append(Spacer(1, 10))
+    s.append(Paragraph(t["s7"], H1))
+    s.append(Paragraph(t["s7_intro"], BODY))
+    s += [Paragraph(n, BUL, bulletText="•") for n in t["s7_items"]]
 
     def footer(canvas, doc):
         canvas.saveState()
