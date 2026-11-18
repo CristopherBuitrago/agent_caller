@@ -248,3 +248,11 @@ ALTER TABLE outbound_call_list ADD COLUMN call_at timestamptz;  -- a qué hora l
 -- B3 / B4 (aprobado el 2026-11-13): motivo de la transferencia a una persona. Si tiene algo, la
 -- llamada se transfirió, aunque su resultado sea otro (por ejemplo arrangement_made).
 ALTER TABLE calls ADD COLUMN transfer_reason text;
+
+-- Hallazgo 3 de las simulaciones con Haiku (aprobado el 2026-11-18): las Hardship Questions se hacen
+-- en orden y una por una. arrangement_answer guarda la respuesta a la pregunta 5 (antes no tenía
+-- dónde guardarse) y questions_answered cuenta hasta qué pregunta se respondió. Solo las completas
+-- (las 5) valen para la regla de los 30 días (B1).
+ALTER TABLE hardship_assessments ADD COLUMN arrangement_answer text;
+ALTER TABLE hardship_assessments ADD COLUMN questions_answered smallint NOT NULL DEFAULT 0
+    CHECK (questions_answered BETWEEN 0 AND 5);

@@ -18,7 +18,7 @@ from cobranza.application.use_cases.negotiate_arrangement import (
 from cobranza.domain.arrangement import ArrangementRuleError, ArrangementType, RuleViolation as R
 from cobranza.domain.call import CallDirection, CallRecord
 from cobranza.domain.debtor import AccountSummary, DebtorSummary
-from cobranza.domain.hardship import HARDSHIP_QUESTIONS, HardshipAnswers, HardshipDuration
+from cobranza.domain.hardship import HARDSHIP_QUESTIONS, HardshipAnswerError, HardshipAnswers, HardshipDuration
 from cobranza.domain.identity import CallVerificationState
 from cobranza.infrastructure.repositories.in_memory_negotiation_log import InMemoryNegotiationLog
 from cobranza.infrastructure.services.phonenumbers_phone_service import PhonenumbersPhoneService
@@ -85,10 +85,15 @@ class FakeHardships:
     def __init__(self, done=False):
         self.done = done
         self.saved = []
+        self.answered = {}
 
-    def save(self, call_id, debtor_id, answers):
-        self.saved.append((call_id, debtor_id, answers))
-        self.done = True
+    def save(self, call_id, debtor_id, answers, questions_answered):
+        self.saved.append((call_id, debtor_id, answers, questions_answered))
+        self.answered[call_id] = max(self.answered.get(call_id, 0), questions_answered)
+        self.done = self.done or self.answered[call_id] == 5
+
+    def questions_answered(self, call_id):
+        return self.answered.get(call_id, 0)
 
     def exists_for_debtor_since(self, debtor_id, since):
         self.checked = (debtor_id, since)
@@ -220,11 +225,59 @@ def _record_hardship(calls=None):
 
 def test_hardship_is_saved_for_the_verified_debtor():
     record, hardships = _record_hardship()
-    answers = HardshipAnswers(situation_description="Lost a shift", situation_started="last month",
-                              duration_type=HardshipDuration.TEMPORARY, household_support=False,
-                              offered_amount_cents=5000)
-    record.execute("c1", answers)
-    assert hardships.saved == [("c1", "deb-1", answers)]
+    answers = HardshipAnswers(situation_description="Lost a shift", situation_started="last month")
+    assert record.execute("c1", 1, answers) == 1
+    assert hardships.saved == [("c1", "deb-1", answers, 1)]
+
+
+# --- hallazgo 3: las 5 preguntas, en orden y una por una -------------------------------------
+
+FIVE_ANSWERS = (
+    HardshipAnswers(situation_description="Lost a shift", situation_started="last month"),
+    HardshipAnswers(duration_type=HardshipDuration.TEMPORARY),
+    HardshipAnswers(household_support=False),
+    HardshipAnswers(offered_amount_cents=5000),
+    HardshipAnswers(arrangement_answer="50 dollars a month"),
+)
+
+
+def test_the_five_answers_in_order_complete_the_hardship_questions():
+    record, hardships = _record_hardship()
+    for number, answers in enumerate(FIVE_ANSWERS, start=1):
+        assert record.execute("c1", number, answers) == number
+    assert hardships.done and record.questions_answered("c1") == 5
+
+
+def test_a_question_cannot_be_skipped():
+    record, hardships = _record_hardship()
+    record.execute("c1", 1, FIVE_ANSWERS[0])
+    with pytest.raises(HardshipAnswerError, match="Ask question 2 first"):
+        record.execute("c1", 3, FIVE_ANSWERS[2])
+    assert record.questions_answered("c1") == 1
+
+
+@pytest.mark.parametrize("number", [1, 3, 5])
+def test_questions_1_3_and_5_need_their_answer(number):
+    record, _ = _record_hardship()
+    for earlier in range(1, number):
+        record.execute("c1", earlier, FIVE_ANSWERS[earlier - 1])
+    with pytest.raises(HardshipAnswerError, match=f"Question {number} needs"):
+        record.execute("c1", number, HardshipAnswers(notes="nothing useful"))
+
+
+@pytest.mark.parametrize("number", [2, 4])
+def test_questions_2_and_4_can_stay_without_a_value(number):
+    record, _ = _record_hardship()
+    for earlier in range(1, number):
+        record.execute("c1", earlier, FIVE_ANSWERS[earlier - 1])
+    assert record.execute("c1", number, HardshipAnswers(notes="not clear")) == number
+
+
+def test_an_answered_question_can_be_saved_again_without_going_back():
+    record, _ = _record_hardship()
+    for number in (1, 2):
+        record.execute("c1", number, FIVE_ANSWERS[number - 1])
+    assert record.execute("c1", 1, HardshipAnswers(situation_description="Also a medical bill")) == 2
 
 
 @pytest.mark.parametrize("calls, violation", [
@@ -233,7 +286,7 @@ def test_hardship_is_saved_for_the_verified_debtor():
 ])
 def test_hardship_needs_recording_and_verification(calls, violation):
     record, hardships = _record_hardship(calls)
-    assert _violation(record.execute, "c1", HardshipAnswers()) is violation
+    assert _violation(record.execute, "c1", 1, FIVE_ANSWERS[0]) is violation
     assert hardships.saved == []
 
 

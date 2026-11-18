@@ -126,7 +126,7 @@ Si una herramienta falla (regla incumplida, dato mal formado, llamada terminada)
 | `calls` | Cada llamada: dirección, consentimiento, verificación, resultado, resumen, motivo de transferencia y hora pedida para volver a llamar |
 | `payment_arrangements` y `scheduled_payments` | El acuerdo y sus cuotas |
 | `payment_results` | Cada aviso de pago del procesador |
-| `hardship_assessments` | Las respuestas a las Hardship Questions y el plan al que se llegó |
+| `hardship_assessments` | Las respuestas a las Hardship Questions, cuántas se respondieron (en orden, de 1 a 5) y el plan al que se llegó |
 | `outbound_call_list` | La lista diaria de salientes |
 | `sms_messages` | Los SMS enviados. La escribe la mensajería; está aquí porque comparten la base |
 

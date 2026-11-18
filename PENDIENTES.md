@@ -8,7 +8,8 @@ Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `do
 
 - [x] Las 7 simulaciones con Haiku 5.5 corridas el 2026-11-18 (`agente/docs/simulaciones/2026-11-18/informe.md`). Cumplió el nivel 1 salvo detalles; el error grave (datos inventados en la verificación) quedó corregido. Para producción, la cuenta de Anthropic tiene que ser de la empresa
 - [x] Hallazgo 2 de las simulaciones: frases fijas antes de verificar y revisión automática en el script (2026-11-18). La opción C (un filtro que revise cada respuesta antes de decirla) queda para cuando esté la capa de voz
-- [ ] Corregir los hallazgos 3 a 7 de las simulaciones (Hardship Questions en orden, dudas sobre quién contesta, cómo se paga, detalles menores) y volver a correrlas
+- [x] Hallazgo 3 de las simulaciones: las 5 Hardship Questions en orden y una por una, guiadas por el sistema; campos `hardship_assessments.arrangement_answer` y `questions_answered` (aprobados el 2026-11-18)
+- [ ] Corregir los hallazgos 4 a 7 de las simulaciones (dudas sobre quién contesta, cómo se paga, detalles menores) y volver a correrlas
 - [ ] Cuentas de AssemblyAI y Deepgram
 - [ ] Vaspian: documentación y credenciales:
   - audio en vivo (ya se sabe que lo envía);

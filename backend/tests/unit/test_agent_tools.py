@@ -26,6 +26,7 @@ from cobranza.domain.arrangement import (
 )
 from cobranza.domain.call import CallDirection, CallOutcome
 from cobranza.domain.debtor import AccountSummary, DebtorSummary
+from cobranza.domain.hardship import HARDSHIP_QUESTIONS, HardshipAnswerError
 from cobranza.domain.identity import VerificationOutcome
 
 
@@ -54,6 +55,9 @@ class Stub:
     def execute(self, *args, **kwargs):
         self.calls.append(args + tuple(kwargs.values()))
         return self._fn(*args, **kwargs) if self._fn else None
+
+    def questions_answered(self, call_id):
+        return getattr(self, "answered", 0)
 
     def attempts_left(self, call_id, debtor_id):
         return getattr(self, "left", 1)
@@ -223,6 +227,7 @@ def test_rule_errors_come_with_the_next_step():
     answer, is_error = _run(tools, "propose_offer", account_ref="ACC-deb-1")
     assert is_error and answer["error"] == "hardship_required"
     assert "record_hardship_answers" in answer["next_step"]
+    assert HARDSHIP_QUESTIONS[0] in answer["next_step"] and "question_number 1" in answer["next_step"]
 
 
 def test_arrangement_made_only_after_an_accepted_offer():
@@ -587,3 +592,46 @@ def test_callback_for_the_verified_debtor_keeps_the_normal_confirmation():
     _run(tools, "verify_identity", **VERIFY_JANE)
     result, _ = _run(tools, "schedule_callback", date="2026-11-20", time="18:00")
     assert result["next_step"].startswith("Confirm: \"We'll call back on")
+
+
+# --- hallazgo 3: las Hardship Questions, una por una --------------------------------------------
+
+def test_saving_a_hardship_answer_gives_the_next_question():
+    tools, uc = _tools()
+    uc.record_hardship_assessment._fn = lambda call_id, number, answers: number
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    answer, is_error = _run(tools, "record_hardship_answers", question_number=1,
+                            situation_description="Lost her job")
+    assert not is_error and answer["questions_answered"] == 1
+    assert HARDSHIP_QUESTIONS[1] in answer["next_step"] and "question_number 2" in answer["next_step"]
+    call_id, number, answers = uc.record_hardship_assessment.calls[0]
+    assert number == 1 and answers.situation_description == "Lost her job"
+
+
+def test_the_fifth_answer_sends_the_agent_back_to_the_offers():
+    tools, uc = _tools()
+    uc.record_hardship_assessment._fn = lambda call_id, number, answers: 5
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    answer, _ = _run(tools, "record_hardship_answers", question_number=5, arrangement_answer="30 a month")
+    assert "call propose_offer" in answer["next_step"]
+    assert uc.record_hardship_assessment.calls[0][2].arrangement_answer == "30 a month"
+
+
+def test_a_skipped_hardship_question_is_not_saved_and_asks_the_right_one():
+    tools, uc = _tools()
+
+    def skipped(call_id, number, answers):
+        raise HardshipAnswerError("Ask question 2 first")
+    uc.record_hardship_assessment._fn = skipped
+    uc.record_hardship_assessment.answered = 1
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    answer, is_error = _run(tools, "record_hardship_answers", question_number=3, household_support=True)
+    assert answer["error"] == "hardship_answer_not_saved"   # como invalid_callback_time: el modelo sigue
+    assert HARDSHIP_QUESTIONS[1] in answer["next_step"]
+
+
+def test_question_number_is_required():
+    tools, _ = _tools()
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    answer, is_error = _run(tools, "record_hardship_answers", situation_description="Lost her job")
+    assert is_error

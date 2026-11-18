@@ -22,6 +22,16 @@ def verified_jane(use_cases, started_calls):
     return call
 
 
+
+def _complete_hardship(use_cases, call, first: HardshipAnswers):
+    """Hallazgo 3: las 5 Hardship Questions, en orden. `first` es la respuesta a la pregunta 1."""
+    use_cases.record_hardship_assessment.execute(call, 1, first)
+    use_cases.record_hardship_assessment.execute(call, 2, HardshipAnswers())
+    support = first.household_support if first.household_support is not None else False
+    use_cases.record_hardship_assessment.execute(call, 3, HardshipAnswers(household_support=support))
+    use_cases.record_hardship_assessment.execute(call, 4, HardshipAnswers())
+    use_cases.record_hardship_assessment.execute(call, 5, HardshipAnswers(arrangement_answer="30 dollars a month"))
+
 def _saved(pool, arrangement_id):
     with pool.connection() as conn:
         arrangement = conn.execute(
@@ -52,7 +62,7 @@ def test_full_order_ends_in_a_last_resort_partial(use_cases, verified_jane, pool
     answers = HardshipAnswers(situation_description="Reduced hours", situation_started="in October",
                               duration_type=HardshipDuration.TEMPORARY, household_support=True,
                               offered_amount_cents=2500, recommended_plan="partial")
-    use_cases.record_hardship_assessment.execute(verified_jane, answers)
+    _complete_hardship(use_cases, verified_jane, answers)
     with pool.connection() as conn:
         saved = conn.execute(
             """SELECT situation_started, duration_type, household_support, offered_amount_cents
@@ -199,7 +209,7 @@ def test_partial_below_ten_percent_is_refused_before_hardship(use_cases, verifie
 
 
 def test_partial_below_ten_percent_needs_every_offer_rejected(use_cases, verified_jane):
-    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
+    _complete_hardship(use_cases, verified_jane, HardshipAnswers(
         situation_description="Lost job", duration_type=HardshipDuration.TEMPORARY))
     with pytest.raises(ArrangementRuleError) as e:
         use_cases.propose_partial_payment.execute(verified_jane, "ACC-T001", 2500)
@@ -216,29 +226,46 @@ def test_proposal_cannot_be_answered_from_another_call(use_cases, verified_jane,
 
 
 def test_hardship_answers_saved_one_at_a_time_are_all_kept(use_cases, verified_jane, pool):
-    """Error E2 (simulación 5): guardar de a una respuesta borraba las anteriores."""
-    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
-        situation_description="Lost her job last month", situation_started="last month"))
-    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(household_support=True))
-    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
-        offered_amount_cents=3000, notes="Husband works part-time"))
-    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
-        duration_type=HardshipDuration.LONG_TERM, situation_started="six weeks ago"))
+    """Error E2 (simulación 5): guardar de a una respuesta borraba las anteriores. Hallazgo 3: van
+    en orden y la cuenta de preguntas respondidas no baja al corregir una anterior."""
+    record = use_cases.record_hardship_assessment.execute
+    record(verified_jane, 1, HardshipAnswers(situation_description="Lost her job last month",
+                                             situation_started="last month"))
+    record(verified_jane, 2, HardshipAnswers(duration_type=HardshipDuration.LONG_TERM))
+    record(verified_jane, 3, HardshipAnswers(household_support=True))
+    record(verified_jane, 4, HardshipAnswers(offered_amount_cents=3000, notes="Husband works part-time"))
+    record(verified_jane, 5, HardshipAnswers(arrangement_answer="30 dollars at the end of the month"))
+    assert record(verified_jane, 1, HardshipAnswers(situation_description="Lost her job last month",
+                                                    situation_started="six weeks ago")) == 5
     with pool.connection() as conn:
         saved = conn.execute(
             """SELECT situation_description, situation_started, duration_type, household_support,
-                      offered_amount_cents, notes
+                      offered_amount_cents, notes, arrangement_answer, questions_answered
                FROM hardship_assessments WHERE call_id = %s""",
             (verified_jane,),
         ).fetchone()
     # Lo nuevo reemplaza (situation_started); lo que no vino se conserva.
     assert saved == ("Lost her job last month", "six weeks ago", "long_term", True, 3000,
-                     "Husband works part-time")
+                     "Husband works part-time", "30 dollars at the end of the month", 5)
+
+
+def test_incomplete_hardship_questions_do_not_unlock_more_offers(use_cases, verified_jane):
+    """Hallazgo 3: con 4 de las 5 preguntas, las ofertas que exigen Hardship siguen bloqueadas."""
+    record = use_cases.record_hardship_assessment.execute
+    record(verified_jane, 1, HardshipAnswers(situation_description="Lost her job"))
+    record(verified_jane, 2, HardshipAnswers())
+    record(verified_jane, 3, HardshipAnswers(household_support=False))
+    record(verified_jane, 4, HardshipAnswers())
+    with pytest.raises(ArrangementRuleError) as e:
+        use_cases.propose_arrangement.execute(verified_jane, "ACC-T001", 4)
+    assert e.value.violation is R.HARDSHIP_REQUIRED
+    record(verified_jane, 5, HardshipAnswers(arrangement_answer="Nothing until next month"))
+    assert len(use_cases.propose_arrangement.execute(verified_jane, "ACC-T001", 4).payments) == 4
 
 
 def test_down_payment_plan_is_saved_with_thirteen_payments(use_cases, verified_jane, pool):
     """N5: Jane (USD 485) acepta 48,50 hoy y 12 cuotas mensuales."""
-    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(
+    _complete_hardship(use_cases, verified_jane, HardshipAnswers(
         situation_description="Lost her job", offered_amount_cents=3000))
     offer = None
     while (candidate := use_cases.propose_next_offer.execute(verified_jane, "ACC-T001",
@@ -273,7 +300,7 @@ def _new_verified_call(use_cases, started_calls):
 
 
 def test_hardship_from_a_previous_call_counts_for_30_days(use_cases, verified_jane, started_calls, pool):
-    use_cases.record_hardship_assessment.execute(verified_jane, HardshipAnswers(situation_description="Lost job"))
+    _complete_hardship(use_cases, verified_jane, HardshipAnswers(situation_description="Lost job"))
     next_call = _new_verified_call(use_cases, started_calls)       # vuelve a llamar otro día
     assert len(use_cases.propose_arrangement.execute(next_call, "ACC-T001", 4).payments) == 4
 

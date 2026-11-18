@@ -29,7 +29,7 @@ from cobranza.domain.arrangement import (
     validate_proposal,
 )
 from cobranza.domain.debtor import AccountSummary, DebtorSummary
-from cobranza.domain.hardship import HardshipAnswers
+from cobranza.domain.hardship import HardshipAnswers, check_hardship_answer
 
 
 # B1 (2026-11-13): las Hardship Questions de un deudor valen 30 días, en cualquier llamada.
@@ -204,15 +204,27 @@ class ProposePartialPayment:
 
 
 class RecordHardshipAssessment:
-    """Guarda las respuestas; se puede repetir en la llamada para completarlas."""
+    """Guarda la respuesta a una Hardship Question; se llama una vez por pregunta, en orden (hallazgo 3).
+
+    Devuelve cuántas preguntas van respondidas en la llamada. Con las 5, las ofertas que las exigen
+    quedan habilitadas. Se puede volver a guardar una pregunta ya respondida para completarla.
+    """
 
     def __init__(self, gate: _ArrangementGate, hardships: HardshipRepository):
         self._gate = gate
         self._hardships = hardships
 
-    def execute(self, call_id: str, answers: HardshipAnswers) -> None:
+    def execute(self, call_id: str, question_number: int, answers: HardshipAnswers) -> int:
         self._gate.check_recorded_call(call_id)
-        self._hardships.save(call_id, self._gate.verified_debtor_id(call_id), answers)
+        debtor_id = self._gate.verified_debtor_id(call_id)
+        answered = self._hardships.questions_answered(call_id)
+        check_hardship_answer(question_number, answered, answers)
+        answered = max(answered, question_number)
+        self._hardships.save(call_id, debtor_id, answers, answered)
+        return answered
+
+    def questions_answered(self, call_id: str) -> int:
+        return self._hardships.questions_answered(call_id)
 
 
 class CreateArrangement:

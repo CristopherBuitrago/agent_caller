@@ -117,7 +117,8 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
 
 ### Hardship Questions
 - Son las 5 preguntas del jefe (2026-11-04), traducidas al inglés en `backend/src/cobranza/domain/hardship.py`. No se usan frases que puedan verse como presión.
-- Valen 30 días por deudor, en cualquier llamada (B1). El sistema guarda en `recommended_plan` el acuerdo al que se llegó (B14).
+- Se hacen las 5, en orden y una por turno: el sistema le da al agente cada pregunta exacta y no habilita las ofertas que las exigen hasta tener las 5. Si el deudor ya respondió una por su cuenta, el agente la guarda sin repetirla. La respuesta 5 se guarda en `arrangement_answer` (hallazgo 3 de las simulaciones con Haiku; desarrollador, opción A, 2026-11-18).
+- Valen 30 días por deudor, en cualquier llamada, pero solo si están completas (B1 y hallazgo 3). El sistema guarda en `recommended_plan` el acuerdo al que se llegó (B14).
 
 ### Disputas, "no llamar" y otros momentos
 - **Disputa:** si el deudor dice que ya pagó, que el banco se equivocó o que la deuda no es suya, el agente pregunta la fecha y el número de confirmación y llama a `record_dispute`. La cuenta queda `is_disputed` y en estado `DISPUTE`, y se deja de cobrar (N11). Los detalles quedan en el resumen; guardarlos en campos propios está en pausa (B5, duda 6).

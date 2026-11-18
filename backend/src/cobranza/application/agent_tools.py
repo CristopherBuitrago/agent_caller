@@ -41,7 +41,13 @@ from cobranza.domain.arrangement import (
 )
 from cobranza.domain.call import CallbackTimeError, CallDirection, CallOutcome
 from cobranza.domain.debtor import AccountSummary, DebtorSummary
-from cobranza.domain.hardship import HardshipAnswers, HardshipDuration
+from cobranza.domain.hardship import (
+    HARDSHIP_QUESTION_COUNT,
+    HARDSHIP_QUESTIONS,
+    HardshipAnswerError,
+    HardshipAnswers,
+    HardshipDuration,
+)
 from cobranza.domain.identity import VerificationOutcome, names_match
 
 @dataclass(frozen=True)
@@ -169,13 +175,20 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
                                    "payment, the system splits it into monthly payments."}},
           ("account_ref", "amount_dollars")),
     _spec("record_hardship_answers",
-          "Save the debtor's answers to the hardship questions. Every field is optional.",
-          {"situation_description": {"type": "string"},
+          "Save the debtor's answer to one hardship question, right after they answer it. Question 1: "
+          "situation_description (and situation_started). Question 2: duration_type (leave it empty if "
+          "unclear). Question 3: household_support. Question 4: offered_amount_dollars (empty if they "
+          "offer nothing). Question 5: arrangement_answer. The result tells you the next question.",
+          {"question_number": {"type": "integer", "minimum": 1, "maximum": HARDSHIP_QUESTION_COUNT},
+           "situation_description": {"type": "string"},
            "situation_started": {"type": "string", "description": "In the debtor's words."},
            "duration_type": {"type": "string", "enum": [d.value for d in HardshipDuration]},
            "household_support": {"type": "boolean"},
            "offered_amount_dollars": {"type": "number"},
-           "notes": {"type": "string"}}),
+           "arrangement_answer": {"type": "string", "description": "Answer to question 5, in the "
+                                  "debtor's words."},
+           "notes": {"type": "string"}},
+          ("question_number",)),
     _spec("record_dispute",
           "The debtor says they already paid, the bank made a mistake, or the debt is not "
           "theirs. Marks the account as disputed and ends the call.",
@@ -481,22 +494,33 @@ class CallTools:
         return {**_describe(logged), "next_step": "Present this plan, making clear the rest is still "
                 "owed on the dates shown. Then call record_offer_response."}
 
-    def _tool_record_hardship_answers(self, situation_description: str | None = None,
+    def _tool_record_hardship_answers(self, question_number: int,
+                                      situation_description: str | None = None,
                                       situation_started: str | None = None,
                                       duration_type: str | None = None,
                                       household_support: bool | None = None,
                                       offered_amount_dollars: float | None = None,
+                                      arrangement_answer: str | None = None,
                                       notes: str | None = None) -> dict:
         try:
             duration = HardshipDuration(duration_type) if duration_type else None
         except ValueError:
             raise _ToolInputError("duration_type must be temporary or long_term") from None
         offered = round(float(offered_amount_dollars) * 100) if offered_amount_dollars is not None else None
-        self._uc.record_hardship_assessment.execute(self.call_id, HardshipAnswers(
+        answers = HardshipAnswers(
             situation_description=situation_description, situation_started=situation_started,
             duration_type=duration, household_support=household_support,
-            offered_amount_cents=offered, notes=notes))
-        return {"saved": True, "next_step": "Thank them for sharing, then call propose_offer."}
+            offered_amount_cents=offered, notes=notes, arrangement_answer=arrangement_answer)
+        try:
+            answered = self._uc.record_hardship_assessment.execute(self.call_id, int(question_number), answers)
+        except HardshipAnswerError as e:
+            answered = self._uc.record_hardship_assessment.questions_answered(self.call_id)
+            return {"error": "hardship_answer_not_saved", "detail": str(e),
+                    "next_step": _next_hardship_question(answered)}
+        if answered >= HARDSHIP_QUESTION_COUNT:
+            return {"saved": True, "questions_answered": answered,
+                    "next_step": "Thank them for sharing, then call propose_offer."}
+        return {"saved": True, "questions_answered": answered, "next_step": _next_hardship_question(answered)}
 
     def _tool_record_dispute(self, account_ref: str) -> dict:
         self._require_own_account(account_ref)
@@ -637,6 +661,11 @@ class CallTools:
     def _rule_error(self, violation: RuleViolation, tool_input: dict) -> dict:
         result: dict[str, Any] = {"error": violation.value,
                                   "next_step": _NEXT_STEP_BY_RULE.get(violation, "Use transfer_to_human.")}
+        if violation is RuleViolation.HARDSHIP_REQUIRED:
+            # Hallazgo 3: el sistema le da al agente la pregunta exacta que toca.
+            answered = self._uc.record_hardship_assessment.questions_answered(self.call_id)
+            result["next_step"] = ("Before more options, the hardship questions are needed. "
+                                   + _next_hardship_question(answered))
         if violation is RuleViolation.AMOUNT_BELOW_FLOOR and self._debtor is not None:
             account = next((a for a in self._debtor.accounts
                             if a.external_id == tool_input.get("account_ref")), None)
@@ -663,6 +692,17 @@ class CallTools:
         if self.caller_hung_up and "next_step" in content:
             content = {**content, "next_step": HUNG_UP_NEXT_STEP}
         return ToolResult(call.id, json.dumps(content, ensure_ascii=False), is_error=error)
+
+
+def _next_hardship_question(answered: int) -> str:
+    """Hallazgo 3: la siguiente Hardship Question, exacta, para hacerlas en orden y una por una."""
+    if answered >= HARDSHIP_QUESTION_COUNT:
+        return "All the hardship questions are answered. Call propose_offer."
+    number = answered + 1
+    return (f'Ask question {number} of {HARDSHIP_QUESTION_COUNT}, kindly and on its own: '
+            f'"{HARDSHIP_QUESTIONS[number - 1]}" Wait for the answer, then call record_hardship_answers '
+            f"with question_number {number}. If the debtor already answered it earlier in the call, do "
+            f"not ask it again: save that answer with question_number {number}.")
 
 
 # Hallazgo 2 de las simulaciones con Haiku (2026-11-18): sin una frase exacta, el agente improvisaba
