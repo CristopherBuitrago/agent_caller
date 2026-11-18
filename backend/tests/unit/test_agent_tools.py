@@ -555,3 +555,35 @@ def test_invalid_verification_input_asks_for_the_data_and_does_not_count_the_nam
     assert "Never guess" in answer["next_step"] and "did not count as an attempt" in answer["next_step"]
     _run(tools, "verify_identity", **VERIFY_JANE)
     assert uc.verify_identity.calls[1][-1] == ()   # "pending" no quedó como nombre dado antes
+
+
+# --- hallazgo 2 de las simulaciones con Haiku: frases exactas antes de verificar --------------
+
+@pytest.mark.parametrize("outcome", [VerificationOutcome.MAX_ATTEMPTS_REACHED, VerificationOutcome.LOCKED,
+                                     VerificationOutcome.IDENTITY_MISMATCH])
+def test_closing_without_verification_gives_the_exact_sentence(outcome):
+    tools, _ = _tools(verify=outcome)
+    result, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert "Say exactly" in result["next_step"] and "wasn't able to verify your identity" in result["next_step"]
+    assert "not even to say you cannot discuss them" in result["next_step"]
+
+
+@pytest.mark.parametrize("outcome", ["debtor_unavailable", "wrong_party"])
+def test_third_party_goodbye_is_a_fixed_sentence(outcome):
+    tools, _ = _tools(direction=CallDirection.OUTBOUND)
+    result, _ = _run(tools, "end_call", outcome=outcome)
+    assert 'Say exactly: "Thank you for your time. Goodbye."' in result["next_step"]
+
+
+def test_callback_for_someone_not_verified_uses_the_fixed_sentence():
+    tools, _ = _tools(direction=CallDirection.OUTBOUND)
+    result, _ = _run(tools, "schedule_callback", date="2026-11-20", time="18:00", note="husband answered")
+    assert "we'll try again on Friday, November 20, 2026 at 6:00 PM. Goodbye." in result["next_step"]
+    assert "not even to say you cannot discuss them" in result["next_step"]
+
+
+def test_callback_for_the_verified_debtor_keeps_the_normal_confirmation():
+    tools, _ = _tools()
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    result, _ = _run(tools, "schedule_callback", date="2026-11-20", time="18:00")
+    assert result["next_step"].startswith("Confirm: \"We'll call back on")

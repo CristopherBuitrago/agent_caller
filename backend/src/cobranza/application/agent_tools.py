@@ -540,9 +540,13 @@ class CallTools:
                     "another day and time between 8 AM and 9 PM their time, within the next 30 days."}
         self._close(CallOutcome.CALLBACK_REQUESTED)
         spoken = f"{_spoken_date(local_when.date())} at {_spoken_time(local_when)}"
+        if self._debtor is None:
+            # Sin verificar (por ejemplo, contestó un familiar): solo la frase fija (hallazgo 2).
+            return {"scheduled": True, "callback": local_when.isoformat(), "next_step":
+                    f'Say exactly: "Thank you, we\'ll try again on {spoken}. Goodbye." '
+                    f"{NOTHING_BEFORE_VERIFICATION}"}
         return {"scheduled": True, "callback": local_when.isoformat(), "next_step":
-                f'Confirm: "We\'ll call back on {spoken}." Then say goodbye. If the person is not the '
-                "verified debtor, do not mention the debt or the reason for the call."}
+                f'Confirm: "We\'ll call back on {spoken}." Then say goodbye.'}
 
     def _debtor_for_callback(self) -> DebtorSummary | None:
         """Sin verificación: el deudor de la cuenta (saliente) o el primero de ese teléfono (entrante)."""
@@ -583,6 +587,9 @@ class CallTools:
             # la llamada queda como volver a llamar (prueba con la API real del 2026-11-15).
             call_outcome = CallOutcome.CALLBACK_REQUESTED
         self._close(call_outcome)
+        if call_outcome in _THIRD_PARTY_OUTCOMES:
+            return {"ended": True, "next_step": f'Say exactly: "{THIRD_PARTY_GOODBYE}" '
+                    f"{NOTHING_BEFORE_VERIFICATION}"}
         return {"ended": True, "next_step": "Say a short goodbye if you have not already."}
 
     # --- apoyo ---
@@ -658,6 +665,13 @@ class CallTools:
         return ToolResult(call.id, json.dumps(content, ensure_ascii=False), is_error=error)
 
 
+# Hallazgo 2 de las simulaciones con Haiku (2026-11-18): sin una frase exacta, el agente improvisaba
+# "I can't discuss any account", que le confirma a un tercero que existe una cuenta.
+NOT_VERIFIED_SENTENCE = "I'm sorry, I wasn't able to verify your identity, so I can't continue with this call."
+NOTHING_BEFORE_VERIFICATION = ("Do not mention any account, balance, payment, debt, collection or the "
+                               "creditor, not even to say you cannot discuss them.")
+THIRD_PARTY_GOODBYE = "Thank you for your time. Goodbye."
+
 _VERIFICATION_NEXT_STEP = {
     VerificationOutcome.VERIFIED:
         f'Say that you are calling from the company (full name), then this sentence exactly: "{DISCLOSURE}" '
@@ -669,14 +683,15 @@ _VERIFICATION_NEXT_STEP = {
         "Say the information did not match our records, without saying which item, and ask them "
         "to repeat it. Then call verify_identity again.",
     VerificationOutcome.MAX_ATTEMPTS_REACHED:
-        "Say you could not verify their identity. Do not mention any debt. Call end_call with "
+        f'Say exactly: "{NOT_VERIFIED_SENTENCE}" {NOTHING_BEFORE_VERIFICATION} Then call end_call with '
         "outcome verification_failed.",
     VerificationOutcome.LOCKED:
-        "Say a representative will help them. Do not mention any debt. Call transfer_to_human.",
+        "Say exactly: \"I'm sorry, I wasn't able to verify your identity, so I'll transfer you to a "
+        f'representative who can help." {NOTHING_BEFORE_VERIFICATION} Then call transfer_to_human.',
     VerificationOutcome.IDENTITY_MISMATCH:
-        "The call is now closed. Say you could not verify their identity and ask them to call back "
-        "with their own information. Do not mention any debt and do not say which item did not "
-        "match. Then say goodbye.",
+        "The call is now closed. Say exactly: \"I'm sorry, I wasn't able to verify your identity. "
+        'Please call us back with your own information." Do not say which item did not match. '
+        f"{NOTHING_BEFORE_VERIFICATION} Then say goodbye.",
     VerificationOutcome.INVALID_INPUT:
         "Those are not details the caller gave. Never guess or use placeholders. Ask the caller for "
         "their full name, the last four digits of their Social Security number and their date of "

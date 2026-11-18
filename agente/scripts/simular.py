@@ -16,6 +16,7 @@ DATABASE_URL (para dejar a Jane como nueva). Solo usar con la base de datos simu
 
 import argparse
 import json
+import re
 import os
 import sys
 import time
@@ -30,6 +31,9 @@ from cobranza_agent.infrastructure.container import build_agent
 DEBTOR_MODEL = "claude-haiku-5-5"
 MAX_DEBTOR_TURNS = 25
 HANGUP = "[HANGUP]"
+# Hallazgo 2 (2026-11-18): antes de verificar, el agente no dice nada que revele la deuda.
+FORBIDDEN_BEFORE_VERIFICATION = re.compile(
+    r"b(accounts?|balances?|payments?|debts?|collections?|collectors?|Lakeside)b", re.IGNORECASE)
 
 JANE = ("You are Jane Carter. Your phone is +1 305 555 0001. Your date of birth is March 14, 1985 and "
         "the last four digits of your Social Security number are 1234. You owe Lakeside Auto Finance "
@@ -127,6 +131,14 @@ class Result:
     outcome: str | None = None
     summary: str | None = None
     seconds: float = 0.0
+    verified: bool = False
+    alerts: list[str] = field(default_factory=list)  # palabras prohibidas dichas antes de verificar
+
+    def agent_said(self, text: str) -> None:
+        self.turns.append({"agent": text})
+        if not self.verified:
+            for word in sorted({m.group(0).lower() for m in FORBIDDEN_BEFORE_VERIFICATION.finditer(text or "")}):
+                self.alerts.append(f"\"{word}\" antes de verificar: {text}")
 
 
 def reset_jane() -> None:
@@ -201,6 +213,8 @@ def run(scenario: Scenario, client: anthropic.Anthropic) -> Result:
         except ValueError:
             content = tool_result.content
         result.turns.append({"tool": call.name, "input": call.input, "result": content})
+        if call.name == "verify_identity" and isinstance(content, dict) and content.get("outcome") == "verified":
+            result.verified = True
 
     agent = build_agent()
     if scenario.direction is CallDirection.INBOUND:
@@ -208,7 +222,7 @@ def run(scenario: Scenario, client: anthropic.Anthropic) -> Result:
     else:
         session, reply = agent.execute(CallDirection.OUTBOUND, None, "ACC-T001", on_tool=on_tool)
     result.call_id = session.call_id
-    result.turns.append({"agent": reply.text})
+    result.agent_said(reply.text)
     debtor = SimulatedDebtor(client, scenario)
 
     for _ in range(MAX_DEBTOR_TURNS):
@@ -220,7 +234,7 @@ def run(scenario: Scenario, client: anthropic.Anthropic) -> Result:
         if said:
             result.turns.append({"debtor": said})
             reply = session.debtor_says(said)
-            result.turns.append({"agent": reply.text})
+            result.agent_said(reply.text)
         if hangs_up and not session.ended:
             result.turns.append({"event": "the debtor hung up"})
             session.hang_up()
@@ -251,7 +265,9 @@ def to_markdown(result: Result) -> str:
             lines.append(f"> `{turn['tool']}` {json.dumps(turn['input'], ensure_ascii=False)}  ")
             lines.append(f"> → {json.dumps(turn['result'], ensure_ascii=False)}")
         lines.append("")
-    lines += ["## Resumen generado", "", result.summary or "(sin resumen)", ""]
+    lines += ["## Revisión automática", ""]
+    lines += [f"- ⚠️ {alert}" for alert in result.alerts] or ["- Sin palabras prohibidas antes de verificar."]
+    lines += ["", "## Resumen generado", "", result.summary or "(sin resumen)", ""]
     return "\n".join(lines)
 
 
@@ -270,8 +286,9 @@ def main() -> int:
         (args.salida / f"{name}.md").write_text(to_markdown(result), encoding="utf-8")
         (args.salida / f"{name}.json").write_text(json.dumps(
             {"call_id": result.call_id, "outcome": result.outcome, "summary": result.summary,
-             "seconds": result.seconds, "turns": result.turns}, ensure_ascii=False, indent=2), encoding="utf-8")
-        print(f"  resultado: {result.outcome} ({result.seconds} s)", flush=True)
+             "seconds": result.seconds, "alerts": result.alerts, "turns": result.turns}, ensure_ascii=False, indent=2), encoding="utf-8")
+        print(f"  resultado: {result.outcome} ({result.seconds} s); alertas antes de verificar: {len(result.alerts)}",
+              flush=True)
     reset_jane()
     return 0
 
