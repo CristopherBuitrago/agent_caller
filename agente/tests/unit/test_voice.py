@@ -101,3 +101,21 @@ def test_if_the_connection_ends_mid_call_the_session_hangs_up():
     session = FakeSession([])
     _run(_processor(session), [])               # run_test termina con un EndFrame
     assert session.hung_up
+
+
+def test_the_echo_returns_the_microphone_audio_as_output():
+    """Prueba de eco por WebRTC (riesgo 1): el audio que entra sale igual."""
+    from pipecat.frames.frames import InputAudioRawFrame, OutputAudioRawFrame
+
+    from cobranza_agent.infrastructure.voice.echo_bot import Echo
+
+    echo = Echo()
+    audio = InputAudioRawFrame(audio=b"\x01\x00" * 160, sample_rate=16000, num_channels=1)
+
+    async def main():
+        down, _ = await run_test(echo, frames_to_send=[audio])
+        return down
+    down = asyncio.run(main())
+    out = [f for f in down if isinstance(f, OutputAudioRawFrame)]
+    assert len(out) == 1 and out[0].audio == audio.audio and out[0].sample_rate == 16000
+    assert echo.frames_echoed == 1

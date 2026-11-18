@@ -26,3 +26,17 @@ Lo técnico que falta en este servicio. Lo que espera respuesta de la empresa es
 | 6 | **Pipecat cambia seguido.** Ya marca piezas que se eliminan en la versión 2.0 | Una actualización rompe el bot | Mantener la versión fija (1.16.0) y actualizar a propósito, con las pruebas del puente |
 | 7 | **Costo real por llamada sin medir** (voz a texto y texto a voz se cobran por minuto y por carácter) | El costo estimado (~USD 1.966 al mes con 800 llamadas diarias) no se cumple | Medir en las primeras pruebas y en el piloto |
 | 8 | **La voz del agente no está elegida** (`aura-2-helena-en` por defecto) | La voz puede no gustarle a la empresa o sonar poco natural por teléfono | Probar 2 o 3 voces de Aura-2 y que el jefe elija |
+
+### Cómo probar el riesgo 1 (eco por WebRTC, sin claves)
+
+`voice/echo_bot.py` devuelve por el parlante lo que entra por el micrófono, sin IA. Usar audífonos.
+
+1. Levantarlo:
+   - **Docker:** `docker compose run --rm --service-ports voz python -m cobranza_agent.infrastructure.voice.echo_bot --host 0.0.0.0 --port 7860` y abrir http://localhost:7860/client/
+   - **Podman en Windows (PC de la oficina, 2026-11-18):** `localhost` no llega al contenedor. Hay que correrlo con `--network host` y entrar por la IP de la máquina de Podman (`wsl -d podman-machine-default -u root -- ip -4 addr show eth0`). Esa IP cambia al reiniciar.
+2. Si la página no está en `localhost`, el navegador bloquea el micrófono. En `chrome://flags/#unsafely-treat-insecure-origin-as-secure` (o en `edge://flags`), agregar la dirección y reiniciar el navegador.
+3. Conectarse, permitir el micrófono y hablar. Los logs del bot dicen cuántos pedazos de audio entraron y volvieron.
+
+Cómo leer el resultado:
+- **Se oye el eco:** el transporte funciona.
+- **Conecta pero no se oye nada:** el audio UDP no sale del contenedor. Primero probar con la red del host (`network_mode: host` en el servicio `voz`). Si sigue sin funcionar, correr el bot fuera del contenedor o cambiar a WebSocket.
