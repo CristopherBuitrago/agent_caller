@@ -47,7 +47,11 @@ def render_system_prompt(company_name: str, company_short: str, catalog: ToolCat
     El aviso FDCPA y las Hardship Questions vienen del backend, que es quien las aplica.
     """
     questions = "\n".join(f"{i}. {q}" for i, q in enumerate(catalog.hardship_questions, start=1))
-    return (PROMPT_PATH.read_text(encoding="utf-8")
+    text = PROMPT_PATH.read_text(encoding="utf-8")
+    if company_short.endswith("."):
+        # Hallazgo 6: "calling from L.O.F.." se decía con doble punto.
+        text = text.replace("{{COMPANY_SHORT}}.", "{{COMPANY_SHORT}}")
+    return (text
             .replace("{{COMPANY_NAME}}", company_name)
             .replace("{{COMPANY_SHORT}}", company_short)
             .replace("{{DISCLOSURE}}", catalog.disclosure)

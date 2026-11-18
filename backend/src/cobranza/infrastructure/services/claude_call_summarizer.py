@@ -16,7 +16,8 @@ refused, wrong party, failed verification), say so and why.
 
 Never include Social Security numbers, dates of birth, card numbers, or any other data used to \
 verify identity, even if they appear in the transcript. Report only what the transcript shows; \
-do not guess.
+do not guess. Attribute each statement to whoever said it: the debtor, another person who answered, \
+or the agent.
 
 If <identity_verified> is false, write one or two sentences saying only who answered and how the \
 call ended. Do not mention any debt, creditor, amount, or reason for the call.

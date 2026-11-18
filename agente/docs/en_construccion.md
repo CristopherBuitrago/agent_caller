@@ -10,7 +10,6 @@ Lo técnico que falta en este servicio. Lo que espera respuesta de la empresa es
 | **Latencia:** medir el tiempo de cada turno (voz a texto, Claude y texto a voz) y registrarlo para el reporte del piloto | Por hacer | Capa de voz |
 | **Prueba de carga:** unas 20 llamadas simuladas al mismo tiempo, con otra IA haciendo de deudor | Por hacer | Capa de voz o telefonía falsa |
 | **Filtro antes de hablar (opción C del hallazgo 2):** revisar cada respuesta del agente antes de decirla y frenarla si trae palabras prohibidas sin verificación | Para después | La capa de voz (para medir cuánta demora agrega) |
-| **Hallazgos 6 y 7 de las simulaciones con Haiku (2026-11-18):** detalles menores (ver `simulaciones/2026-11-18/informe.md`) | Por decidir, uno a la vez | — |
 | **Ajustes vistos con la API real:** decir los montos en palabras ("four hundred fifty dollars") y no decir "I'm calling from" en las entrantes | Por hacer | — |
 | **Historial sin la fecha de nacimiento** (ver `seguridad.md`) | Por hacer | Antes de usar datos reales |
 | **Llamadas abiertas en memoria:** hoy un solo proceso atiende todas. Con voz, cada llamada correrá en su propia sesión de Pipecat | Por definir con la capa de voz | — |

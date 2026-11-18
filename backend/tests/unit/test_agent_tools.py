@@ -668,3 +668,24 @@ def test_the_agreement_tells_the_debtor_how_payments_work():
     offer, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
     accepted, _ = _run(tools, "record_offer_response", proposal_id=offer["proposal_id"], accepted=True)
     assert "reminder text" in accepted["next_step"] and "end_call" in accepted["next_step"]
+
+
+# --- hallazgo 6: las herramientas que cierran la llamada lo avisan --------------------------------
+
+@pytest.mark.parametrize("tool, args", [
+    ("record_dispute", {"account_ref": "ACC-deb-1"}),
+    ("mark_do_not_call", {}),
+    ("schedule_callback", {"date": "2026-11-20", "time": "18:00"}),
+])
+def test_tools_that_close_the_call_say_not_to_close_it_again(tool, args):
+    tools, _ = _tools()
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    result, _ = _run(tools, tool, **args)
+    assert "do not call end_call" in result["next_step"] and tools.ended
+
+
+def test_how_payments_work_only_promises_the_reminder_for_payments_far_enough_away():
+    tools, _ = _tools()
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    details, _ = _run(tools, "get_account_details")
+    assert "at least three days away" in details["how_payments_work"]

@@ -403,3 +403,11 @@ def test_claude_raises_when_no_model_answers():
     conversation, _ = _conversation(_api_error(), _api_error())
     with pytest.raises(ConversationModelError):
         conversation.send_user_text("hi")
+
+
+def test_the_prompt_never_says_the_short_name_with_a_double_period():
+    """Hallazgo 6 de las simulaciones con Haiku: decía "calling from L.O.F..". """
+    prompt = render_system_prompt("Live Oac Financial", "L.O.F.", CATALOG)
+    assert "L.O.F.." not in prompt and "calling from L.O.F." in prompt
+    without_period = render_system_prompt("Live Oac Financial", "LOF", CATALOG)
+    assert "calling from LOF." in without_period

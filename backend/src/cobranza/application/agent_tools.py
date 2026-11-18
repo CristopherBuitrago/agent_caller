@@ -278,9 +278,10 @@ class _ToolInputError(ValueError):
 # REMINDER_DAYS_BEFORE de la mensajería). El pago con tarjeta por teléfono (Función 6) todavía no
 # existe. Antes del piloto, Vaspian (SMS) y el procesador (link) tienen que estar conectados.
 HOW_PAYMENTS_WORK = (
-    "After the plan is set up, you'll get a text message confirming the amounts and dates. Three days "
-    "before each payment you'll get a reminder text, and on each payment date a text with a secure "
-    "link to pay online. Nobody will call you to take the payment over the phone.")
+    "After the plan is set up, you'll get a text message confirming the amounts and dates. For each "
+    "payment that is at least three days away, you'll get a reminder text three days before, and on each "
+    "payment date a text with a secure link to pay online. Nobody will call you to take the payment over "
+    "the phone.")  # hallazgo 6: con un pago mañana, el aviso de 3 días antes no llega
 
 
 def _describe(logged: LoggedProposal) -> dict[str, Any]:
@@ -542,7 +543,7 @@ class CallTools:
         self.summary = self._uc.record_dispute.execute(self.call_id, account_ref, self._transcript())
         self._mark_ended(CallOutcome.DISPUTE)
         return {"recorded": True, "next_step": "Tell them a representative will review it, thank them "
-                "and say goodbye. Do not ask for any payment."}
+                f"and say goodbye. Do not ask for any payment. {ALREADY_CLOSED}"}
 
     def _tool_get_last_contact(self) -> dict:
         """N13: la fecha real de la última llamada, en la hora local del deudor."""
@@ -583,9 +584,9 @@ class CallTools:
             # Sin verificar (por ejemplo, contestó un familiar): solo la frase fija (hallazgo 2).
             return {"scheduled": True, "callback": local_when.isoformat(), "next_step":
                     f'Say exactly: "Thank you, we\'ll try again on {spoken}. Goodbye." '
-                    f"{NOTHING_BEFORE_VERIFICATION}"}
+                    f"{NOTHING_BEFORE_VERIFICATION} {ALREADY_CLOSED}"}
         return {"scheduled": True, "callback": local_when.isoformat(), "next_step":
-                f'Confirm: "We\'ll call back on {spoken}." Then say goodbye.'}
+                f'Confirm: "We\'ll call back on {spoken}." Then say goodbye. {ALREADY_CLOSED}'}
 
     def _debtor_for_callback(self) -> DebtorSummary | None:
         """Sin verificación: el deudor de la cuenta (saliente) o el primero de ese teléfono (entrante)."""
@@ -599,7 +600,7 @@ class CallTools:
         self._mark_ended(CallOutcome.RECORDING_REFUSED if self._recording_refused
                          else CallOutcome.DO_NOT_CALL)
         return {"recorded": True, "next_step": "Confirm politely that they will not be called "
-                "again and say goodbye."}
+                f"again and say goodbye. {ALREADY_CLOSED}"}
 
     def _tool_transfer_to_human(self, reason: str) -> dict:
         if self._recording_refused:
@@ -640,7 +641,7 @@ class CallTools:
         self._close(call_outcome)
         if call_outcome in _THIRD_PARTY_OUTCOMES:
             return {"ended": True, "next_step": f'Say exactly: "{THIRD_PARTY_GOODBYE}" '
-                    f"{NOTHING_BEFORE_VERIFICATION}"}
+                    f"{NOTHING_BEFORE_VERIFICATION} {ALREADY_CLOSED}"}
         return {"ended": True, "next_step": "Say a short goodbye if you have not already."}
 
     # --- apoyo ---
@@ -738,6 +739,9 @@ NOT_VERIFIED_SENTENCE = "I'm sorry, I wasn't able to verify your identity, so I 
 NOTHING_BEFORE_VERIFICATION = ("Do not mention any account, balance, payment, debt, collection or the "
                                "creditor, not even to say you cannot discuss them.")
 THIRD_PARTY_GOODBYE = "Thank you for your time. Goodbye."
+# Hallazgo 6: estas herramientas ya cierran la llamada; el agente intentaba cerrarla otra vez con end_call
+# y repetía la despedida (o decía "the call has ended").
+ALREADY_CLOSED = "The call is already closed: do not call end_call and do not say that the call has ended."
 
 _VERIFICATION_NEXT_STEP = {
     VerificationOutcome.VERIFIED:
