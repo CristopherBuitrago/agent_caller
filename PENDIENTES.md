@@ -10,7 +10,8 @@ Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `do
 - [x] Hallazgo 2 de las simulaciones: frases fijas antes de verificar y revisión automática en el script (2026-11-18). La opción C (un filtro que revise cada respuesta antes de decirla) queda para cuando esté la capa de voz
 - [x] Hallazgo 3 de las simulaciones: las 5 Hardship Questions en orden y una por una, guiadas por el sistema; campos `hardship_assessments.arrangement_answer` y `questions_answered` (aprobados el 2026-11-18)
 - [x] Hallazgo 4 de las simulaciones: ante la duda, preguntar si habla con el deudor; freno en `end_call` si ya se dio el aviso de grabación; escenario 8 en el script (2026-11-18)
-- [ ] Corregir los hallazgos 5 a 7 de las simulaciones (cómo se paga, detalles menores) y volver a correrlas
+- [x] Hallazgo 5 de las simulaciones: el agente explica cómo se paga con `how_payments_work` (2026-11-18). Condición para el piloto: SMS de Vaspian y link del procesador conectados
+- [ ] Corregir los hallazgos 6 y 7 de las simulaciones (detalles menores) y volver a correrlas
 - [ ] Cuentas de AssemblyAI y Deepgram
 - [ ] Vaspian: documentación y credenciales:
   - audio en vivo (ya se sabe que lo envía);

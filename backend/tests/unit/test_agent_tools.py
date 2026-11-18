@@ -648,3 +648,23 @@ def test_third_party_close_after_the_recording_notice_asks_to_confirm_first(outc
     assert '"Am I speaking with Jane Carter?"' in first["next_step"]
     second, _ = _run(tools, "end_call", outcome=outcome)        # la persona dijo que no es
     assert second["ended"] is True and tools.outcome is CallOutcome(outcome)
+
+
+# --- hallazgo 5: el agente sabe cómo se paga ----------------------------------------------------
+
+def test_account_details_and_offers_explain_how_payments_work():
+    tools, _ = _tools()
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    details, _ = _run(tools, "get_account_details")
+    offer, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
+    for result in (details, offer):
+        assert "secure link to pay online" in result["how_payments_work"]
+        assert "Nobody will call you to take the payment" in result["how_payments_work"]
+
+
+def test_the_agreement_tells_the_debtor_how_payments_work():
+    tools, _ = _tools()
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    offer, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
+    accepted, _ = _run(tools, "record_offer_response", proposal_id=offer["proposal_id"], accepted=True)
+    assert "reminder text" in accepted["next_step"] and "end_call" in accepted["next_step"]

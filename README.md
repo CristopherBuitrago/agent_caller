@@ -113,6 +113,7 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
 - **Menos del 10% (piso del 5%):** solo después de las Hardship Questions y de rechazar todas las ofertas.
 - **Si el deudor dice cuánto puede pagar,** el sistema salta las ofertas con cuotas mayores. Nunca salta la de 3 cuotas ni la última (N4, opción A').
 - **Aceptación:** solo vale un sí claro. Con duda ("I'll try"), el agente pregunta cuánto puede pagar cómodo y pide otra oferta (N7).
+- **Cómo se paga:** si el deudor pregunta, el agente usa el texto `how_payments_work` del sistema: SMS de confirmación, aviso 3 días antes de cada cuota, link seguro el día del pago, y nadie llama para cobrar por teléfono (hallazgo 5; desarrollador, opción A, 2026-11-18). **Condición para el piloto:** Vaspian (SMS) y el procesador (link) conectados; si no, el agente estaría prometiendo algo que no pasa.
 - **Al aceptar:** el acuerdo se crea con la propuesta guardada, nunca con montos que envíe la IA. La cuenta pasa a `PTP`. Solo puede haber un acuerdo activo por cuenta. Una propuesta rechazada no se puede aceptar después (B15).
 
 ### Hardship Questions

@@ -273,6 +273,16 @@ class _ToolInputError(ValueError):
     """El modelo mandó un dato mal formado; se le pide repetirlo."""
 
 
+# Hallazgo 5 de las simulaciones con Haiku (2026-11-18): el agente no sabía cómo se paga y transfería.
+# Describe lo que hace el sistema: SMS de confirmación y link de pago (N1) y aviso 3 días antes (N10,
+# REMINDER_DAYS_BEFORE de la mensajería). El pago con tarjeta por teléfono (Función 6) todavía no
+# existe. Antes del piloto, Vaspian (SMS) y el procesador (link) tienen que estar conectados.
+HOW_PAYMENTS_WORK = (
+    "After the plan is set up, you'll get a text message confirming the amounts and dates. Three days "
+    "before each payment you'll get a reminder text, and on each payment date a text with a secure "
+    "link to pay online. Nobody will call you to take the payment over the phone.")
+
+
 def _describe(logged: LoggedProposal) -> dict[str, Any]:
     proposal = logged.proposal
     if proposal.type is ArrangementType.FULL:
@@ -296,6 +306,7 @@ def _describe(logged: LoggedProposal) -> dict[str, Any]:
              "date": p.due_date.isoformat(), "date_spoken": _spoken_date(p.due_date)}
             for p in proposal.payments
         ],
+        "how_payments_work": HOW_PAYMENTS_WORK,
     }
 
 
@@ -409,6 +420,8 @@ class CallTools:
         collectable = [self._account_view(a) for a in debtor.collectable_accounts]
         others = len(debtor.accounts) - len(collectable)
         result: dict[str, Any] = {"debtor_first_name": debtor.first_name, "accounts": collectable}
+        if collectable:
+            result["how_payments_work"] = HOW_PAYMENTS_WORK   # hallazgo 5: por si pregunta antes de una oferta
         if others:
             result["other_accounts"] = (f"{others} other account(s) must be handled by a "
                                         "representative. Do not give their details.")
@@ -479,9 +492,8 @@ class CallTools:
         logged = self._proposals.get(proposal_id)
         return {"arrangement_id": arrangement_id,
                 **({"payments": _describe(logged)["payments"]} if logged else {}),
-                "next_step": "Repeat the amounts and dates, thank the debtor, and tell them they "
-                "will receive a text message with the payment details, and a secure payment link "
-                "on each payment date. Then call end_call with outcome arrangement_made."}
+                "next_step": "Repeat the amounts and dates, thank the debtor, and tell them in your own "
+                f'words: "{HOW_PAYMENTS_WORK}" Then call end_call with outcome arrangement_made.'}
 
     def _tool_propose_partial_payment(self, account_ref: str, amount_dollars: float,
                                       first_payment_date: str | None = None,
