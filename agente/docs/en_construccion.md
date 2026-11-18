@@ -9,7 +9,7 @@ Lo técnico que falta en este servicio. Lo que espera respuesta de la empresa es
 | **Marcador de salientes:** toma la lista diaria del backend, respeta el horario y tiene un máximo de llamadas simultáneas (por ejemplo, 5 al inicio) | Por hacer; se puede probar con una telefonía falsa | — |
 | **Latencia:** medir el tiempo de cada turno (voz a texto, Claude y texto a voz) y registrarlo para el reporte del piloto | Por hacer | Capa de voz |
 | **Prueba de carga:** unas 20 llamadas simuladas al mismo tiempo, con otra IA haciendo de deudor | Por hacer | Capa de voz o telefonía falsa |
-| **Las 7 simulaciones con Haiku:** el criterio es cero errores en montos, verificación y avisos legales | Pendiente | Créditos de Anthropic (hay USD 5 de prueba) |
+| **Hallazgos de las simulaciones con Haiku (2026-11-18):** frases antes de verificar, Hardship Questions en orden, dudas sobre quién contesta, cómo se paga y detalles menores (ver `simulaciones/2026-11-18/informe.md`) | Por decidir, uno a la vez | — |
 | **Ajustes vistos con la API real:** decir los montos en palabras ("four hundred fifty dollars") y no decir "I'm calling from" en las entrantes | Por hacer | — |
 | **Historial sin la fecha de nacimiento** (ver `seguridad.md`) | Por hacer | Antes de usar datos reales |
 | **Llamadas abiertas en memoria:** hoy un solo proceso atiende todas. Con voz, cada llamada correrá en su propia sesión de Pipecat | Por definir con la capa de voz | — |

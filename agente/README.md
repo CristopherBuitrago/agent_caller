@@ -137,3 +137,4 @@ Para verificarse en el chat como TEST-001: Jane Carter, SSN 1234, nacida el 14 d
 - **[`docs/seguridad.md`](docs/seguridad.md):** qué datos ve el modelo y qué guarda el historial.
 - **[`docs/en_construccion.md`](docs/en_construccion.md):** capa de voz y pendientes de este servicio.
 - **[`docs/separacion.md`](docs/separacion.md):** qué lo ata a este repositorio y cómo separarlo.
+- **[`docs/simulaciones/`](docs/simulaciones/):** simulaciones con Claude (informe y transcripciones). Se corren con `python scripts/simular.py --salida docs/simulaciones/AAAA-MM-DD`.

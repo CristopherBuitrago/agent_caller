@@ -18,6 +18,7 @@ from cobranza.domain.identity import (
     VerificationOutcome,
     attempts_left,
     first_name_changed,
+    is_plausible_verification_input,
     is_valid_ssn_last4,
     names_match,
     only_last_name_differs,
@@ -48,6 +49,9 @@ class VerifyIdentity:
             if state.debtor_id != debtor_id:
                 raise ValueError("La llamada ya verificó a otro deudor")
             return VerificationOutcome.VERIFIED
+        # Datos imposibles (inventados por el modelo): no cuentan como intento ni como nombre dado.
+        if not is_plausible_verification_input(full_name, ssn_last4, dob, self._clock.now().date()):
+            return VerificationOutcome.INVALID_INPUT
         if state.failed_attempts >= MAX_FAILED_ATTEMPTS_PER_CALL:
             return VerificationOutcome.MAX_ATTEMPTS_REACHED
 

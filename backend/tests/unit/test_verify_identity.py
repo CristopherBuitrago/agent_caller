@@ -13,6 +13,7 @@ from cobranza.domain.identity import (
     VerificationOutcome as V,
     attempts_left,
     first_name_changed,
+    is_plausible_verification_input,
     only_last_name_differs,
     names_match,
 )
@@ -111,8 +112,8 @@ def test_malformed_ssn_counts_as_failure():
 
 def test_second_failure_in_call_ends_verification():
     uc, _ = _setup()
-    assert _verify(uc, ssn="0000") is V.FAILED
-    assert _verify(uc, ssn="0000") is V.MAX_ATTEMPTS_REACHED
+    assert _verify(uc, ssn="9999") is V.FAILED
+    assert _verify(uc, ssn="9999") is V.MAX_ATTEMPTS_REACHED
     assert _verify(uc) is V.MAX_ATTEMPTS_REACHED  # ni con los datos correctos
 
 
@@ -133,7 +134,7 @@ def test_five_failures_in_24h_locks_across_calls():
     old = FakeCall(debtor_id="jane", attempts=2, started_at=NOW - timedelta(hours=5))
     older = FakeCall(debtor_id="jane", attempts=2, started_at=NOW - timedelta(hours=20))
     uc, calls = _setup(old=old, older=older)
-    assert _verify(uc, ssn="0000") is V.LOCKED      # 5.º fallo
+    assert _verify(uc, ssn="9999") is V.LOCKED      # 5.º fallo
     calls.calls["c2"] = FakeCall()                  # llama otra vez
     assert _verify(uc, call="c2") is V.LOCKED       # bloqueado aunque ahora acierte
 
@@ -150,7 +151,7 @@ def test_attempts_left_rule(in_call, in_window, expected):
 def test_attempts_left_after_one_failure_is_one():
     uc, _ = _setup()
     assert uc.attempts_left("c1", "jane") == 2
-    assert _verify(uc, ssn="0000") is V.FAILED
+    assert _verify(uc, ssn="9999") is V.FAILED
     assert uc.attempts_left("c1", "jane") == 1
 
 
@@ -163,7 +164,7 @@ def test_failures_older_than_24h_do_not_count():
     ancient = FakeCall(debtor_id="jane", attempts=2, started_at=NOW - timedelta(hours=25))
     ancient2 = FakeCall(debtor_id="jane", attempts=2, started_at=NOW - timedelta(hours=30))
     uc, _ = _setup(a=ancient, b=ancient2)
-    assert _verify(uc, ssn="0000") is V.FAILED
+    assert _verify(uc, ssn="9999") is V.FAILED
 
 
 def test_already_verified_call_stays_verified_for_same_debtor():
@@ -248,3 +249,29 @@ def test_wrong_last_name_with_wrong_data_fails_without_asking_to_spell(ssn, dob)
     uc, calls = _setup()
     assert _verify(uc, name="Jane Karter", ssn=ssn, dob=dob) is V.FAILED
     assert calls.calls["c1"].attempts == 1
+
+
+# --- datos imposibles (simulación con Haiku, 2026-11-18) -----------------------
+
+@pytest.mark.parametrize("name, ssn, dob", [
+    ("pending", "0000", date(1900, 1, 1)),        # lo que mandó Haiku antes de preguntar
+    ("Jane", "1234", date(1985, 3, 14)),          # sin apellido
+    ("Unknown Caller", "1234", date(1985, 3, 14)),
+    ("Jane Carter", "0000", date(1985, 3, 14)),   # el SSN 0000 nunca se emite
+    ("Jane Carter", "1234", date(1900, 1, 1)),    # más de 120 años
+    ("Jane Carter", "1234", date(2027, 1, 1)),    # en el futuro
+])
+def test_impossible_data_is_invalid_input(name, ssn, dob):
+    assert not is_plausible_verification_input(name, ssn, dob, NOW.date())
+
+
+def test_possible_but_wrong_data_is_still_plausible():
+    assert is_plausible_verification_input("Paul Carter", "9999", date(1990, 1, 1), NOW.date())
+
+
+def test_invalid_input_does_not_count_as_an_attempt_and_the_real_data_still_verifies():
+    uc, calls = _setup()
+    assert uc.execute("c1", "jane", "pending", "0000", date(1900, 1, 1)) is V.INVALID_INPUT
+    assert calls.calls["c1"].attempts == 0
+    # El nombre inventado tampoco cuenta como cambio de nombre (S1) si quien llama no lo dio.
+    assert _verify(uc) is V.VERIFIED

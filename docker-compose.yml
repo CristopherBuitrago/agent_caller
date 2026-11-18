@@ -92,6 +92,9 @@ services:
       - ./backend/src:/app/backend/src
       - ./agente/src:/app/agente/src
       - ./agente/tests:/app/agente/tests
+      # Simulaciones con Claude (scripts/simular.py); las transcripciones quedan en docs/simulaciones/.
+      - ./agente/scripts:/app/agente/scripts
+      - ./agente/docs:/app/agente/docs
 
   # Mensajería.
   #   docker compose run --rm messaging python -m cobranza_messaging.infrastructure.run

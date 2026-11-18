@@ -21,7 +21,7 @@ def test_jane_verifies_with_correct_data(use_cases, new_call, debtor_id, pool):
 def test_two_failures_close_the_call(use_cases, new_call, debtor_id):
     call, jane = new_call(), debtor_id("TEST-001")
     verify = use_cases.verify_identity.execute
-    assert verify(call, jane, "Jane Carter", "0000", JANE_DOB) is V.FAILED
+    assert verify(call, jane, "Jane Carter", "9999", JANE_DOB) is V.FAILED
     assert verify(call, jane, "Jane Carter", "1234", date(2000, 1, 1)) is V.MAX_ATTEMPTS_REACHED
 
 
@@ -38,7 +38,7 @@ def test_lockout_after_five_failures_in_24h(use_cases, new_call, debtor_id):
     new_call("TEST-009", failed=2, hours_ago=10)
     grace = debtor_id("TEST-009")  # dob 1995-04-18, SSN 6666
     call = new_call()
-    assert use_cases.verify_identity.execute(call, grace, "Grace Liu", "0000", date(1995, 4, 18)) is V.LOCKED
+    assert use_cases.verify_identity.execute(call, grace, "Grace Liu", "9999", date(1995, 4, 18)) is V.LOCKED
 
 
 def test_old_failures_do_not_lock(use_cases, new_call, debtor_id):

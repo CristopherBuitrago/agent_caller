@@ -90,6 +90,7 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
   - Solo se pide deletrear el apellido si lo único que no coincide es el apellido (S2). Nunca se dice qué dato falló.
   - Si quien llama cambia el nombre de pila entre intentos, la llamada se cierra como `identity_mismatch` (S1).
   - Después de un fallo, `attempts_left` dice cuántos intentos quedan. Si queda 1, el agente avisa que es el último (B8).
+  - Si los datos no los pudo haber dicho una persona (nombre sin apellido o de relleno, SSN 0000, fecha de nacimiento futura o de hace más de 120 años), la herramienta responde `invalid_input` y no cuenta como intento. Viene de la simulación con Haiku, que llamó con datos inventados antes de preguntarlos (desarrollador, opción A, 2026-11-18).
   - Al que no logra verificarse se le da el número de la línea de entrada (`AGENT_CALLBACK_NUMBER`), si está configurado (N12).
 - **Aviso de cobrador:** justo después de verificar: *"This is an attempt to collect a debt... This communication is from a debt collector."* (L6).
 - **Terceros:** solo se les dice "It's a personal matter" o "Legally, I can only share this information with [deudor]". Nunca se deja recado (P3, jefe).

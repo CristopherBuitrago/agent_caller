@@ -3,7 +3,7 @@
 import re
 import unicodedata
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import date, timedelta
 from enum import Enum
 
 MAX_FAILED_ATTEMPTS_PER_CALL = 2
@@ -25,6 +25,30 @@ class VerificationOutcome(Enum):
     # Quien llama cambió de nombre entre intentos (p. ej. "Paul Carter" y luego "Jane Carter"):
     # se cierra la llamada sin revisar los datos, para que no pueda adivinar por tanteo.
     IDENTITY_MISMATCH = "identity_mismatch"
+    # Los datos no los pudo haber dicho una persona (simulación con Haiku, 2026-11-18: el modelo llamó
+    # con "pending", SSN 0000 y nacido en 1900 antes de preguntar). No cuenta como intento: se le pide
+    # al agente que pregunte los datos y no invente.
+    INVALID_INPUT = "invalid_input"
+
+
+# Palabras que un modelo usa de relleno en lugar de un nombre real.
+_PLACEHOLDER_NAME_WORDS = frozenset({"pending", "unknown", "caller", "name", "none", "null", "test",
+                                     "customer", "debtor", "placeholder", "tbd"})
+MAX_PLAUSIBLE_AGE_YEARS = 120
+
+
+def is_plausible_verification_input(full_name: str, ssn_last4: str, dob: date, today: date) -> bool:
+    """Que los datos parezcan dichos por una persona: nombre y apellido sin palabras de relleno, un
+    SSN distinto de 0000 (nunca se emite) y una fecha de nacimiento posible.
+
+    Solo descarta datos imposibles; un dato posible pero equivocado sigue siendo un intento fallido.
+    """
+    tokens = _name_tokens(full_name)
+    if len(tokens) < 2 or any(t in _PLACEHOLDER_NAME_WORDS for t in tokens):
+        return False
+    if ssn_last4.strip() == "0000":
+        return False
+    return dob <= today and today.year - dob.year <= MAX_PLAUSIBLE_AGE_YEARS
 
 
 def attempts_left(failed_in_call: int, failed_in_window: int) -> int:

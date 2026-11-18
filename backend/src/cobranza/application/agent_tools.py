@@ -366,7 +366,9 @@ class CallTools:
         outcome = self._uc.verify_identity.execute(
             self.call_id, debtor.id, full_name, str(ssn_last4).strip(), dob, name_was_spelled,
             tuple(self._names_given))
-        self._names_given.append(full_name)
+        if outcome is not VerificationOutcome.INVALID_INPUT:
+            # Un nombre inventado por el modelo no cuenta para detectar cambios de nombre (S1).
+            self._names_given.append(full_name)
         if outcome is VerificationOutcome.VERIFIED:
             self._debtor = debtor
         elif outcome is VerificationOutcome.IDENTITY_MISMATCH:
@@ -675,6 +677,11 @@ _VERIFICATION_NEXT_STEP = {
         "The call is now closed. Say you could not verify their identity and ask them to call back "
         "with their own information. Do not mention any debt and do not say which item did not "
         "match. Then say goodbye.",
+    VerificationOutcome.INVALID_INPUT:
+        "Those are not details the caller gave. Never guess or use placeholders. Ask the caller for "
+        "their full name, the last four digits of their Social Security number and their date of "
+        "birth, wait for the answer, then call verify_identity with exactly what they said. This did "
+        "not count as an attempt.",
 }
 # B9: tras rechazar una propuesta, si el deudor dio otro monto se arma un parcial con ese monto.
 _DECLINED_NEXT_STEP = ("If the debtor offered a different amount they can pay, call "

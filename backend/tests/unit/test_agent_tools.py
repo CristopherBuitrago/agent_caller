@@ -544,3 +544,14 @@ def test_third_party_outcomes_stay_on_outbound_calls_before_verification(outcome
     tools, _ = _tools(direction=CallDirection.OUTBOUND)
     _run(tools, "end_call", outcome=outcome)
     assert tools.outcome is CallOutcome(outcome)
+
+
+def test_invalid_verification_input_asks_for_the_data_and_does_not_count_the_name():
+    outcomes = iter([VerificationOutcome.INVALID_INPUT, VerificationOutcome.FAILED])
+    tools, uc = _tools()
+    uc.verify_identity._fn = lambda *a: next(outcomes)
+    answer, _ = _run(tools, "verify_identity", full_name="pending", ssn_last4="0000", date_of_birth="1900-01-01")
+    assert answer["outcome"] == "invalid_input"
+    assert "Never guess" in answer["next_step"] and "did not count as an attempt" in answer["next_step"]
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    assert uc.verify_identity.calls[1][-1] == ()   # "pending" no quedó como nombre dado antes
