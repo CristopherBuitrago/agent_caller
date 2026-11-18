@@ -13,6 +13,7 @@ docs/
 | --- | --- |
 | `pendientes_externos.md` y `.pdf` | Lo que falta y no depende del desarrollo: lo urgente, las dudas para el jefe, los proveedores y lo legal |
 | `preguntas_proveedores.md` y `.pdf` | Lo que necesitamos de la empresa y las preguntas para Vaspian, el procesador de pagos, Lariat y los proveedores de IA |
+| `criterios_exito_piloto.md` y `.pdf` | Qué tiene que lograr el piloto para pasar a producción: cumplimiento, funcionamiento técnico y resultados de cobro, más cómo se hace el piloto |
 | `dudas_para_el_jefe.md` | Cada duda con la observación de la que salió y las respuestas del jefe, con fecha. No tiene PDF |
 
 ## `propuesta/`

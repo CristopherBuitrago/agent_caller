@@ -45,6 +45,7 @@ Resumen de lo que se hizo entre el 2026-10-28 y el 2026-11-17, para que cualquie
 | 2026-11-15 | **Proveedores aprobados:** AssemblyAI, Deepgram Aura-2, Pipecat y Vaspian (Telnyx sale). Clave de Anthropic con USD 5 de créditos, probada con la API real. Página web de chat con historial. `wrong_party` y `debtor_unavailable` quedan solo para salientes sin verificar. Documento de pendientes externos |
 | 2026-11-16 | Propuesta en español e inglés (PDF y Word). El agente y la mensajería pasan a carpetas propias. Las herramientas del agente se publican por HTTP con `X-API-Key` |
 | 2026-11-17 | Prueba de contrato entre el agente y el backend. **Respuestas del jefe:** Vaspian envía el audio en vivo; el único código de rebote es `NSF`; la cuenta pagada pasa a `PAID`; todavía no hay número de la línea de entrada. Duda 8 (saldo cuota por cuota). PDF de preguntas para los proveedores. Criterios de éxito del piloto propuestos (sin acordar). Limpieza de los documentos ya entregados |
+| 2026-11-18 | El jefe pidió los criterios de éxito del piloto en un documento aparte: `docs/para_el_jefe/criterios_exito_piloto.md` (valores propuestos, por acordar) |
 
 ## Códigos de las observaciones (2026-11-11)
 

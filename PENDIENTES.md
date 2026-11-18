@@ -46,7 +46,7 @@ En el orden propuesto el 2026-11-17. El detalle técnico de cada uno está en el
   - decir los montos en palabras ("four hundred fifty dollars");
   - no decir "I'm calling from" en las entrantes
 - [ ] Historial de la página web: no guardar la fecha de nacimiento en el texto antes de usar datos reales
-- [ ] Criterios de éxito del piloto: acordarlos con el jefe y, si se aprueba, agregarlos a la propuesta
+- [ ] Criterios de éxito del piloto: documento listo (`docs/para_el_jefe/criterios_exito_piloto.md` y su PDF, 2026-11-18), pedido por el jefe como documento aparte. Falta acordar los valores con él
 
 ## En pausa
 
