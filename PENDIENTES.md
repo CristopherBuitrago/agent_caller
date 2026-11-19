@@ -32,7 +32,8 @@ Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `do
   - 5: el resto de Vaspian;
   - 6: disputas (desbloquea B5);
   - 8: quién actualiza el saldo cuota por cuota;
-  - 9: confirmar el acuerdo con un link por SMS (qué pasa si no confirma; la página y el consentimiento, con el abogado)
+  - 9: confirmar el acuerdo con un link por SMS (qué pasa si no confirma; la página y el consentimiento, con el abogado);
+  - 10: abogado, bancarrota o fallecido (quién revisa y quita el bloqueo, si se transfiere en vivo)
 - [ ] Revisión legal: L7 (deudores vulnerables y SMS), fuente de la grabación obligatoria, y guion y avisos
 - [ ] Confirmar el volumen: ¿800 llamadas diarias?
 - [ ] ¿Las entrantes de deudores en NSF pasan directo al agente? El jefe lo iba a proponer al dueño

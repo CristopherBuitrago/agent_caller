@@ -22,3 +22,4 @@ class CallOutcome(Enum):
     RECORDING_REFUSED = "recording_refused"
     IDENTITY_MISMATCH = "identity_mismatch"
     DEBTOR_UNAVAILABLE = "debtor_unavailable"
+    COLLECTION_HOLD = "collection_hold"

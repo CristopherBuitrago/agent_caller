@@ -12,7 +12,7 @@ from psycopg_pool import ConnectionPool
 
 from cobranza.application.interfaces.call_summarizer import CallSummarizer
 from cobranza.application.use_cases.contact_history import GetLastContact
-from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
+from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordCollectionHold, RecordDispute
 from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
 from cobranza.application.use_cases.negotiate_arrangement import (
     CreateArrangement,
@@ -79,6 +79,7 @@ class UseCases:
     record_hardship_assessment: RecordHardshipAssessment
     record_dispute: RecordDispute
     mark_do_not_call: MarkDoNotCall
+    record_collection_hold: RecordCollectionHold
     list_new_arrangements: ListNewArrangements
     list_payments_due: ListPaymentsDue
     list_payments_due_on: ListPaymentsDueOn
@@ -138,6 +139,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         end_call=end_call,
         record_dispute=RecordDispute(calls, debtors, end_call),
         mark_do_not_call=MarkDoNotCall(calls, debtors, end_call),
+        record_collection_hold=RecordCollectionHold(calls, debtors, end_call, clock),
         list_new_arrangements=ListNewArrangements(schedule),
         list_payments_due=ListPaymentsDue(schedule),
         list_payments_due_on=ListPaymentsDueOn(schedule),

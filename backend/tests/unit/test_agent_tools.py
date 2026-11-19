@@ -83,6 +83,7 @@ def _use_cases(debtors=(None,), verify=VerificationOutcome.VERIFIED, next_offer=
         record_hardship_assessment=Stub(),
         record_dispute=Stub(lambda *a: "summary"),
         mark_do_not_call=Stub(lambda *a: "summary"),
+        record_collection_hold=Stub(lambda *a: "summary"),
         get_last_contact=Stub(last_contact or (lambda *a: None)),
         schedule_callback=Stub(),
     )
@@ -689,3 +690,24 @@ def test_how_payments_work_only_promises_the_reminder_for_payments_far_enough_aw
     _run(tools, "verify_identity", **VERIFY_JANE)
     details, _ = _run(tools, "get_account_details")
     assert "at least three days away" in details["how_payments_work"]
+
+
+# --- prueba de ataque: casos legales ---------------------------------------------------------
+
+@pytest.mark.parametrize("reason, sentence", [
+    ("attorney", "We'll contact your attorney from now on."),
+    ("bankruptcy", "We'll stop collection activity while a representative reviews it."),
+    ("deceased", "I'm sorry for your loss. We'll update our records."),
+])
+def test_a_legal_hold_closes_the_call_with_its_fixed_sentence(reason, sentence):
+    tools, uc = _tools(direction=CallDirection.OUTBOUND)
+    result, is_error = _run(tools, "record_collection_hold", reason=reason, details="details")
+    assert not is_error and sentence in result["next_step"] and "do not call end_call" in result["next_step"]
+    assert tools.ended and tools.outcome is CallOutcome.COLLECTION_HOLD
+    assert uc.record_collection_hold.calls[0][1].value == reason
+
+
+def test_an_unknown_legal_hold_reason_is_rejected():
+    tools, _ = _tools(direction=CallDirection.OUTBOUND)
+    result, is_error = _run(tools, "record_collection_hold", reason="vacation")
+    assert is_error and not tools.ended

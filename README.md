@@ -67,7 +67,7 @@ Cada programa correrá en su propio contenedor y tiene su README técnico, que e
 - Los errores de una herramienta responden 200 con `is_error` y un `next_step`: son instrucciones para el modelo.
 - Las llamadas abiertas viven en memoria del servidor; por ahora alcanza con un solo servidor.
 
-**Herramientas:** `record_recording_consent`, `verify_identity`, `get_account_details`, `propose_offer`, `record_offer_response`, `propose_partial_payment`, `record_hardship_answers`, `record_dispute`, `mark_do_not_call`, `get_last_contact`, `schedule_callback`, `transfer_to_human` y `end_call`. Cada respuesta trae un `next_step`: la instrucción corta de qué hacer después.
+**Herramientas:** `record_recording_consent`, `verify_identity`, `get_account_details`, `propose_offer`, `record_offer_response`, `propose_partial_payment`, `record_hardship_answers`, `record_dispute`, `mark_do_not_call`, `record_collection_hold`, `get_last_contact`, `schedule_callback`, `transfer_to_human` y `end_call`. Cada respuesta trae un `next_step`: la instrucción corta de qué hacer después.
 
 ## Reglas de negocio vigentes
 
@@ -123,9 +123,10 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
 
 ### Disputas, "no llamar" y otros momentos
 - **Disputa:** si el deudor dice que ya pagó, que el banco se equivocó o que la deuda no es suya, el agente pregunta la fecha y el número de confirmación y llama a `record_dispute`. La cuenta queda `is_disputed` y en estado `DISPUTE`, y se deja de cobrar (N11). Los detalles quedan en el resumen; guardarlos en campos propios está en pausa (B5, duda 6).
+- **Abogado, bancarrota o fallecido:** el agente registra un bloqueo (`debtors.collection_hold`) que frena toda la cobranza del deudor (no entra a la lista diaria y el agente no cobra) y cierra la llamada como `collection_hold` con una frase fija. Igual que "no llamar": en salientes vale sin verificar; en entrantes exige verificación (prueba de ataque; desarrollador, opción A, 2026-11-19; lo que sigue después está en la duda 10).
 - **"No llamar":** solo si el deudor lo pide de forma explícita (N13). En salientes vale sin verificar; en entrantes exige verificación.
 - **Queja por las llamadas:** el agente dice la fecha y hora real de la última llamada (`get_last_contact`) y sigue (N13).
-- **Angustia, amenazas o insultos:** el agente mantiene la calma y sigue. Nunca cuelga ni transfiere por eso (N14).
+- **Angustia, amenazas o insultos:** el agente mantiene la calma y sigue. Nunca cuelga ni transfiere por eso (N14); negarse a pagar o insultar no es "nada funciona": primero presenta las ofertas (prueba de ataque, 2026-11-19).
 - **Volver a llamar:** `schedule_callback` guarda el día y la hora que pidió la persona (en el futuro, entre 8 a. m. y 9 p. m. hora del deudor y a menos de 30 días). La lista diaria la llama a esa hora (N9 y B2).
 - **Transferencia:** se guarda el motivo en `calls.transfer_reason`. Si ya había un acuerdo, la llamada queda como `arrangement_made` (B3 y B4).
 - **Resultados de una saliente antes de verificar:** `wrong_party` si el número no es del deudor y `debtor_unavailable` si vive ahí pero no está. Si no aplica ninguno, `callback_requested`.

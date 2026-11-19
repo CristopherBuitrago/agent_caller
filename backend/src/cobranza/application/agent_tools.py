@@ -17,7 +17,7 @@ from typing import Any
 from cobranza.application.interfaces.clock import Clock
 from cobranza.application.interfaces.negotiation_log import LoggedProposal
 from cobranza.application.use_cases.contact_history import GetLastContact
-from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
+from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordCollectionHold, RecordDispute
 from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
 from cobranza.application.use_cases.negotiate_arrangement import (
     ProposeNextOffer,
@@ -40,7 +40,7 @@ from cobranza.domain.arrangement import (
     RuleViolation,
 )
 from cobranza.domain.call import CallbackTimeError, CallDirection, CallOutcome
-from cobranza.domain.debtor import AccountSummary, DebtorSummary
+from cobranza.domain.debtor import AccountSummary, CollectionHold, DebtorSummary
 from cobranza.domain.hardship import (
     HARDSHIP_QUESTION_COUNT,
     HARDSHIP_QUESTIONS,
@@ -91,6 +91,7 @@ class AgentUseCases:
     record_hardship_assessment: RecordHardshipAssessment
     record_dispute: RecordDispute
     mark_do_not_call: MarkDoNotCall
+    record_collection_hold: RecordCollectionHold
     get_last_contact: GetLastContact
     schedule_callback: ScheduleCallback
 
@@ -195,6 +196,14 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
           {"account_ref": _ACCOUNT_REF}, ("account_ref",)),
     _spec("mark_do_not_call",
           "The debtor explicitly asked not to be called again. Saves it and ends the call."),
+    _spec("record_collection_hold",
+          "The law requires stopping collection: the debtor says an attorney is handling this debt, says "
+          "they filed for bankruptcy, or someone says the debtor has died. Records it, stops all collection "
+          "for the debtor and ends the call.",
+          {"reason": {"type": "string", "enum": [h.value for h in CollectionHold]},
+           "details": {"type": "string", "description": "Attorney name and phone, bankruptcy case number, "
+                       "or who reported the death and their relationship to the debtor."}},
+          ("reason",)),
     _spec("get_last_contact",
           "When the verified debtor complains about being called too often, get the date and time "
           "of our last call from the system. Never guess it."),
@@ -602,6 +611,19 @@ class CallTools:
         return {"recorded": True, "next_step": "Confirm politely that they will not be called "
                 f"again and say goodbye. {ALREADY_CLOSED}"}
 
+    def _tool_record_collection_hold(self, reason: str, details: str | None = None) -> dict:
+        """Prueba de ataque (2026-11-19): abogado, bancarrota o fallecido frenan la cobranza."""
+        try:
+            hold = CollectionHold(reason)
+        except ValueError:
+            raise _ToolInputError("reason must be attorney, bankruptcy or deceased") from None
+        self.summary = self._uc.record_collection_hold.execute(self.call_id, hold, details, self._transcript())
+        self._mark_ended(CallOutcome.RECORDING_REFUSED if self._recording_refused
+                         else CallOutcome.COLLECTION_HOLD)
+        say = _COLLECTION_HOLD_SENTENCE[hold]
+        return {"recorded": True, "next_step": f'Say exactly: "{say}" Do not discuss the debt any further. '
+                f"{NOTHING_BEFORE_VERIFICATION if self._debtor is None else ''} {ALREADY_CLOSED}".replace("  ", " ")}
+
     def _tool_transfer_to_human(self, reason: str) -> dict:
         if self._recording_refused:
             raise ValueError("Without recording consent the call can only end as recording_refused")
@@ -739,6 +761,13 @@ NOT_VERIFIED_SENTENCE = "I'm sorry, I wasn't able to verify your identity, so I 
 NOTHING_BEFORE_VERIFICATION = ("Do not mention any account, balance, payment, debt, collection or the "
                                "creditor, not even to say you cannot discuss them.")
 THIRD_PARTY_GOODBYE = "Thank you for your time. Goodbye."
+# Prueba de ataque (2026-11-19): la frase fija al frenar la cobranza por un caso legal.
+_COLLECTION_HOLD_SENTENCE = {
+    CollectionHold.ATTORNEY: "Thank you. We'll contact your attorney from now on. Goodbye.",
+    CollectionHold.BANKRUPTCY: ("Thank you for letting us know. We'll stop collection activity while a "
+                                "representative reviews it. Goodbye."),
+    CollectionHold.DECEASED: "I'm sorry for your loss. We'll update our records. Goodbye.",
+}
 # Hallazgo 6: estas herramientas ya cierran la llamada; el agente intentaba cerrarla otra vez con end_call
 # y repetía la despedida (o decía "the call has ended").
 ALREADY_CLOSED = "The call is already closed: do not call end_call and do not say that the call has ended."

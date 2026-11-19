@@ -61,7 +61,7 @@ src/cobranza/
 ├── application/
 │   ├── interfaces/         puertos: repositorios, reloj, resumen, grabación, teléfonos, hash
 │   ├── use_cases/          un archivo por función (verificar, negociar, registrar llamada...)
-│   └── agent_tools.py      las 13 herramientas del agente: esquemas, next_step y errores
+│   └── agent_tools.py      las 14 herramientas del agente: esquemas, next_step y errores
 ├── infrastructure/
 │   ├── api/app.py          API HTTP de las herramientas
 │   ├── config/container.py arma los casos de uso con sus implementaciones
@@ -96,7 +96,7 @@ db/init/                    001_schema.sql (modelo) y 002_seed_mock.sql (datos s
 
 | Endpoint | Para qué |
 | --- | --- |
-| `GET /api/agent/tools` | Las 13 herramientas con sus campos, el aviso FDCPA y las Hardship Questions |
+| `GET /api/agent/tools` | Las 14 herramientas con sus campos, el aviso FDCPA y las Hardship Questions |
 | `POST /api/agent/calls` | Abre una llamada: entrante con `phone`, saliente con `account` |
 | `POST /api/agent/calls/{call_id}/tools/{nombre}` | Ejecuta una herramienta. Devuelve `result` (con `next_step`), `is_error` y el estado de la llamada |
 | `GET /api/agent/calls/{call_id}` | Estado de la llamada: si terminó, el resultado, el resumen y si se transfirió |
@@ -106,7 +106,7 @@ db/init/                    001_schema.sql (modelo) y 002_seed_mock.sql (datos s
 
 Si una herramienta falla (regla incumplida, dato mal formado, llamada terminada), la respuesta es 200 con `is_error` y un `next_step`: son instrucciones para el modelo, no errores HTTP.
 
-**Herramientas:** `record_recording_consent`, `verify_identity`, `get_account_details`, `propose_offer`, `record_offer_response`, `propose_partial_payment`, `record_hardship_answers`, `record_dispute`, `mark_do_not_call`, `get_last_contact`, `schedule_callback`, `transfer_to_human` y `end_call`.
+**Herramientas:** `record_recording_consent`, `verify_identity`, `get_account_details`, `propose_offer`, `record_offer_response`, `propose_partial_payment`, `record_hardship_answers`, `record_dispute`, `mark_do_not_call`, `record_collection_hold`, `get_last_contact`, `schedule_callback`, `transfer_to_human` y `end_call`.
 
 **Tareas programadas**
 
@@ -121,7 +121,7 @@ Si una herramienta falla (regla incumplida, dato mal formado, llamada terminada)
 
 | Tabla | Qué guarda |
 | --- | --- |
-| `debtors` | La persona. La fecha de nacimiento y los últimos 4 del SSN se guardan solo como HMAC |
+| `debtors` | La persona. La fecha de nacimiento y los últimos 4 del SSN se guardan solo como HMAC. `collection_hold` frena la cobranza por abogado, bancarrota o fallecimiento |
 | `accounts` | Cada deuda: acreedor, saldo, estado, datos del NSF, disputa |
 | `calls` | Cada llamada: dirección, consentimiento, verificación, resultado, resumen, motivo de transferencia y hora pedida para volver a llamar |
 | `payment_arrangements` y `scheduled_payments` | El acuerdo y sus cuotas |

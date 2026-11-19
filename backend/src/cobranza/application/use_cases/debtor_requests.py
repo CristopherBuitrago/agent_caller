@@ -5,7 +5,8 @@ from cobranza.application.interfaces.debtor_repository import DebtorRepository
 from cobranza.application.use_cases.register_call import EndCall
 from cobranza.domain.arrangement import ArrangementRuleError, RuleViolation
 from cobranza.domain.call import CallDirection, CallOutcome
-from cobranza.domain.debtor import ACCOUNT_STATUS_DISPUTE
+from cobranza.application.interfaces.clock import Clock
+from cobranza.domain.debtor import ACCOUNT_STATUS_DISPUTE, CollectionHold
 
 
 class RecordDispute:
@@ -68,4 +69,38 @@ class MarkDoNotCall:
         self._debtors.mark_do_not_call(call.debtor_id)
         # Sin consentimiento de grabación, el único cierre permitido es recording_refused.
         outcome = CallOutcome.RECORDING_REFUSED if call.recording_consent is False else CallOutcome.DO_NOT_CALL
+        return self._end_call.execute(call_id, outcome, transcript)
+
+
+class RecordCollectionHold:
+    """La ley obliga a frenar la cobranza: el deudor tiene abogado, se declaró en bancarrota o falleció.
+
+    Frena todas las cuentas del deudor (no entra a la lista diaria y el agente no cobra) y cierra la
+    llamada como collection_hold. Lo revisa un cobrador; solo una persona quita el bloqueo.
+    Igual que "no llamar": en una saliente vale sin verificar (se llamó al deudor de la cuenta; por
+    ejemplo, contesta un familiar y dice que falleció). En una entrante exige verificación, para que
+    nadie frene la cobranza de otra persona.
+    """
+
+    def __init__(self, calls: CallRepository, debtors: DebtorRepository, end_call: EndCall, clock: Clock):
+        self._calls = calls
+        self._debtors = debtors
+        self._end_call = end_call
+        self._clock = clock
+
+    def execute(self, call_id: str, hold: CollectionHold, details: str | None = None,
+                transcript: str | None = None) -> str | None:
+        """Devuelve el resumen de la llamada."""
+        call = self._calls.get(call_id)
+        if call is None or not call.is_open:
+            raise ValueError(f"Llamada desconocida o cerrada: {call_id}")
+        state = self._calls.get_verification_state(call_id)
+        verified = state is not None and state.identity_verified
+        if call.debtor_id is None or (call.direction is CallDirection.INBOUND and not verified):
+            raise ArrangementRuleError(RuleViolation.IDENTITY_NOT_VERIFIED)
+
+        self._debtors.set_collection_hold(call.debtor_id, hold, (details or "").strip()[:300] or None,
+                                          self._clock.now())
+        outcome = (CallOutcome.RECORDING_REFUSED if call.recording_consent is False
+                   else CallOutcome.COLLECTION_HOLD)
         return self._end_call.execute(call_id, outcome, transcript)

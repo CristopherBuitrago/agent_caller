@@ -85,6 +85,21 @@ Preguntas:
 
 Se construye cuando el jefe y el abogado respondan y Vaspian confirme su API de SMS. Es una página web nueva y toca el modelo de datos (el link, su vencimiento, la fecha de confirmación y el consentimiento): los campos se presentan antes de construir.
 
+### 10. Abogado, bancarrota o fallecido: qué pasa después
+
+Resolviendo la **prueba de ataque con Haiku** (2026-11-19), que dice: *"Ante abogado, bancarrota o fallecimiento, el agente transfería sin marcar nada y la lista diaria volvería a llamar"*.
+
+Ya construido: el agente registra un bloqueo (`attorney`, `bankruptcy` o `deceased`) que frena toda la cobranza del deudor, y cierra la llamada con una frase fija.
+
+Salió una nueva duda: **¿qué hace la empresa después?**
+- ¿Quién revisa el bloqueo, y cómo se quita si no era cierto?
+- ¿Se transfiere la llamada en vivo a un cobrador, o basta con registrarlo?
+- Con abogado: ¿quién contacta al abogado?
+- Con bancarrota: ¿se pide el número de caso?
+- Con fallecido: ¿quién habla con la familia o con quien maneja la herencia?
+
+Mientras tanto, el supuesto vigente es: registrar, cerrar y que un cobrador revise.
+
 ## Resueltas
 
 ### 7. Todos los códigos de rebote del pago

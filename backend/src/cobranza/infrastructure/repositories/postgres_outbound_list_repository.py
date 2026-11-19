@@ -39,6 +39,7 @@ class PostgresOutboundListRepository:
                    WHERE a.status = 'NSF'
                      AND NOT a.is_disputed
                      AND NOT d.do_not_call
+                     AND d.collection_hold IS NULL      -- abogado, bancarrota o fallecido
                      AND d.phone_primary IS NOT NULL
                      AND NOT EXISTS (SELECT 1 FROM payment_arrangements pa
                                      WHERE pa.account_id = a.id AND pa.status = 'active')
