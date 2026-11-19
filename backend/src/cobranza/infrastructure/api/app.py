@@ -212,6 +212,7 @@ def build_api_deps(use_cases, clock: Clock, callback_number: str | None = None) 
             record_hardship_assessment=use_cases.record_hardship_assessment,
             record_dispute=use_cases.record_dispute,
             mark_do_not_call=use_cases.mark_do_not_call,
+            record_collection_hold=use_cases.record_collection_hold,
             get_last_contact=use_cases.get_last_contact,
             schedule_callback=use_cases.schedule_callback,
         ),

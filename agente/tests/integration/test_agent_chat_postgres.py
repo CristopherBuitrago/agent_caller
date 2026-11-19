@@ -67,7 +67,7 @@ def _call_row(pool, call_id):
 def test_prompt_mentions_every_tool_the_backend_publishes(use_cases):
     catalog = _backend(use_cases).catalog()
     prompt = render_system_prompt("Live Oac Financial", "L.O.F.", catalog)
-    assert len(catalog.tools) == 13 and all(t.name in prompt for t in catalog.tools)
+    assert len(catalog.tools) == 14 and all(t.name in prompt for t in catalog.tools)
     assert "{{" not in prompt and catalog.disclosure in prompt
 
 

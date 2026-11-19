@@ -133,3 +133,16 @@ def test_schedule_callback_saves_the_time(use_cases, started_calls, pool):
     with pool.connection() as conn:
         assert conn.execute("SELECT callback_at, callback_note FROM calls WHERE id = %s",
                             (call,)).fetchone() == (local, "back at 6 p.m.")
+
+
+def test_a_legal_hold_keeps_the_debtor_out_of_the_daily_list(use_cases, started_calls, list_date):
+    """Prueba de ataque: el hijo de Jane avisa que falleció; la lista diaria ya no la llama."""
+    from cobranza.domain.debtor import CollectionHold
+
+    call = use_cases.start_call.execute(CallDirection.OUTBOUND, "+13055550001", "ACC-T001")
+    started_calls.append(call)
+    use_cases.record_collection_hold.execute(call, CollectionHold.DECEASED, "Her son, Tom")
+    jane = use_cases.get_debtor_by_account.execute("ACC-T001")
+    assert jane.collection_hold is CollectionHold.DECEASED and jane.collectable_accounts == ()
+    use_cases.build_daily_outbound_list.execute(list_date)
+    assert "ACC-T001" not in _test_accounts(use_cases, list_date)

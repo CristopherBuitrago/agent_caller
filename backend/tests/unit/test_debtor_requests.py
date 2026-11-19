@@ -5,11 +5,11 @@ from datetime import datetime, timezone
 
 import pytest
 
-from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordDispute
+from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordCollectionHold, RecordDispute
 from cobranza.application.use_cases.register_call import EndCall
 from cobranza.domain.arrangement import ArrangementRuleError, RuleViolation as R
 from cobranza.domain.call import CallDirection, CallOutcome, CallRecord
-from cobranza.domain.debtor import AccountSummary, DebtorSummary
+from cobranza.domain.debtor import AccountSummary, CollectionHold, DebtorSummary
 from cobranza.domain.identity import CallVerificationState
 
 NOW = datetime(2026, 11, 4, 15, 0, tzinfo=timezone.utc)
@@ -50,6 +50,7 @@ class FakeDebtors:
     def __init__(self):
         self.disputed = []
         self.do_not_call = []
+        self.holds = []
 
     def get_by_account(self, account_external_id):
         if account_external_id != "ACC-1":
@@ -68,6 +69,9 @@ class FakeDebtors:
     def mark_disputed(self, account_id, status):
         self.disputed.append(account_id)
         self.dispute_status = status
+
+    def set_collection_hold(self, debtor_id, hold, details, at):
+        self.holds.append((debtor_id, hold, details, at))
 
     def mark_do_not_call(self, debtor_id):
         self.do_not_call.append(debtor_id)
@@ -156,3 +160,39 @@ def test_request_after_refusing_the_recording_is_saved_and_closes_as_refused():
     mark.execute("c1")
     assert debtors.do_not_call == ["deb-1"]
     assert calls.closed == (CallOutcome.RECORDING_REFUSED, None)
+
+
+# --- prueba de ataque: abogado, bancarrota o fallecido frenan la cobranza ------------------
+
+def _build_hold(calls=None):
+    calls = calls or FakeCalls()
+    debtors = FakeDebtors()
+    return RecordCollectionHold(calls, debtors, EndCall(calls, FakeSummarizer(), FixedClock()), FixedClock()), \
+        calls, debtors
+
+
+@pytest.mark.parametrize("hold", list(CollectionHold))
+def test_a_legal_hold_is_saved_and_closes_the_call(hold):
+    record, calls, debtors = _build_hold()
+    record.execute("c1", hold, "  Mark Davis, 305 555 0199  ")
+    assert debtors.holds == [("deb-1", hold, "Mark Davis, 305 555 0199", NOW)]
+    assert calls.closed == (CallOutcome.COLLECTION_HOLD, None)
+
+
+def test_a_relative_can_report_the_death_on_an_outbound_call_without_verification():
+    record, _, debtors = _build_hold(FakeCalls(CallDirection.OUTBOUND, verified=False))
+    record.execute("c1", CollectionHold.DECEASED, "Her son, Tom")
+    assert debtors.holds[0][1] is CollectionHold.DECEASED
+
+
+def test_an_inbound_hold_needs_verification():
+    record, calls, debtors = _build_hold(FakeCalls(verified=False))
+    assert _violation(record.execute, "c1", CollectionHold.ATTORNEY) is R.IDENTITY_NOT_VERIFIED
+    assert debtors.holds == [] and calls.closed is None
+
+
+def test_a_held_debtor_cannot_be_collected():
+    debtor = FakeDebtors().get_by_account("ACC-1")
+    assert debtor.collectable_accounts
+    held = replace(debtor, collection_hold=CollectionHold.BANKRUPTCY)
+    assert held.collectable_accounts == ()

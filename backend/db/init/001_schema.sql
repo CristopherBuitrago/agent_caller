@@ -102,7 +102,8 @@ CREATE TABLE calls (
                               'no_answer',
                               'recording_refused',      -- no aceptó la grabación: se cierra sin hablar de la deuda
                               'identity_mismatch',      -- cambió de nombre entre intentos de verificación
-                              'debtor_unavailable'      -- B3: contestó un tercero; el deudor no estaba
+                              'debtor_unavailable',     -- B3: contestó un tercero; el deudor no estaba
+                              'collection_hold'         -- abogado, bancarrota o fallecido: se frena la cobranza
                           )),
     summary               text,                     -- generado por IA al cerrar; nunca incluye SSN ni fecha de nacimiento
     recording_uri         text,                     -- ruta del audio en el almacenamiento
@@ -256,3 +257,11 @@ ALTER TABLE calls ADD COLUMN transfer_reason text;
 ALTER TABLE hardship_assessments ADD COLUMN arrangement_answer text;
 ALTER TABLE hardship_assessments ADD COLUMN questions_answered smallint NOT NULL DEFAULT 0
     CHECK (questions_answered BETWEEN 0 AND 5);
+
+-- Prueba de ataque (aprobado el 2026-11-19): casos en que la ley obliga a frenar la cobranza del
+-- deudor (abogado, bancarrota, fallecido). Frena todas sus cuentas: no entra a la lista diaria y el
+-- agente no cobra. Lo revisa un cobrador; solo una persona quita el bloqueo (duda 10).
+ALTER TABLE debtors ADD COLUMN collection_hold text
+    CHECK (collection_hold IN ('attorney', 'bankruptcy', 'deceased'));
+ALTER TABLE debtors ADD COLUMN collection_hold_details text;   -- abogado y teléfono, número de caso, quién informó
+ALTER TABLE debtors ADD COLUMN collection_hold_at timestamptz;

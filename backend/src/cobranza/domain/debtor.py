@@ -6,6 +6,7 @@ de la verificación de identidad y no salen de la base.
 """
 
 from dataclasses import dataclass, replace
+from enum import Enum
 from datetime import date
 
 # El agente cobra solo NSF (decisión del 2026-11-08). Cualquier otro estado,
@@ -16,6 +17,17 @@ ACCOUNT_STATUS_DISPUTE = "DISPUTE"
 # Duda 1 (jefe, 2026-11-17): al pagarse todas las cuotas la cuenta pasa a este estado, con saldo 0.
 # Falta que confirme el nombre exacto del estado en su sistema; si es otro, se cambia solo aquí.
 ACCOUNT_STATUS_PAID = "PAID"
+
+
+class CollectionHold(Enum):
+    """Prueba de ataque (2026-11-19): casos en que la ley obliga a frenar la cobranza del deudor.
+
+    Se registra en la llamada y frena todas sus cuentas: no entra a la lista diaria y el agente no
+    cobra. Lo revisa un cobrador; solo una persona quita el bloqueo (supuesto, duda 10).
+    """
+    ATTORNEY = "attorney"        # tiene abogado para la deuda: no se habla más con él (FDCPA 1692c)
+    BANKRUPTCY = "bankruptcy"    # se declaró en bancarrota: se suspende la cobranza
+    DECEASED = "deceased"        # falleció: lo maneja una persona con quien lleve la sucesión
 
 
 @dataclass(frozen=True)
@@ -46,13 +58,15 @@ class DebtorSummary:
     timezone_inferred: bool  # True si se dedujo del código de área
     do_not_call: bool
     accounts: tuple[AccountSummary, ...]
+    collection_hold: CollectionHold | None = None
 
     def can_collect(self, account: AccountSummary) -> bool:
-        """El agente cobra solo NSF, sin disputa y sin "no llamar"."""
+        """El agente cobra solo NSF, sin disputa, sin "no llamar" y sin bloqueo legal."""
         return (
             account.status in COLLECTABLE_STATUSES
             and not account.is_disputed
             and not self.do_not_call
+            and self.collection_hold is None
         )
 
     @property

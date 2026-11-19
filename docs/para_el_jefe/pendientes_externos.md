@@ -1,6 +1,6 @@
 # Agente de cobranza NSF: lo que falta y no depende del desarrollo
 
-Actualizado: 2026-11-18. Live Oac Financial.
+Actualizado: 2026-11-19. Live Oac Financial.
 
 **Dónde estamos:** el backend del agente está construido y probado (419 pruebas automáticas). Todas las observaciones del informe de simulaciones y de la prueba del 2026-11-11 quedaron resueltas, salvo una legal (L7). Lo que sigue en este documento son respuestas, datos y accesos que solo puede dar la empresa. Sin ellos el agente no puede pasar del chat de prueba a llamadas reales.
 
@@ -29,6 +29,7 @@ Salieron mientras se resolvían las observaciones. La duda 3 ya quedó resuelta.
 | 7 | Códigos de rebote | La lista de todos los códigos que maneja la empresa (ACH como R02, R03, R08, R10, y los de cheques y tarjetas). Para cada uno: qué significa, qué dice el agente y cuáles se tratan como disputa (por ejemplo, "pago no autorizado") **Jefe (2026-11-17):** la empresa solo maneja el código `NSF` (*Not Sufficient Funds*). Ya aplicado: el agente dice que no había fondos suficientes en la tarjeta o en la cuenta | **Decidida** |
 | 8 | Saldo cuota por cuota | Mientras el deudor va pagando las cuotas, el saldo de la cuenta no baja; solo pasa a 0 al pagarse la última. **¿El saldo lo actualiza nuestro sistema con cada pago, o lo maneja el CRM (Actos Software o Lariat Software) y nosotros solo lo leemos?** **Por qué importa:** Que los reportes y el agente muestren el saldo real si el deudor vuelve a llamar con un acuerdo a medio pagar | **Pendiente** |
 | 9 | Confirmar el acuerdo por SMS | **Propuesta (2026-11-18):** al cerrar el acuerdo, el deudor recibe durante el día un SMS con un link para confirmarlo. Al confirmar, queda prueba escrita del acuerdo y su consentimiento para los SMS de aviso y de pago. **¿Qué pasa si nunca confirma?** ¿Se reenvía el SMS? ¿Lo llama un cobrador o el agente? ¿En cuántos días? **Por qué importa:** Sin consentimiento no se le envían avisos ni links, y el acuerdo probablemente se rompa. También la revisa el abogado (ver L7) | **Pendiente** |
+| 10 | Abogado, bancarrota o fallecido | El agente ya registra un bloqueo que frena toda la cobranza del deudor y cierra la llamada. **¿Quién lo revisa y cómo se quita? ¿Se transfiere en vivo? ¿Quién contacta al abogado o a la familia?** **Por qué importa:** La ley obliga a frenar la cobranza en estos casos; falta el proceso de la empresa después | **Pendiente** |
 
 ## 3. Proveedores
 

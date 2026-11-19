@@ -27,6 +27,8 @@ class CallOutcome(Enum):
     IDENTITY_MISMATCH = "identity_mismatch"
     # B3: contestó un tercero y el deudor no estaba (no es "wrong_party": el número sí es suyo).
     DEBTOR_UNAVAILABLE = "debtor_unavailable"
+    # Prueba de ataque (2026-11-19): abogado, bancarrota o fallecido; se frena la cobranza del deudor.
+    COLLECTION_HOLD = "collection_hold"
 
 
 @dataclass(frozen=True)

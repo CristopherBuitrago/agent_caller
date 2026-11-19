@@ -7,12 +7,13 @@ y en los casos de uso.
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
-from cobranza.domain.debtor import AccountSummary, DebtorSummary
+from cobranza.domain.debtor import AccountSummary, CollectionHold, DebtorSummary
 
 # Columnas explícitas: dob_hmac y ssn_last4_hmac nunca se leen aquí.
 _DEBTOR_WITH_ACCOUNTS_SQL = """
     SELECT d.id AS debtor_id, d.external_id AS debtor_external_id,
            d.first_name, d.last_name, d.phone_primary, d.us_state, d.timezone, d.do_not_call,
+           d.collection_hold,
            a.id AS account_id, a.external_id AS account_external_id,
            a.creditor_name, a.account_number_masked, a.current_balance_cents, a.status,
            a.payment_method, a.nsf_amount_cents, a.nsf_fee_cents, a.nsf_date,
@@ -58,6 +59,14 @@ class PostgresDebtorRepository:
         with self._pool.connection() as conn:
             conn.execute("UPDATE debtors SET do_not_call = true WHERE id = %s", (debtor_id,))
 
+    def set_collection_hold(self, debtor_id: str, hold: CollectionHold, details: str | None, at) -> None:
+        with self._pool.connection() as conn:
+            conn.execute(
+                """UPDATE debtors SET collection_hold = %s, collection_hold_details = %s, collection_hold_at = %s
+                   WHERE id = %s""",
+                (hold.value, details, at, debtor_id),
+            )
+
     def _load_debtors(self, conn, debtor_ids) -> list[DebtorSummary]:
         if not debtor_ids:
             return []
@@ -100,5 +109,6 @@ def _to_debtor(r, accounts: list[AccountSummary]) -> DebtorSummary:
         timezone=r["timezone"],
         timezone_inferred=False,
         do_not_call=r["do_not_call"],
+        collection_hold=CollectionHold(r["collection_hold"]) if r["collection_hold"] else None,
         accounts=tuple(accounts),
     )

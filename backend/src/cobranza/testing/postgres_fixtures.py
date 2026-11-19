@@ -37,15 +37,18 @@ def started_calls(pool):
         accounts = conn.execute(
             "SELECT id, status, is_disputed, current_balance_cents FROM accounts "
             "WHERE external_id LIKE 'ACC-T%'").fetchall()
-        debtors = conn.execute("SELECT id, do_not_call FROM debtors WHERE external_id LIKE 'TEST-%'").fetchall()
+        debtors = conn.execute("SELECT id, do_not_call, collection_hold, collection_hold_details, collection_hold_at "
+                               "FROM debtors WHERE external_id LIKE 'TEST-%'").fetchall()
     yield ids
     with pool.connection() as conn:
         # Los casos de uso cambian estas marcas (y el saldo al pagar todo); se restauran para las demás pruebas.
         for account_id, status, is_disputed, balance in accounts:
             conn.execute("UPDATE accounts SET status = %s, is_disputed = %s, current_balance_cents = %s "
                          "WHERE id = %s", (status, is_disputed, balance, account_id))
-        for debtor_id, do_not_call in debtors:
-            conn.execute("UPDATE debtors SET do_not_call = %s WHERE id = %s", (do_not_call, debtor_id))
+        for debtor_id, do_not_call, hold, hold_details, hold_at in debtors:
+            conn.execute("UPDATE debtors SET do_not_call = %s, collection_hold = %s, collection_hold_details = %s, "
+                         "collection_hold_at = %s WHERE id = %s",
+                         (do_not_call, hold, hold_details, hold_at, debtor_id))
         conn.execute("DELETE FROM hardship_assessments WHERE call_id = ANY(%s::uuid[])", (ids,))
         conn.execute(
             """DELETE FROM payment_results WHERE arrangement_id IN

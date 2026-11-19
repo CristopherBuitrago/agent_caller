@@ -1,6 +1,7 @@
+from datetime import datetime
 from typing import Protocol
 
-from cobranza.domain.debtor import DebtorSummary
+from cobranza.domain.debtor import CollectionHold, DebtorSummary
 
 
 class DebtorRepository(Protocol):
@@ -19,3 +20,8 @@ class DebtorRepository(Protocol):
         ...
 
     def mark_do_not_call(self, debtor_id: str) -> None: ...
+
+    def set_collection_hold(self, debtor_id: str, hold: CollectionHold, details: str | None,
+                            at: datetime) -> None:
+        """Frena la cobranza del deudor por abogado, bancarrota o fallecimiento (prueba de ataque)."""
+        ...
