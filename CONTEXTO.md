@@ -48,6 +48,7 @@ Resumen de lo que se hizo entre el 2026-10-28 y el 2026-11-17, para que cualquie
 | 2026-11-18 | El jefe pidió los criterios de éxito del piloto en un documento aparte: `docs/para_el_jefe/criterios_exito_piloto.md` (valores propuestos, por acordar) |
 | 2026-11-18 | Primeras simulaciones con Haiku 5.5 como agente (otro Claude hizo de deudor): cumplió el nivel 1 salvo detalles. Error grave corregido: Haiku llamó a `verify_identity` con datos inventados; ahora el backend responde `invalid_input` y no cuenta el intento. Informe y transcripciones en `agente/docs/simulaciones/2026-11-18/` |
 | 2026-11-18 | Se corrigieron los hallazgos 2 a 7 de las simulaciones (frases fijas antes de verificar, Hardship Questions en orden con dos campos nuevos, confirmar quién contesta, explicar cómo se paga, detalles menores): todos quedaron cerrados. Propuesta del desarrollador para el jefe y el abogado (duda 9): confirmar el acuerdo con un link por SMS, que además da el consentimiento para los SMS de aviso y de pago |
+| 2026-11-18 | **Jefe:** no da acceso al CRM ni el EER; pide una prueba con una llamada real. Cuentas de prueba de AssemblyAI y Deepgram creadas, con las claves validadas. Pregunta abierta: la empresa usa Azure DevOps (repositorio y despliegues), que no reemplaza a la nube donde corren los contenedores (AWS según lo anotado) |
 
 ## Códigos de las observaciones (2026-11-11)
 

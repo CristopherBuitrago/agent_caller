@@ -1,6 +1,6 @@
 # Agente de voz de cobranza NSF: pendientes
 
-Actualizado: 2026-11-17. Solo lo que falta. Lo hecho está en `CONTEXTO.md` y en el historial de git.
+Actualizado: 2026-11-18. Solo lo que falta. Lo hecho está en `CONTEXTO.md` y en el historial de git.
 
 ## Esperando a la empresa
 
@@ -12,7 +12,7 @@ Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `do
 - [x] Hallazgo 4 de las simulaciones: ante la duda, preguntar si habla con el deudor; freno en `end_call` si ya se dio el aviso de grabación; escenario 8 en el script (2026-11-18)
 - [x] Hallazgo 5 de las simulaciones: el agente explica cómo se paga con `how_payments_work` (2026-11-18). Condición para el piloto: SMS de Vaspian y link del procesador conectados
 - [x] Hallazgos 6 y 7 de las simulaciones: doble punto, cierre doble, aviso de 3 días y quién dijo qué en el resumen (2026-11-18). Todos los hallazgos de las simulaciones con Haiku quedaron corregidos
-- [ ] Cuentas de AssemblyAI y Deepgram y sus claves en el `.env` (`ASSEMBLYAI_API_KEY`, `DEEPGRAM_API_KEY`): sin ellas la capa de voz no se puede escuchar
+- [x] Cuentas de AssemblyAI y Deepgram y sus claves en el `.env` (`ASSEMBLYAI_API_KEY`, `DEEPGRAM_API_KEY`), validadas con la API (2026-11-18). Cuentas de prueba del desarrollador con crédito gratis (USD 50 y USD 200); para producción tienen que ser de la empresa
 - [ ] Propuesta, sección 7: nombre legal y cédula (o NIT) del Desarrollador, y revisión de un abogado (ley aplicable, jurisdicción y propiedad del código frente al empleo actual del Desarrollador)
 - [ ] Vaspian: documentación y credenciales:
   - audio en vivo (ya se sabe que lo envía);
@@ -42,7 +42,8 @@ Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `do
 
 En el orden propuesto el 2026-11-17. El detalle técnico de cada uno está en el `docs/en_construccion.md` de su servicio (`backend/`, `agente/` o `messaging/`):
 
-- [ ] Capa de voz con Pipecat: estructura construida en la rama `capa_de_voz` (2026-11-18). Falta escucharla con las claves y medir la demora por turno (ver `agente/docs/en_construccion.md`)
+- [ ] Capa de voz con Pipecat: estructura construida en la rama `capa_de_voz` (2026-11-18); las claves ya están. **Siguiente paso (2026-11-19):** escucharla en el navegador con el bot corriendo directo en Windows (la base y la API en Podman), lo que esquiva el riesgo 1. Luego medir la demora por turno (ver `agente/docs/en_construccion.md`)
+- [ ] Prueba con una llamada real, pedida por el jefe (2026-11-18) sin acceso al CRM ni al EER. Con un deudor de prueba en la base cuyo teléfono sea el de quien llama, y alguien de la empresa como deudor, que sabe que se graba. Transporte propuesto: un número de prueba en Twilio (Pipecat ya lo soporta) hasta que llegue Vaspian. Falta elegir el transporte
 - [ ] Endpoint para recibir el aviso de pago en la API (llama a `RecordPaymentResult`) y lector de reporte diario, probados con avisos falsos. Al conectarlo, activar `break_overdue_arrangements` (`PAYMENT_RESULTS_CONNECTED=true`)
 - [ ] Marcador de salientes: toma la lista diaria, respeta el horario y tiene un máximo de llamadas simultáneas (por ejemplo, 5 al inicio). Se prueba con una telefonía falsa
 - [ ] Sincronización con el CRM: trae las cuentas NSF y las llamadas de los cobradores (cuentan para la Reg F) y devuelve los resultados. Primero con una fuente falsa (CSV)
