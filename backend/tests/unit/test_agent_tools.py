@@ -711,3 +711,41 @@ def test_an_unknown_legal_hold_reason_is_rejected():
     tools, _ = _tools(direction=CallDirection.OUTBOUND)
     result, is_error = _run(tools, "record_collection_hold", reason="vacation")
     assert is_error and not tools.ended
+
+
+# --- varias deudas: después de un acuerdo, la siguiente cuenta (prueba por celular, 2026-11-19) --
+
+def _debtor_with_two_accounts():
+    from dataclasses import replace
+    debtor = _debtor()
+    second = replace(debtor.accounts[0], id="acc-2", external_id="ACC-2", creditor_name="Brightwater Utilities",
+                     current_balance_cents=20500)
+    return replace(debtor, accounts=debtor.accounts + (second,))
+
+
+def _accept_offer_for(tools, account_ref):
+    offer, _ = _run(tools, "propose_offer", account_ref=account_ref)
+    answer, is_error = _run(tools, "record_offer_response", proposal_id=offer["proposal_id"], accepted=True)
+    assert not is_error
+    return answer
+
+
+def test_after_an_arrangement_the_agent_offers_the_next_debt():
+    tools, _ = _tools(debtors=(_debtor_with_two_accounts(),))
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    first = _accept_offer_for(tools, "ACC-deb-1")
+    assert [a["account_ref"] for a in first["other_accounts"]] == ["ACC-2"]
+    assert "Brightwater Utilities balance of $205.00" in first["next_step"]
+    assert "propose_offer with account_ref ACC-2" in first["next_step"]
+    second = _accept_offer_for(tools, "ACC-2")
+    assert "other_accounts" not in second
+    assert "end_call with outcome arrangement_made" in second["next_step"]
+
+
+def test_with_a_single_debt_the_agent_goes_straight_to_the_goodbye():
+    tools, _ = _tools()
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    answer = _accept_offer_for(tools, "ACC-deb-1")
+    assert "other_accounts" not in answer and "they also have" not in answer["next_step"]

@@ -341,6 +341,7 @@ class CallTools:
         self._names_given: list[str] = []  # nombres que dio quien llama en cada intento de verificación
         self._proposals: dict[str, LoggedProposal] = {}
         self._arrangement_made = False
+        self._arranged_accounts: set[str] = set()   # cuentas con acuerdo en esta llamada
         self._recording_refused = False
         self._recording_notice_given = False  # en salientes, se da cuando la persona confirma ser el deudor
         self._third_party_rechecked = False   # hallazgo 4: ya se le pidió confirmar quién contestó
@@ -500,10 +501,31 @@ class CallTools:
             return {"recorded": True, "next_step": _DECLINED_NEXT_STEP}
         self._arrangement_made = True
         logged = self._proposals.get(proposal_id)
-        return {"arrangement_id": arrangement_id,
-                **({"payments": _describe(logged)["payments"]} if logged else {}),
-                "next_step": "Repeat the amounts and dates, thank the debtor, and tell them in your own "
-                f'words: "{HOW_PAYMENTS_WORK}" Then call end_call with outcome arrangement_made.'}
+        if logged:
+            self._arranged_accounts.add(logged.account_external_id)
+        result = {"arrangement_id": arrangement_id,
+                  **({"payments": _describe(logged)["payments"]} if logged else {})}
+        next_step = ("Repeat the amounts and dates, thank the debtor, and tell them in your own "
+                     f'words: "{HOW_PAYMENTS_WORK}"')
+        pending = self._accounts_without_arrangement()
+        if pending:
+            # Prueba por celular (2026-11-19): con dos deudas, el agente cerraba la primera y colgaba.
+            other = pending[0]
+            result["other_accounts"] = [self._account_view(a) for a in pending]
+            next_step += (f" Then tell them they also have the {other.creditor_name} balance of "
+                          f"{dollars(other.current_balance_cents)} and ask if they would like to take care "
+                          f"of it too. If yes, call propose_offer with account_ref {other.external_id}. "
+                          "If not, call end_call with outcome arrangement_made.")
+        else:
+            next_step += " Then call end_call with outcome arrangement_made."
+        return {**result, "next_step": next_step}
+
+    def _accounts_without_arrangement(self) -> list[AccountSummary]:
+        """Las otras cuentas que el agente puede cobrar y que todavía no tienen acuerdo en esta llamada."""
+        if self._debtor is None:
+            return []
+        return [a for a in self._debtor.collectable_accounts
+                if a.external_id not in self._arranged_accounts]
 
     def _tool_propose_partial_payment(self, account_ref: str, amount_dollars: float,
                                       first_payment_date: str | None = None,

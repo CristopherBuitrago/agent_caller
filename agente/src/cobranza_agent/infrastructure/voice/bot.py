@@ -10,7 +10,7 @@ Uso (con la API del backend corriendo):
 Necesita ANTHROPIC_API_KEY, ASSEMBLYAI_API_KEY, DEEPGRAM_API_KEY, BACKEND_URL y AGENT_API_KEY.
 VOICE_DEMO_PHONE: el teléfono desde el que "llama" el deudor (por defecto, Jane Carter de los datos
 simulados). DEEPGRAM_VOICE: la voz del agente. TURN_SILENCE_SECONDS: silencio que cierra el turno
-(por defecto 3 s).
+(por defecto 1,5 s).
 """
 
 import logging
@@ -39,9 +39,9 @@ log = logging.getLogger(__name__)
 
 DEFAULT_DEMO_PHONE = "+13055550001"      # Jane Carter (TEST-001) en los datos simulados
 DEFAULT_VOICE = "aura-2-helena-en"       # la voz por defecto de Pipecat; se elige en las pruebas
-# Silencio que confirma que el deudor terminó de hablar (prueba por celular, 2026-11-19: con 0,2 s
-# el agente contestaba a pedazos mientras dictaba el SSN). Se cambia con TURN_SILENCE_SECONDS.
-DEFAULT_TURN_SILENCE_SECONDS = 3.0
+# Silencio que confirma que el deudor terminó de hablar. Prueba por celular (2026-11-19): con 0,2 s
+# contestaba a pedazos mientras dictaba el SSN y con 3 s se sentía lento. Se cambia con TURN_SILENCE_SECONDS.
+DEFAULT_TURN_SILENCE_SECONDS = 1.5
 # Mientras el agente habla, hacen falta estas palabras para interrumpirlo ("um" o "yeah" no cortan).
 WORDS_TO_INTERRUPT = 2
 

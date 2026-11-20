@@ -124,7 +124,7 @@ services:
       # Teléfono desde el que "llama" el deudor (por defecto Jane Carter, TEST-001).
       VOICE_DEMO_PHONE: ${VOICE_DEMO_PHONE:-+13055550001}
       # Silencio que confirma que el deudor terminó de hablar.
-      TURN_SILENCE_SECONDS: ${TURN_SILENCE_SECONDS:-3}
+      TURN_SILENCE_SECONDS: ${TURN_SILENCE_SECONDS:-1.5}
       BACKEND_URL: http://api:8001
       AGENT_API_KEY: *agent-key
     depends_on:

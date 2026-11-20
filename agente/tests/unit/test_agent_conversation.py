@@ -315,9 +315,18 @@ def test_system_prompt_has_no_placeholders_left():
     "we can set your first payment for when you'll have the money",     # P9
     "leave `duration_type` empty",                                      # P10
     "in the coming weeks",                                              # P10
+    "Hello, I'm Lucy from L.O.F.",                                      # nombre (2026-11-19)
+    "this is Lucy calling from L.O.F.",
+    "I'm Lucy, a virtual assistant with L.O.F.",                        # si pregunta si es un robot
 ])
 def test_system_prompt_has_the_approved_phrases(phrase):
     assert phrase in _prompt()
+
+
+def test_the_greeting_says_lucy_and_not_virtual_assistant():
+    prompt = _prompt()
+    assert "you're speaking with a virtual assistant" not in prompt
+    assert "this is a virtual assistant calling" not in prompt
 
 
 def test_prompt_says_a_doubtful_yes_does_not_create_the_agreement():       # N7

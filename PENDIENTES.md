@@ -38,12 +38,14 @@ Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `do
 - [ ] Revisión legal: L7 (deudores vulnerables y SMS), fuente de la grabación obligatoria, y guion y avisos
 - [ ] Confirmar el volumen: ¿800 llamadas diarias?
 - [ ] ¿Las entrantes de deudores en NSF pasan directo al agente? El jefe lo iba a proponer al dueño
+- [ ] Duda para el padrastro (prueba de voz, 2026-11-19): con varias deudas, ¿el agente avisa al principio que va a ver una y después la otra ("Let's start with the Summit Health balance, and then we'll look at Brightwater"), o va una por una sin anunciarlo? Hoy va una por una: al cerrar un acuerdo ofrece la siguiente cuenta antes de colgar
+- [ ] Duda para el padrastro: si una cuota cae en fin de semana (en la prueba, el tercer pago quedó para un domingo), ¿se corre al lunes o se deja?
 
 ## Desarrollo que se puede hacer ya
 
 En el orden propuesto el 2026-11-17. El detalle técnico de cada uno está en el `docs/en_construccion.md` de su servicio (`backend/`, `agente/` o `messaging/`):
 
-- [ ] Capa de voz con Pipecat: estructura construida en la rama `capa_de_voz` (2026-11-18); las claves ya están. **Siguiente paso (2026-11-19):** escucharla en el navegador con el bot corriendo directo en Windows (la base y la API en Podman), lo que esquiva el riesgo 1. Luego medir la demora por turno (ver `agente/docs/en_construccion.md`)
+- [ ] Capa de voz con Pipecat (rama `capa_de_voz`): **escuchada y probada desde un celular (2026-11-19)**, con una llamada completa hasta el acuerdo. Ajustes de la prueba: el agente se llama Lucy, 1,5 s de silencio para cerrar el turno, relleno si tarda, y después de un acuerdo ofrece la siguiente deuda. Falta: probar otra vez con estos ajustes, frases cortas para los datos de verificación que faltan o son imposibles (propuesta sin aprobar) y no decir "I'm calling from" en las entrantes (ver `agente/docs/en_construccion.md`)
 - [ ] Prueba con una llamada real, pedida por el jefe (2026-11-18) sin acceso al CRM ni al EER. Con un deudor de prueba en la base cuyo teléfono sea el de quien llama, y alguien de la empresa como deudor, que sabe que se graba. Transporte propuesto: un número de prueba en Twilio (Pipecat ya lo soporta) hasta que llegue Vaspian. Falta elegir el transporte
 - [ ] Endpoint para recibir el aviso de pago en la API (llama a `RecordPaymentResult`) y lector de reporte diario, probados con avisos falsos. Al conectarlo, activar `break_overdue_arrangements` (`PAYMENT_RESULTS_CONNECTED=true`)
 - [ ] Marcador de salientes: toma la lista diaria, respeta el horario y tiene un máximo de llamadas simultáneas (por ejemplo, 5 al inicio). Se prueba con una telefonía falsa
