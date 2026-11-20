@@ -9,7 +9,8 @@ Uso (con la API del backend corriendo):
 
 Necesita ANTHROPIC_API_KEY, ASSEMBLYAI_API_KEY, DEEPGRAM_API_KEY, BACKEND_URL y AGENT_API_KEY.
 VOICE_DEMO_PHONE: el teléfono desde el que "llama" el deudor (por defecto, Jane Carter de los datos
-simulados). DEEPGRAM_VOICE: la voz del agente.
+simulados). DEEPGRAM_VOICE: la voz del agente. TURN_SILENCE_SECONDS: silencio que cierra el turno
+(por defecto 3 s).
 """
 
 import logging
@@ -25,7 +26,10 @@ from pipecat.services.assemblyai.stt import AssemblyAISTTService
 from pipecat.services.deepgram.tts import DeepgramTTSService
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
+from pipecat.turns.user_start.min_words_user_turn_start_strategy import MinWordsUserTurnStartStrategy
+from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import SpeechTimeoutUserTurnStopStrategy
 from pipecat.turns.user_turn_processor import UserTurnProcessor
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 from cobranza_agent.application.call import CallDirection
 from cobranza_agent.infrastructure.container import build_agent
@@ -35,6 +39,19 @@ log = logging.getLogger(__name__)
 
 DEFAULT_DEMO_PHONE = "+13055550001"      # Jane Carter (TEST-001) en los datos simulados
 DEFAULT_VOICE = "aura-2-helena-en"       # la voz por defecto de Pipecat; se elige en las pruebas
+# Silencio que confirma que el deudor terminó de hablar (prueba por celular, 2026-11-19: con 0,2 s
+# el agente contestaba a pedazos mientras dictaba el SSN). Se cambia con TURN_SILENCE_SECONDS.
+DEFAULT_TURN_SILENCE_SECONDS = 3.0
+# Mientras el agente habla, hacen falta estas palabras para interrumpirlo ("um" o "yeah" no cortan).
+WORDS_TO_INTERRUPT = 2
+
+
+def turn_strategies() -> UserTurnStrategies:
+    silence = float(os.environ.get("TURN_SILENCE_SECONDS", DEFAULT_TURN_SILENCE_SECONDS))
+    return UserTurnStrategies(
+        start=[MinWordsUserTurnStartStrategy(min_words=WORDS_TO_INTERRUPT)],
+        stop=[SpeechTimeoutUserTurnStopStrategy(user_speech_timeout=silence)],
+    )
 
 
 def build_pipeline(transport, agent_processor: AgentTurnProcessor) -> Pipeline:
@@ -46,7 +63,7 @@ def build_pipeline(transport, agent_processor: AgentTurnProcessor) -> Pipeline:
         transport.input(),
         VADProcessor(vad_analyzer=SileroVADAnalyzer()),
         stt,
-        UserTurnProcessor(),
+        UserTurnProcessor(user_turn_strategies=turn_strategies()),
         agent_processor,
         tts,
         transport.output(),

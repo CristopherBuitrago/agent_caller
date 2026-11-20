@@ -5,6 +5,7 @@ sale hacia el texto a voz.
 """
 
 import asyncio
+import time
 
 import pytest
 
@@ -19,7 +20,11 @@ from pipecat.tests.utils import run_test  # noqa: E402
 
 from cobranza_agent.application.call import CallOutcome  # noqa: E402
 from cobranza_agent.application.conversation import AgentReply  # noqa: E402
-from cobranza_agent.infrastructure.voice.agent_processor import AgentTurnProcessor  # noqa: E402
+from cobranza_agent.infrastructure.voice.agent_processor import (  # noqa: E402
+    FILLERS,
+    PATIENCE_FILLER,
+    AgentTurnProcessor,
+)
 
 
 class FakeSession:
@@ -27,14 +32,16 @@ class FakeSession:
 
     call_id = "c1"
 
-    def __init__(self, replies):
+    def __init__(self, replies, thinking_seconds=0.0):
         self.replies = list(replies)
+        self.thinking_seconds = thinking_seconds
         self.heard = []
         self.ended = False
         self.hung_up = False
 
     def debtor_says(self, text):
         self.heard.append(text)
+        time.sleep(self.thinking_seconds)
         reply = self.replies.pop(0)
         self.ended = reply.call_ended
         return reply
@@ -44,8 +51,9 @@ class FakeSession:
         self.ended = True
 
 
-def _processor(session, greeting="Thank you for calling L.O.F."):
-    return AgentTurnProcessor(lambda: (session, AgentReply(greeting, False, None)))
+def _processor(session, greeting="Thank you for calling L.O.F.", filler_after=10.0, patience_after=20.0):
+    return AgentTurnProcessor(lambda: (session, AgentReply(greeting, False, None)),
+                              filler_after=filler_after, patience_after=patience_after)
 
 
 def _spoken(frames):
@@ -101,6 +109,62 @@ def test_if_the_connection_ends_mid_call_the_session_hangs_up():
     session = FakeSession([])
     _run(_processor(session), [])               # run_test termina con un EndFrame
     assert session.hung_up
+
+
+# --- relleno y turnos juntos (prueba por celular, 2026-11-19) ---------------------------------
+
+def test_a_quick_answer_has_no_filler():
+    session = FakeSession([AgentReply("Could I have your name?", False, None)], thinking_seconds=0.0)
+    down = _run(_processor(session, filler_after=0.5), [_heard("Hi"), UserStoppedSpeakingFrame()])
+    assert _spoken(down) == ["Thank you for calling L.O.F.", "Could I have your name?"]
+
+
+def test_a_slow_answer_says_a_filler_first():
+    session = FakeSession([AgentReply("Thank you, Mark. You're verified.", False, None)], thinking_seconds=0.3)
+    down = _run(_processor(session, filler_after=0.05), [_heard("Mark Holloway, 5678"),
+                                                         UserStoppedSpeakingFrame()])
+    assert _spoken(down) == ["Thank you for calling L.O.F.", FILLERS[0], "Thank you, Mark. You're verified."]
+
+
+def test_a_very_slow_answer_also_thanks_for_the_patience():
+    session = FakeSession([AgentReply("Here is your balance.", False, None)], thinking_seconds=0.4)
+    down = _run(_processor(session, filler_after=0.05, patience_after=0.2),
+                [_heard("What do I owe?"), UserStoppedSpeakingFrame()])
+    assert _spoken(down)[1:] == [FILLERS[0], PATIENCE_FILLER, "Here is your balance."]
+
+
+def test_fillers_rotate():
+    session = FakeSession([AgentReply("One.", False, None), AgentReply("Two.", False, None)],
+                          thinking_seconds=0.2)
+    processor = _processor(session, filler_after=0.02)
+    down = _run(processor, [_heard("first"), UserStoppedSpeakingFrame()])
+    assert FILLERS[0] in _spoken(down)
+    assert processor._next_filler() == FILLERS[1]
+
+
+def test_turns_that_end_before_the_agent_answers_are_joined():
+    """El deudor termina dos turnos mientras el agente todavía piensa el saludo: va uno solo."""
+    session = FakeSession([AgentReply("Thanks. And your date of birth?", False, None)])
+    slow_greeting = AgentTurnProcessor(
+        lambda: (time.sleep(0.5), (session, AgentReply("Hello.", False, None)))[1],
+        filler_after=10.0, patience_after=20.0)
+    down = _run(slow_greeting, [_heard("My Social Security is 5 7"), UserStoppedSpeakingFrame(),
+                                _heard("8 9"), UserStoppedSpeakingFrame()])
+    assert session.heard == ["My Social Security is 5 7 8 9"]
+    assert _spoken(down) == ["Hello.", "Thanks. And your date of birth?"]
+
+
+def test_turn_strategies_wait_for_silence_and_need_two_words_to_interrupt(monkeypatch):
+    from pipecat.turns.user_start.min_words_user_turn_start_strategy import MinWordsUserTurnStartStrategy
+    from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import SpeechTimeoutUserTurnStopStrategy
+
+    from cobranza_agent.infrastructure.voice.bot import turn_strategies
+
+    monkeypatch.setenv("TURN_SILENCE_SECONDS", "2.5")
+    strategies = turn_strategies()
+    (start,), (stop,) = strategies.start, strategies.stop
+    assert isinstance(start, MinWordsUserTurnStartStrategy) and start._min_words == 2
+    assert isinstance(stop, SpeechTimeoutUserTurnStopStrategy) and stop._user_speech_timeout == 2.5
 
 
 def test_the_echo_returns_the_microphone_audio_as_output():

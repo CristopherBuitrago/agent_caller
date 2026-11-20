@@ -1,0 +1,10 @@
+# HTTPS delante del bot de voz para probarlo desde un celular en la red local (ver docker-compose.yml).
+# Al entrar por IP el navegador no envía SNI: default_sni le dice a Caddy qué certificado usar.
+{
+	default_sni {$LAN_IP}
+}
+
+https://{$LAN_IP}:8443 {
+	tls internal
+	reverse_proxy voz:7860
+}

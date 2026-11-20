@@ -121,6 +121,10 @@ services:
       ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY:-}
       DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
       DEEPGRAM_VOICE: ${DEEPGRAM_VOICE:-aura-2-helena-en}
+      # Teléfono desde el que "llama" el deudor (por defecto Jane Carter, TEST-001).
+      VOICE_DEMO_PHONE: ${VOICE_DEMO_PHONE:-+13055550001}
+      # Silencio que confirma que el deudor terminó de hablar.
+      TURN_SILENCE_SECONDS: ${TURN_SILENCE_SECONDS:-3}
       BACKEND_URL: http://api:8001
       AGENT_API_KEY: *agent-key
     depends_on:
@@ -130,6 +134,23 @@ services:
       - "7860:7860"
     volumes:
       - ./agente/src:/app/agente/src
+
+  # HTTPS delante del bot de voz, para probarlo desde un celular en la red local: el navegador solo
+  # da el micrófono con HTTPS. Certificado propio (el celular avisa; hay que aceptar).
+  #   LAN_IP=192.168.x.x docker compose --profile voz up voz voz-https  ->  https://LAN_IP:8443/client/
+  voz-https:
+    image: caddy:2
+    profiles: ["voz"]
+    environment:
+      LAN_IP: ${LAN_IP:-localhost}
+    volumes:
+      - ./agente/voice_https/Caddyfile:/etc/caddy/Caddyfile:ro
+      # El certificado se guarda: si cambia, el celular que ya lo aceptó falla con "Failed to fetch".
+      - caddy-data:/data
+    ports:
+      - "8443:8443"
+    depends_on:
+      - voz
 
   # Página web del chat de prueba (demo): docker compose up web  ->  http://localhost:8000
   web:
@@ -155,3 +176,4 @@ volumes:
   cobranza-data:
     # Mismo volumen que cuando el compose estaba en backend/: se conservan los datos.
     name: backend_cobranza-data
+  caddy-data:

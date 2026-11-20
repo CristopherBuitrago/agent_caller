@@ -12,7 +12,12 @@ Mensajes de Pipecat que usa:
 - EndFrame / CancelFrame: la llamada terminó o se cortó la conexión.
 
 Abrir la llamada, cada turno y colgar van a una fila y se hacen en el orden en que llegan: la
-conversación es una sola y el backend no admite dos turnos a la vez.
+conversación es una sola y el backend no admite dos turnos a la vez. Si el deudor termina otro turno
+mientras el agente todavía no contesta el anterior, los dos se juntan en uno (no se apilan respuestas).
+
+Relleno (pedido en la prueba por celular, 2026-11-19): si la respuesta no está lista en
+FILLER_AFTER_SECONDS, el agente dice una frase corta ("One moment, please.") para no dejar silencio;
+si pasa de PATIENCE_AFTER_SECONDS, una segunda. El relleno no entra a la conversación del modelo.
 """
 
 import asyncio
@@ -41,14 +46,26 @@ Job = Callable[[], Awaitable[None]]
 # Al terminar el turno, se esperan pedazos de transcripción que lleguen un poco tarde. Es parte de la
 # demora de cada turno: se mide en el piloto (meta: 1,5 s o menos por turno).
 TRANSCRIPT_GRACE_SECONDS = 0.25
+# Relleno mientras el agente piensa. En la prueba, los turnos sin herramientas tardaron ~1,1 s y los
+# que verifican o buscan la cuenta, ~2,8 s.
+FILLER_AFTER_SECONDS = 1.0
+PATIENCE_AFTER_SECONDS = 4.0
+FILLERS = ("Let me check our records, please.", "One moment, please.", "Okay...")
+PATIENCE_FILLER = "Thanks for your patience, I'm almost done."
 
 
 class AgentTurnProcessor(FrameProcessor):
     def __init__(self, start_call: StartCall, on_turn_latency: Callable[[float], None] | None = None,
-                 **kwargs):
+                 filler_after: float = FILLER_AFTER_SECONDS,
+                 patience_after: float = PATIENCE_AFTER_SECONDS, **kwargs):
         super().__init__(**kwargs)
         self._start_call = start_call
         self._on_turn_latency = on_turn_latency
+        self._filler_after = filler_after
+        self._patience_after = patience_after
+        self._fillers_said = 0
+        self._waiting: list[str] = []        # turnos terminados que el agente todavía no contesta
+        self._waiting_since = 0.0
         self._session: AgentSession | None = None
         self._heard: list[str] = []
         self._turn_finished = False
@@ -122,19 +139,45 @@ class AgentTurnProcessor(FrameProcessor):
     async def _close_turn(self) -> None:
         await asyncio.sleep(TRANSCRIPT_GRACE_SECONDS)
         text = " ".join(self._heard)
-        finished_at = self._turn_finished_at
+        if not self._waiting:
+            # Un solo turno en la fila: lo que el deudor diga antes de que se conteste se le suma.
+            self._waiting_since = self._turn_finished_at
+            self._enqueue(self._answer_waiting)
+        self._waiting.append(text)
         self._heard, self._turn_finished, self._grace = [], False, None
-        self._enqueue(lambda: self._answer(text, finished_at))
+
+    async def _answer_waiting(self) -> None:
+        text, turn_finished_at = " ".join(self._waiting), self._waiting_since
+        self._waiting = []
+        await self._answer(text, turn_finished_at)
 
     async def _answer(self, text: str, turn_finished_at: float) -> None:
         if self._session is None or self._session.ended:
             return
-        reply = await asyncio.to_thread(self._session.debtor_says, text)
+        thinking = asyncio.ensure_future(asyncio.to_thread(self._session.debtor_says, text))
+        reply = await self._while_thinking(thinking)
         latency = time.monotonic() - turn_finished_at
         log.info("Turno del agente en %.2f s (sin contar el texto a voz)", latency)
         if self._on_turn_latency:
             self._on_turn_latency(latency)
         await self._say(reply)
+
+    async def _while_thinking(self, thinking: asyncio.Future) -> AgentReply:
+        """Espera la respuesta; si tarda, dice un relleno para no dejar silencio."""
+        started = time.monotonic()
+        plan = ((self._filler_after, self._next_filler), (self._patience_after, lambda: PATIENCE_FILLER))
+        for after, phrase in plan:
+            await asyncio.wait({thinking}, timeout=max(0.0, after - (time.monotonic() - started)))
+            if thinking.done():
+                break
+            await self.push_frame(TTSSpeakFrame(phrase()))
+        return await thinking
+
+    def _next_filler(self) -> str:
+        """Los rellenos rotan para que no repita siempre el mismo."""
+        phrase = FILLERS[self._fillers_said % len(FILLERS)]
+        self._fillers_said += 1
+        return phrase
 
     async def _say(self, reply: AgentReply) -> None:
         if reply.text:
