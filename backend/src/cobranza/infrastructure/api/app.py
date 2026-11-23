@@ -55,6 +55,8 @@ class ApiDeps:
     attach_transcript: AttachTranscript
     clock: Clock
     callback_number: str | None = None
+    # Demo en el navegador: la entrante busca al deudor por el nombre dicho (DEMO_LOOKUP_BY_NAME).
+    lookup_by_name: bool = False
 
 
 class OpenCallRequest(BaseModel):
@@ -150,7 +152,7 @@ def create_app(deps: Callable[[], ApiDeps], api_key: str, lifespan=None) -> Fast
         tools = CallTools(d.tools_use_cases, call_id, direction, phone,
                           body.account if direction is CallDirection.OUTBOUND else None,
                           transcript=lambda: holder["call"].transcript, clock=d.clock,
-                          callback_number=d.callback_number)
+                          callback_number=d.callback_number, lookup_by_name=d.lookup_by_name)
         holder["call"] = call = _ApiCall(tools)
         with calls_lock:
             calls[call_id] = call
@@ -197,7 +199,8 @@ def create_app(deps: Callable[[], ApiDeps], api_key: str, lifespan=None) -> Fast
     return app
 
 
-def build_api_deps(use_cases, clock: Clock, callback_number: str | None = None) -> ApiDeps:
+def build_api_deps(use_cases, clock: Clock, callback_number: str | None = None,
+                   lookup_by_name: bool = False) -> ApiDeps:
     """Arma las dependencias de la API con los casos de uso del contenedor del núcleo."""
     return ApiDeps(
         tools_use_cases=AgentUseCases(
@@ -215,11 +218,14 @@ def build_api_deps(use_cases, clock: Clock, callback_number: str | None = None) 
             record_collection_hold=use_cases.record_collection_hold,
             get_last_contact=use_cases.get_last_contact,
             schedule_callback=use_cases.schedule_callback,
+            find_debtors_by_name=use_cases.find_debtors_by_name,
+            get_debtor_by_id=use_cases.get_debtor_by_id,
         ),
         start_call=use_cases.start_call,
         attach_transcript=use_cases.attach_transcript,
         clock=clock,
         callback_number=callback_number,
+        lookup_by_name=lookup_by_name,
     )
 
 
@@ -237,7 +243,8 @@ def production_app() -> FastAPI:
         with ConnectionPool(os.environ["DATABASE_URL"], min_size=1, max_size=4) as pool:
             state["deps"] = build_api_deps(
                 build_use_cases(pool, os.environ["PII_HMAC_KEY"]), SystemClock(),
-                os.environ.get("AGENT_CALLBACK_NUMBER") or None)
+                os.environ.get("AGENT_CALLBACK_NUMBER") or None,
+                os.environ.get("DEMO_LOOKUP_BY_NAME", "").lower() == "true")
             yield
 
     return create_app(lambda: state["deps"], os.environ.get("AGENT_API_KEY", ""), lifespan)

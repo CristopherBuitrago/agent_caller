@@ -110,8 +110,9 @@ def test_malformed_ssn_counts_as_failure():
     assert calls.calls["c1"].attempts == 1
 
 
-def test_second_failure_in_call_ends_verification():
+def test_third_failure_in_call_ends_verification():
     uc, _ = _setup()
+    assert _verify(uc, ssn="9999") is V.FAILED
     assert _verify(uc, ssn="9999") is V.FAILED
     assert _verify(uc, ssn="9999") is V.MAX_ATTEMPTS_REACHED
     assert _verify(uc) is V.MAX_ATTEMPTS_REACHED  # ni con los datos correctos
@@ -140,7 +141,7 @@ def test_five_failures_in_24h_locks_across_calls():
 
 
 @pytest.mark.parametrize("in_call, in_window, expected", [
-    (0, 0, 2), (1, 1, 1), (2, 2, 0),   # límite por llamada
+    (0, 0, 3), (1, 1, 2), (2, 2, 1), (3, 3, 0),   # límite por llamada
     (0, 4, 1), (1, 4, 1), (0, 5, 0),   # límite de 24 horas
     (3, 9, 0),                          # nunca negativo
 ])
@@ -148,8 +149,10 @@ def test_attempts_left_rule(in_call, in_window, expected):
     assert attempts_left(in_call, in_window) == expected
 
 
-def test_attempts_left_after_one_failure_is_one():
+def test_attempts_left_go_down_with_each_failure():
     uc, _ = _setup()
+    assert uc.attempts_left("c1", "jane") == 3
+    assert _verify(uc, ssn="9999") is V.FAILED
     assert uc.attempts_left("c1", "jane") == 2
     assert _verify(uc, ssn="9999") is V.FAILED
     assert uc.attempts_left("c1", "jane") == 1
@@ -275,3 +278,24 @@ def test_invalid_input_does_not_count_as_an_attempt_and_the_real_data_still_veri
     assert calls.calls["c1"].attempts == 0
     # El nombre inventado tampoco cuenta como cambio de nombre (S1) si quien llama no lo dio.
     assert _verify(uc) is V.VERIFIED
+
+
+@pytest.mark.parametrize("spoken, first, last", [
+    ("Anna Reyes", "Ana", "Reyes"), ("Phillip Moore", "Philip", "Moore"), ("Ana Reyyes", "Ana", "Reyes"),
+])
+def test_names_ignore_double_letters_from_the_transcription(spoken, first, last):
+    """Prueba de voz (2026-11-22): AssemblyAI escribió "Anna" y en la base está "Ana"."""
+    from cobranza.domain.identity import first_name_changed, names_match
+    assert names_match(spoken, first, last)
+    assert not first_name_changed("Ana Reyes", "Anna Reyes")
+
+
+def test_different_names_still_do_not_match():
+    from cobranza.domain.identity import names_match
+    assert not names_match("Luis Reyes", "Ana", "Reyes") and not names_match("Ann Reyes", "Ana", "Reyes")
+
+
+def test_mismatched_items_say_which_data_did_not_match():
+    uc, _ = _setup()
+    assert uc.mismatched_items("jane", "Jane Carter", "1234", date(2000, 1, 1)) == ["date_of_birth"]
+    assert uc.mismatched_items("jane", "Jane Carter", "9999", date(2000, 1, 1)) == ["ssn_last4", "date_of_birth"]

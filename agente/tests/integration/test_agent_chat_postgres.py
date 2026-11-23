@@ -67,7 +67,7 @@ def _call_row(pool, call_id):
 def test_prompt_mentions_every_tool_the_backend_publishes(use_cases):
     catalog = _backend(use_cases).catalog()
     prompt = render_system_prompt("Live Oac Financial", "L.O.F.", catalog)
-    assert len(catalog.tools) == 14 and all(t.name in prompt for t in catalog.tools)
+    assert len(catalog.tools) == 15 and all(t.name in prompt for t in catalog.tools)
     assert "{{" not in prompt and catalog.disclosure in prompt
 
 
@@ -142,12 +142,15 @@ def test_refused_recording_ends_without_discussing_the_debt(use_cases, started_c
     model = GuionModel(
         say("Hi, this call is recorded. Is that okay?"),
         say("", ("record_recording_consent", {"accepted": False})),
+        say("I understand. Recording is a requirement for every call. May we continue?"),
+        say("", ("record_recording_consent", {"accepted": False})),
         say("", ("end_call", {"outcome": "recording_refused"})),
         say("I understand. Goodbye."),
     )
     session, _ = _agent(use_cases, model).execute(CallDirection.INBOUND, "+13055550001")
     started_calls.append(session.call_id)
-    reply = session.debtor_says("No, I don't want to be recorded")
+    assert not session.debtor_says("No, I don't want to be recorded").call_ended
+    reply = session.debtor_says("No, I still don't want it")
     assert reply.call_ended and reply.outcome is CallOutcome.RECORDING_REFUSED
     assert _call_row(pool, session.call_id)[0] == "recording_refused"
 

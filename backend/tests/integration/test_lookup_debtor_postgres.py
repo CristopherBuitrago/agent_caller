@@ -87,3 +87,17 @@ def test_get_by_account_returns_owner_with_all_accounts(get_by_account):
 
 def test_get_by_unknown_account_returns_none(get_by_account):
     assert get_by_account("ACC-DOES-NOT-EXIST") is None
+
+
+def test_demo_lookup_by_name_puts_the_exact_match_first(use_cases):
+    found = use_cases.find_debtors_by_name.execute("ana reyes")
+    assert found[0].external_id == "TEST-007"
+    assert "TEST-008" in [d.external_id for d in found]       # Luis Reyes comparte el apellido
+
+
+def test_demo_lookup_by_name_finds_nobody_for_an_unknown_name(use_cases):
+    assert use_cases.find_debtors_by_name.execute("Nobody Atall") == []
+
+
+def test_demo_lookup_by_name_tolerates_double_letters(use_cases):
+    assert use_cases.find_debtors_by_name.execute("Anna Reyes")[0].external_id == "TEST-007"

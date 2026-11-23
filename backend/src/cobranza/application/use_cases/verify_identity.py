@@ -94,6 +94,45 @@ class VerifyIdentity:
             return VerificationOutcome.MAX_ATTEMPTS_REACHED
         return VerificationOutcome.FAILED
 
+    def identity_matches(self, debtor_id: str, ssn_last4: str, dob: date) -> bool:
+        """Si los últimos 4 del SSN y la fecha son los de ese deudor (sin registrar intento).
+
+        Flujo pedido por el usuario (2026-11-22): primero SSN y fecha; con eso el agente pregunta
+        "Am I speaking with [nombre]?" y la verificación se registra al confirmar el nombre.
+        """
+        identity = self._identities.get_identity(debtor_id)
+        return identity is not None and self._data_matches(identity, ssn_last4, dob)
+
+    def debtor_ids_with_identity(self, ssn_last4: str, dob: date) -> list[str]:
+        """Solo demos sin teléfono: los deudores que tienen esos últimos 4 del SSN y esa fecha."""
+        if not is_valid_ssn_last4(ssn_last4):
+            return []
+        return self._identities.find_debtor_ids(self._hasher.hash(ssn_last4), self._hasher.hash(dob.isoformat()))
+
+    def _data_matches(self, identity, ssn_last4: str, dob: date) -> bool:
+        return (is_valid_ssn_last4(ssn_last4)
+                and hmac.compare_digest(self._hasher.hash(ssn_last4), identity.ssn_last4_hash)
+                and hmac.compare_digest(self._hasher.hash(dob.isoformat()), identity.dob_hash))
+
+    def mismatched_items(self, debtor_id: str, full_name: str, ssn_last4: str, dob: date) -> list[str]:
+        """Qué datos no coinciden ("full_name", "ssn_last4", "date_of_birth"), sin registrar intento.
+
+        Antes del último intento el agente pregunta solo por esos datos (decisión del usuario,
+        2026-11-22: repetir los tres molestaba al deudor). Esto le dice a quien llama qué dato falló.
+        """
+        identity = self._identities.get_identity(debtor_id)
+        if identity is None:
+            return []
+        items = []
+        if not names_match(full_name, identity.first_name, identity.last_name):
+            items.append("full_name")
+        if not (is_valid_ssn_last4(ssn_last4)
+                and hmac.compare_digest(self._hasher.hash(ssn_last4), identity.ssn_last4_hash)):
+            items.append("ssn_last4")
+        if not hmac.compare_digest(self._hasher.hash(dob.isoformat()), identity.dob_hash):
+            items.append("date_of_birth")
+        return items
+
     def attempts_left(self, call_id: str, debtor_id: str) -> int:
         """Cuántos intentos de verificación le quedan en esta llamada (B8).
 

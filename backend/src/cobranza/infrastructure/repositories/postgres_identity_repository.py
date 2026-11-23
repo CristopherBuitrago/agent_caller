@@ -23,3 +23,11 @@ class PostgresIdentityRepository:
             debtor_id=str(row[0]), first_name=row[1], last_name=row[2],
             dob_hash=bytes(row[3]), ssn_last4_hash=bytes(row[4]),
         )
+
+    def find_debtor_ids(self, ssn_last4_hash: bytes, dob_hash: bytes) -> list[str]:
+        with self._pool.connection() as conn:
+            rows = conn.execute(
+                "SELECT id FROM debtors WHERE ssn_last4_hmac = %s AND dob_hmac = %s",
+                (ssn_last4_hash, dob_hash),
+            ).fetchall()
+        return [str(r[0]) for r in rows]

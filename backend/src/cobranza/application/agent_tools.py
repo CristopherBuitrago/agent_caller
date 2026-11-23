@@ -18,7 +18,12 @@ from cobranza.application.interfaces.clock import Clock
 from cobranza.application.interfaces.negotiation_log import LoggedProposal
 from cobranza.application.use_cases.contact_history import GetLastContact
 from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordCollectionHold, RecordDispute
-from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
+from cobranza.application.use_cases.lookup_debtor import (
+    FindDebtorsByName,
+    FindDebtorsByPhone,
+    GetDebtorByAccount,
+    GetDebtorById,
+)
 from cobranza.application.use_cases.negotiate_arrangement import (
     ProposeNextOffer,
     ProposePartialPayment,
@@ -94,6 +99,10 @@ class AgentUseCases:
     record_collection_hold: RecordCollectionHold
     get_last_contact: GetLastContact
     schedule_callback: ScheduleCallback
+    # Solo demos en el navegador (sin teléfono): buscar al deudor de una entrante por el nombre dicho.
+    find_debtors_by_name: FindDebtorsByName | None = None
+    # Solo demos: el deudor encontrado por SSN y fecha, sin teléfono.
+    get_debtor_by_id: GetDebtorById | None = None
 
 
 # --- definición de las herramientas (lo que ve el modelo) ---------------------------------
@@ -141,14 +150,19 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
           "that it is required.",
           {"accepted": {"type": "boolean"}}, ("accepted",)),
     _spec("verify_identity",
-          "Verify the caller with full name, last 4 digits of the SSN and date of birth. "
-          "Call it once you have all three.",
-          {"full_name": {"type": "string"},
-           "ssn_last4": {"type": "string", "description": "Exactly 4 digits."},
+          "Verify the caller with the last 4 digits of the SSN and the date of birth. Call it once you "
+          "have both. Add full_name only if the caller gave their name (for example, after saying "
+          "no to the name confirmation).",
+          {"ssn_last4": {"type": "string", "description": "Exactly 4 digits."},
            "date_of_birth": _DATE,
+           "full_name": {"type": "string", "description": "Optional. Only if the caller said it."},
            "name_was_spelled": {"type": "boolean",
                                 "description": "True if the caller already spelled the last name."}},
-          ("full_name", "ssn_last4", "date_of_birth")),
+          ("ssn_last4", "date_of_birth")),
+    _spec("confirm_identity",
+          "After verify_identity returns confirm_name and you asked \"Am I speaking with [name]?\": "
+          "confirmed true if they clearly said yes, false if they said no.",
+          {"confirmed": {"type": "boolean"}}, ("confirmed",)),
     _spec("get_account_details",
           "Get the verified debtor's accounts: creditor, balance and the returned payment."),
     _spec("propose_offer",
@@ -293,6 +307,11 @@ HOW_PAYMENTS_WORK = (
     "the phone.")  # hallazgo 6: con un pago mañana, el aviso de 3 días antes no llega
 
 
+def _in_collection_order(accounts) -> list[AccountSummary]:
+    """Primero el pago rebotado más antiguo (supuesto del 2026-11-20); las cuentas sin fecha, al final."""
+    return sorted(accounts, key=lambda a: (a.nsf_date is None, a.nsf_date or date.max))
+
+
 def _describe(logged: LoggedProposal) -> dict[str, Any]:
     proposal = logged.proposal
     if proposal.type is ArrangementType.FULL:
@@ -328,8 +347,9 @@ class CallTools:
     def __init__(self, uc: AgentUseCases, call_id: str, direction: CallDirection,
                  caller_phone: str, outbound_account: str | None,
                  transcript: Callable[[], str], clock: Clock | None = None,
-                 callback_number: str | None = None):
+                 callback_number: str | None = None, lookup_by_name: bool = False):
         self._uc = uc
+        self._lookup_by_name = lookup_by_name   # demo: entrante sin teléfono conocido
         self._clock = clock
         self._callback_number = callback_number  # N12: línea de entrada que atiende el agente
         self.call_id = call_id
@@ -339,6 +359,9 @@ class CallTools:
         self._transcript = transcript
         self._debtor: DebtorSummary | None = None  # deudor verificado
         self._names_given: list[str] = []  # nombres que dio quien llama en cada intento de verificación
+        self._refusal_explained = False    # se le explicó que la grabación es obligatoria
+        # SSN y fecha coincidieron con este deudor; falta que quien llama confirme el nombre.
+        self._pending_identity: tuple[DebtorSummary, str, date] | None = None
         self._proposals: dict[str, LoggedProposal] = {}
         self._arrangement_made = False
         self._arranged_accounts: set[str] = set()   # cuentas con acuerdo en esta llamada
@@ -386,6 +409,15 @@ class CallTools:
     # --- herramientas ---
 
     def _tool_record_recording_consent(self, accepted: bool) -> dict:
+        if not accepted and not self._refusal_explained:
+            # Prueba de voz (2026-11-22): el modelo cerró como recording_refused a un deudor que solo
+            # estaba molesto. La negativa se guarda solo si la repite después de la explicación.
+            self._refusal_explained = True
+            return {"recorded": False, "next_step": "Only if the caller clearly said they do not want "
+                    "to be recorded, say: \"I understand. Recording is a requirement for every call, to "
+                    "protect both you and us. May we continue?\" If they still refuse, call "
+                    "record_recording_consent with accepted false again. If they did not talk about the "
+                    "recording, ignore this and continue the call normally."}
         self._uc.record_recording_consent.execute(self.call_id, accepted)
         if not accepted:
             self._recording_refused = True
@@ -394,9 +426,58 @@ class CallTools:
         self._recording_notice_given = True
         return {"recorded": True, "next_step": "Verify identity before discussing anything else."}
 
-    def _tool_verify_identity(self, full_name: str, ssn_last4: str, date_of_birth: str,
+    def _tool_verify_identity(self, ssn_last4: str, date_of_birth: str, full_name: str | None = None,
                               name_was_spelled: bool = False) -> dict:
         dob = _parse_date(date_of_birth, "date_of_birth")
+        if dob is None:
+            raise _ToolInputError("date_of_birth is required")
+        if not (full_name or "").strip():
+            # Flujo del 2026-11-22: con SSN y fecha se busca al deudor y se confirma el nombre.
+            return self._verify_by_data(str(ssn_last4).strip(), dob)
+        return self._verify(full_name, str(ssn_last4).strip(), dob, name_was_spelled)
+
+    def _verify_by_data(self, ssn: str, dob: date) -> dict:
+        candidates = self._identity_candidates(ssn, dob)
+        match = next((d for d in candidates if self._uc.verify_identity.identity_matches(d.id, ssn, dob)), None)
+        if match is not None:
+            if self._direction is CallDirection.OUTBOUND:
+                # En salientes el deudor ya confirmó su nombre al saludar.
+                return self._verify(f"{match.first_name} {match.last_name}", ssn, dob)
+            self._pending_identity = (match, ssn, dob)
+            name = f"{match.first_name} {match.last_name}"
+            return {"outcome": "confirm_name", "debtor_name": name,
+                    "next_step": f'Say exactly: "Thank you. Am I speaking with {name}?" and wait for the '
+                                 "answer. Then call confirm_identity with confirmed true or false."}
+        if not candidates:
+            return {"outcome": "not_found", "next_step": "Say the information did not match our "
+                    "records and ask again for the last four digits of the Social Security number and "
+                    "the date of birth, then call verify_identity again. If it still does not match, "
+                    "offer to transfer to a representative with transfer_to_human."}
+        # No coincide: es un intento fallido normal contra el deudor del teléfono o de la cuenta.
+        debtor = candidates[0]
+        return self._verify(f"{debtor.first_name} {debtor.last_name}", ssn, dob)
+
+    def _identity_candidates(self, ssn: str, dob: date) -> list[DebtorSummary]:
+        if self._direction is CallDirection.OUTBOUND:
+            debtor = self._uc.get_debtor_by_account.execute(self._outbound_account)
+            return [debtor] if debtor else []
+        candidates = self._uc.find_debtors_by_phone.execute(self._caller_phone)
+        if not candidates and self._lookup_by_name and self._uc.get_debtor_by_id is not None:
+            ids = self._uc.verify_identity.debtor_ids_with_identity(ssn, dob)
+            candidates = [d for d in (self._uc.get_debtor_by_id.execute(i) for i in ids) if d]
+        return candidates
+
+    def _tool_confirm_identity(self, confirmed: bool) -> dict:
+        if self._pending_identity is None:
+            raise _ToolInputError("Call verify_identity first")
+        debtor, ssn, dob = self._pending_identity
+        self._pending_identity = None
+        if not confirmed:
+            return {"confirmed": False, "next_step": "Ask for their full name, then call "
+                    "verify_identity with full_name, ssn_last4 and date_of_birth."}
+        return self._verify(f"{debtor.first_name} {debtor.last_name}", ssn, dob)
+
+    def _verify(self, full_name: str, ssn_last4: str, dob: date, name_was_spelled: bool = False) -> dict:
         debtor = self._debtor_to_verify(full_name)
         if debtor is None:
             return {"outcome": "not_found", "next_step": "No account matches this phone number. "
@@ -418,7 +499,10 @@ class CallTools:
             left = self._uc.verify_identity.attempts_left(self.call_id, debtor.id)
             result["attempts_left"] = left
             if left == 1:
-                next_step = _LAST_ATTEMPT_NEXT_STEP
+                mismatched = self._uc.verify_identity.mismatched_items(
+                    debtor.id, full_name, str(ssn_last4).strip(), dob)
+                result["mismatched"] = mismatched
+                next_step = _last_attempt_next_step(mismatched, str(ssn_last4).strip())
         if outcome in _OFFER_CALLBACK_NUMBER and self._callback_number:
             # N12: quien no logra verificarse recibe el número de la línea que atiende el agente.
             next_step += (f' Before saying goodbye, say: "If you\'d like, you can call us back at '
@@ -428,7 +512,8 @@ class CallTools:
 
     def _tool_get_account_details(self) -> dict:
         debtor = self._require_debtor()
-        collectable = [self._account_view(a) for a in debtor.collectable_accounts]
+        ordered = _in_collection_order(debtor.collectable_accounts)
+        collectable = [self._account_view(a) for a in ordered]
         others = len(debtor.accounts) - len(collectable)
         result: dict[str, Any] = {"debtor_first_name": debtor.first_name, "accounts": collectable}
         if collectable:
@@ -436,6 +521,21 @@ class CallTools:
         if others:
             result["other_accounts"] = (f"{others} other account(s) must be handled by a "
                                         "representative. Do not give their details.")
+        if len(ordered) > 1:
+            # Varias deudas (decisión del padrastro, 2026-11-20): se anuncia el orden antes de empezar.
+            first, rest = ordered[0], ordered[1:]
+            then = " and ".join(a.creditor_name for a in rest)
+            result["next_step"] = (
+                "Explain calmly that payments were returned by the bank and why, using each "
+                "returned_payment reason as a fact (do not soften it or suggest it may be wrong), and "
+                "give each creditor and balance. Then say you will start with the "
+                f"{first.creditor_name} balance and then look at {then}, and end your turn with: "
+                f"\"Would you like to take care of the {first.creditor_name} balance today?\" Call "
+                f"propose_offer with account_ref {first.external_id} only after they answer, so the "
+                "offer goes in your next turn. If the debtor already said how much they can pay, call "
+                "propose_offer now with max_payment_dollars. If there is no reason and they ask why a "
+                "payment was returned, say a representative can give them the details.")
+            return result
         result["next_step"] = (
             "Explain calmly that a recent payment was returned by the bank and why, using the "
             "returned_payment reason as a fact (do not soften it or suggest it may be wrong), give "
@@ -515,7 +615,9 @@ class CallTools:
             next_step += (f" Then tell them they also have the {other.creditor_name} balance of "
                           f"{dollars(other.current_balance_cents)} and ask if they would like to take care "
                           f"of it too. If yes, call propose_offer with account_ref {other.external_id}. "
-                          "If not, call end_call with outcome arrangement_made.")
+                          "If not, call end_call with outcome arrangement_made. If the answer is not a "
+                          "clear yes or no (for example, \"we're done, right?\"), ask: \"Should we "
+                          f"leave the {other.creditor_name} balance for another time?\"")
         else:
             next_step += " Then call end_call with outcome arrangement_made."
         return {**result, "next_step": next_step}
@@ -524,7 +626,7 @@ class CallTools:
         """Las otras cuentas que el agente puede cobrar y que todavía no tienen acuerdo en esta llamada."""
         if self._debtor is None:
             return []
-        return [a for a in self._debtor.collectable_accounts
+        return [a for a in _in_collection_order(self._debtor.collectable_accounts)
                 if a.external_id not in self._arranged_accounts]
 
     def _tool_propose_partial_payment(self, account_ref: str, amount_dollars: float,
@@ -694,6 +796,8 @@ class CallTools:
         if self._direction is CallDirection.OUTBOUND:
             return self._uc.get_debtor_by_account.execute(self._outbound_account)
         candidates = self._uc.find_debtors_by_phone.execute(self._caller_phone)
+        if not candidates and self._lookup_by_name and self._uc.find_debtors_by_name is not None:
+            candidates = self._uc.find_debtors_by_name.execute(spoken_name)
         # Un teléfono puede ser compartido: se verifica a quien coincide con el nombre dicho.
         return next((d for d in candidates if names_match(spoken_name, d.first_name, d.last_name)),
                     candidates[0] if candidates else None)
@@ -796,7 +900,7 @@ ALREADY_CLOSED = "The call is already closed: do not call end_call and do not sa
 
 _VERIFICATION_NEXT_STEP = {
     VerificationOutcome.VERIFIED:
-        f'Say that you are calling from the company (full name), then this sentence exactly: "{DISCLOSURE}" '
+        f'Say "This is" and the company full name, then this sentence exactly: "{DISCLOSURE}" '
         'Then call get_account_details.',
     VerificationOutcome.NAME_RETRY:
         "Ask the caller to spell their last name letter by letter, then call verify_identity again "
@@ -822,15 +926,35 @@ _VERIFICATION_NEXT_STEP = {
 }
 # B9: tras rechazar una propuesta, si el deudor dio otro monto se arma un parcial con ese monto.
 _DECLINED_NEXT_STEP = ("If the debtor offered a different amount they can pay, call "
-                       "propose_partial_payment with that amount; otherwise call propose_offer for the "
-                       "next option.")
+                       "propose_partial_payment with that amount. If they asked for a number of "
+                       "payments (for example, 3 installments), do not offer another option yet: ask "
+                       "\"How much could you comfortably pay each month?\" and then call propose_offer "
+                       "with max_payment_dollars. Otherwise call propose_offer for the next option.")
 _THIRD_PARTY_OUTCOMES = frozenset({CallOutcome.WRONG_PARTY, CallOutcome.DEBTOR_UNAVAILABLE})
 HUNG_UP_NEXT_STEP = "The caller already hung up. Do not say anything."
 _LAST_ATTEMPT_NEXT_STEP = (
     "Say the information did not match our records, without saying which item, then say exactly: "
-    '"Please double-check the numbers, since this will be the last attempt I can make on this call." '
+    "\"No problem, let's try once more. Please take your time, I can try one more time on this call.\" "
     "Ask for the full name, the last four digits of the SSN and the date of birth again, then call "
     "verify_identity again.")
+def _last_attempt_next_step(mismatched: list[str], ssn_heard: str) -> str:
+    """Antes del último intento se pregunta solo por lo que no coincidió (usuario, 2026-11-22)."""
+    if not mismatched:
+        return _LAST_ATTEMPT_NEXT_STEP
+    steps = []
+    if "ssn_last4" in mismatched:
+        steps.append(f'Say: "To confirm it better, are the last four digits of your Social Security '
+                     f'number {" ".join(ssn_heard)}?" and wait for yes or no. If no, ask for the last '
+                     "four digits again.")
+    if "date_of_birth" in mismatched:
+        steps.append('Ask only: "Could you tell me your date of birth again?"')
+    if "full_name" in mismatched:
+        steps.append("Ask them to spell their first and last name, letter by letter.")
+    return (" ".join(steps) + " Do not ask again for the other items: they matched. Then call "
+            "verify_identity with the items that matched exactly as before and the new answers. "
+            "This is the last attempt on this call.")
+
+
 # N12: al cerrar sin verificar, se ofrece el número para devolver la llamada (si está configurado).
 _OFFER_CALLBACK_NUMBER = frozenset({VerificationOutcome.MAX_ATTEMPTS_REACHED,
                                     VerificationOutcome.IDENTITY_MISMATCH})

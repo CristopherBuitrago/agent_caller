@@ -62,6 +62,15 @@ class Stub:
     def attempts_left(self, call_id, debtor_id):
         return getattr(self, "left", 1)
 
+    def mismatched_items(self, debtor_id, full_name, ssn_last4, dob):
+        return getattr(self, "mismatch", [])
+
+    def identity_matches(self, debtor_id, ssn_last4, dob):
+        return getattr(self, "identity_ok", True)
+
+    def debtor_ids_with_identity(self, ssn_last4, dob):
+        return getattr(self, "ids", [])
+
 
 PLAN2 = ArrangementProposal(ArrangementType.PLAN, 48500, (
     ScheduledPayment(1, 24250, date(2026, 11, 13)), ScheduledPayment(2, 24250, date(2026, 12, 13))))
@@ -164,7 +173,8 @@ def test_failed_verification_warns_when_it_is_the_last_attempt():
     tools, _ = _tools(verify=VerificationOutcome.FAILED)
     answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
     assert answer["attempts_left"] == 1
-    assert "this will be the last attempt I can make on this call" in answer["next_step"]
+    assert "I can try one more time on this call" in answer["next_step"]
+    assert "last attempt" not in answer["next_step"]          # sonaba a amenaza (prueba de voz, 2026-11-20)
 
 
 def test_failed_verification_with_more_attempts_does_not_warn():
@@ -254,6 +264,7 @@ def test_no_tools_after_the_call_ended():
 def test_without_recording_consent_the_call_can_only_end_as_refused():
     tools, uc = _tools()
     _run(tools, "record_recording_consent", accepted=False)
+    _run(tools, "record_recording_consent", accepted=False)    # la repite después de la explicación
     _, is_error = _run(tools, "transfer_to_human", reason="x")
     assert is_error and not tools.ended
     tools.close_without_model(CallOutcome.TRANSFERRED_TO_HUMAN)
@@ -749,3 +760,153 @@ def test_with_a_single_debt_the_agent_goes_straight_to_the_goodbye():
     _run(tools, "verify_identity", **VERIFY_JANE)
     answer = _accept_offer_for(tools, "ACC-deb-1")
     assert "other_accounts" not in answer and "they also have" not in answer["next_step"]
+
+
+def test_with_several_debts_the_agent_announces_the_order_oldest_first():
+    from dataclasses import replace
+    debtor = _debtor_with_two_accounts()
+    newer, older = debtor.accounts[0], replace(debtor.accounts[1], nsf_date=date(2026, 9, 1))
+    tools, _ = _tools(debtors=(replace(debtor, accounts=(newer, older)),))
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    details, _ = _run(tools, "get_account_details")
+    assert [a["account_ref"] for a in details["accounts"]] == ["ACC-2", "ACC-deb-1"]
+    step = details["next_step"]
+    assert "start with the Brightwater Utilities balance and then look at Lakeside Auto Finance" in step
+    assert "propose_offer with account_ref ACC-2" in step
+
+
+def test_with_one_debt_there_is_no_order_to_announce():
+    tools, _ = _tools()
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    details, _ = _run(tools, "get_account_details")
+    assert "start with the" not in details["next_step"]
+    assert "Would you like to take care of it today?" in details["next_step"]
+
+
+def test_a_requested_number_of_payments_leads_to_the_monthly_amount_question():
+    tools, _ = _tools()
+    answer, _ = _run(tools, "record_offer_response", proposal_id="P1", accepted=False)
+    assert "If they asked for a number of payments" in answer["next_step"]
+    assert "How much could you comfortably pay each month?" in answer["next_step"]
+
+
+def test_an_unclear_answer_about_the_next_debt_is_confirmed():
+    tools, _ = _tools(debtors=(_debtor_with_two_accounts(),))
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    first = _accept_offer_for(tools, "ACC-deb-1")
+    assert "Should we leave the Brightwater Utilities balance for another time?" in first["next_step"]
+
+
+# --- demo en el navegador: entrante sin teléfono, se busca por el nombre (2026-11-22) -------------
+
+def _tools_by_name(lookup_by_name, by_name):
+    from dataclasses import replace
+    uc = replace(_use_cases(), find_debtors_by_phone=Stub(lambda phone: []),
+                 find_debtors_by_name=Stub(lambda name: by_name))
+    return CallTools(uc, "c1", CallDirection.INBOUND, "+10000000000", None, transcript=lambda: "",
+                     lookup_by_name=lookup_by_name), uc
+
+
+def test_demo_inbound_finds_the_debtor_by_the_spoken_name():
+    tools, uc = _tools_by_name(True, [_debtor()])
+    answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert answer["outcome"] == "verified"
+    assert uc.find_debtors_by_name.calls == [("Jane Carter",)]
+
+
+def test_without_the_demo_switch_an_unknown_phone_finds_nobody():
+    tools, uc = _tools_by_name(False, [_debtor()])
+    answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert answer["outcome"] == "not_found" and uc.find_debtors_by_name.calls == []
+
+
+# --- antes del último intento, solo lo que no coincidió (decisión del usuario, 2026-11-22) ---------
+
+def test_last_attempt_confirms_the_ssn_heard_and_asks_only_the_birth_date():
+    tools, uc = _tools(verify=VerificationOutcome.FAILED)
+    uc.verify_identity.mismatch = ["ssn_last4", "date_of_birth"]
+    answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert answer["mismatched"] == ["ssn_last4", "date_of_birth"]
+    step = answer["next_step"]
+    assert "are the last four digits of your Social Security number 1 2 3 4?" in step
+    assert "Could you tell me your date of birth again?" in step
+    assert "Do not ask again for the other items" in step and "spell" not in step
+
+
+def test_last_attempt_with_only_the_date_wrong_asks_only_the_date():
+    tools, uc = _tools(verify=VerificationOutcome.FAILED)
+    uc.verify_identity.mismatch = ["date_of_birth"]
+    step = _run(tools, "verify_identity", **VERIFY_JANE)[0]["next_step"]
+    assert "date of birth" in step and "Social Security" not in step
+
+
+# --- primero SSN y fecha, después "Am I speaking with ...?" (usuario, 2026-11-22) --------------------
+
+SSN_DOB = {"ssn_last4": "1234", "date_of_birth": "1985-03-14"}
+
+
+def test_verify_identity_needs_only_ssn_and_date():
+    spec = next(s for s in TOOL_SPECS if s.name == "verify_identity")
+    assert spec.input_schema["required"] == ["ssn_last4", "date_of_birth"]
+
+
+def test_ssn_and_date_lead_to_the_name_confirmation_then_verification():
+    tools, uc = _tools(verify=VerificationOutcome.VERIFIED)
+    _run(tools, "record_recording_consent", accepted=True)
+    answer, _ = _run(tools, "verify_identity", **SSN_DOB)
+    assert answer["outcome"] == "confirm_name" and answer["debtor_name"] == "Jane Carter"
+    assert "Am I speaking with Jane Carter?" in answer["next_step"]
+    assert uc.verify_identity.calls == []                       # todavía no cuenta como intento
+    verified, _ = _run(tools, "confirm_identity", confirmed=True)
+    assert verified["outcome"] == "verified"
+    assert uc.verify_identity.calls[0][2:5] == ("Jane Carter", "1234", date(1985, 3, 14))
+
+
+def test_saying_no_to_the_name_asks_for_the_full_name():
+    tools, uc = _tools()
+    _run(tools, "verify_identity", **SSN_DOB)
+    answer, _ = _run(tools, "confirm_identity", confirmed=False)
+    assert "Ask for their full name" in answer["next_step"] and uc.verify_identity.calls == []
+
+
+def test_ssn_and_date_that_do_not_match_count_as_a_failed_attempt():
+    tools, uc = _tools(verify=VerificationOutcome.FAILED)
+    uc.verify_identity.identity_ok = False
+    answer, _ = _run(tools, "verify_identity", **SSN_DOB)
+    assert answer["outcome"] == "failed" and len(uc.verify_identity.calls) == 1
+
+
+def test_confirm_without_a_pending_name_is_an_error():
+    tools, _ = _tools()
+    answer, is_error = _run(tools, "confirm_identity", confirmed=True)
+    assert is_error and answer["error"] == "invalid_input"
+
+
+def test_outbound_skips_the_name_question():
+    tools, uc = _tools(direction=CallDirection.OUTBOUND)
+    answer, _ = _run(tools, "verify_identity", **SSN_DOB)
+    assert answer["outcome"] == "verified" and len(uc.verify_identity.calls) == 1
+
+
+def test_demo_without_phone_finds_the_debtor_by_ssn_and_date():
+    from dataclasses import replace
+    uc = replace(_use_cases(), find_debtors_by_phone=Stub(lambda phone: []),
+                 get_debtor_by_id=Stub(lambda debtor_id: _debtor()))
+    uc.verify_identity.ids = ["deb-1"]
+    tools = CallTools(uc, "c1", CallDirection.INBOUND, "+10000000000", None, transcript=lambda: "",
+                      lookup_by_name=True)
+    answer, _ = _run(tools, "verify_identity", **SSN_DOB)
+    assert answer["outcome"] == "confirm_name" and answer["debtor_name"] == "Jane Carter"
+
+
+def test_a_first_refusal_is_not_saved_until_the_caller_repeats_it():
+    """Prueba de voz (2026-11-22): el modelo cerró como recording_refused a un deudor molesto."""
+    tools, uc = _tools()
+    first, _ = _run(tools, "record_recording_consent", accepted=False)
+    assert first["recorded"] is False and "May we continue?" in first["next_step"]
+    assert uc.record_recording_consent.calls == [] and not tools.ended
+    second, _ = _run(tools, "record_recording_consent", accepted=False)
+    assert second["recorded"] is True and "recording_refused" in second["next_step"]

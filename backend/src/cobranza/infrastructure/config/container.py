@@ -13,7 +13,12 @@ from psycopg_pool import ConnectionPool
 from cobranza.application.interfaces.call_summarizer import CallSummarizer
 from cobranza.application.use_cases.contact_history import GetLastContact
 from cobranza.application.use_cases.debtor_requests import MarkDoNotCall, RecordCollectionHold, RecordDispute
-from cobranza.application.use_cases.lookup_debtor import FindDebtorsByPhone, GetDebtorByAccount
+from cobranza.application.use_cases.lookup_debtor import (
+    FindDebtorsByName,
+    FindDebtorsByPhone,
+    GetDebtorByAccount,
+    GetDebtorById,
+)
 from cobranza.application.use_cases.negotiate_arrangement import (
     CreateArrangement,
     ProposeArrangement,
@@ -66,6 +71,8 @@ from cobranza.infrastructure.services.system_clock import SystemClock
 @dataclass(frozen=True)
 class UseCases:
     find_debtors_by_phone: FindDebtorsByPhone
+    find_debtors_by_name: FindDebtorsByName   # solo demos (DEMO_LOOKUP_BY_NAME en la API)
+    get_debtor_by_id: GetDebtorById           # solo demos: el deudor hallado por SSN y fecha
     get_debtor_by_account: GetDebtorByAccount
     verify_identity: VerifyIdentity
     start_call: StartCall
@@ -124,6 +131,8 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
     create_arrangement = CreateArrangement(gate, arrangements)
     return UseCases(
         find_debtors_by_phone=FindDebtorsByPhone(debtors, phones),
+        find_debtors_by_name=FindDebtorsByName(debtors, phones),
+        get_debtor_by_id=GetDebtorById(debtors, phones),
         get_debtor_by_account=get_debtor_by_account,
         propose_arrangement=propose_arrangement,
         propose_next_offer=ProposeNextOffer(propose_arrangement, negotiation_log),

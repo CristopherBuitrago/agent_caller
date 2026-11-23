@@ -38,6 +38,9 @@ from cobranza_agent.infrastructure.voice.agent_processor import AgentTurnProcess
 log = logging.getLogger(__name__)
 
 DEFAULT_DEMO_PHONE = "+13055550001"      # Jane Carter (TEST-001) en los datos simulados
+# VOICE_DEMO_PHONE=any: llama desde un número sin deudor; con DEMO_LOOKUP_BY_NAME=true en la API, el
+# deudor se busca por el nombre que diga quien llama (demo con cualquier deudor de prueba).
+ANY_DEBTOR_PHONE = "+10000000000"
 DEFAULT_VOICE = "aura-2-helena-en"       # la voz por defecto de Pipecat; se elige en las pruebas
 # Silencio que confirma que el deudor terminó de hablar. Prueba por celular (2026-11-19): con 0,2 s
 # contestaba a pedazos mientras dictaba el SSN y con 3 s se sentía lento. Se cambia con TURN_SILENCE_SECONDS.
@@ -76,7 +79,9 @@ async def bot(runner_args: SmallWebRTCRunnerArguments):
         TransportParams(audio_in_enabled=True, audio_out_enabled=True),
     )
     agent = build_agent()
-    phone = os.environ.get("VOICE_DEMO_PHONE", DEFAULT_DEMO_PHONE)
+    phone = os.environ.get("VOICE_DEMO_PHONE") or DEFAULT_DEMO_PHONE
+    if phone.lower() == "any":
+        phone = ANY_DEBTOR_PHONE
     agent_processor = AgentTurnProcessor(lambda: agent.execute(CallDirection.INBOUND, phone))
     task = PipelineTask(build_pipeline(transport, agent_processor),
                         params=PipelineParams(enable_metrics=True))

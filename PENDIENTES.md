@@ -38,8 +38,10 @@ Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `do
 - [ ] Revisión legal: L7 (deudores vulnerables y SMS), fuente de la grabación obligatoria, y guion y avisos
 - [ ] Confirmar el volumen: ¿800 llamadas diarias?
 - [ ] ¿Las entrantes de deudores en NSF pasan directo al agente? El jefe lo iba a proponer al dueño
-- [ ] Duda para el padrastro (prueba de voz, 2026-11-19): con varias deudas, ¿el agente avisa al principio que va a ver una y después la otra ("Let's start with the Summit Health balance, and then we'll look at Brightwater"), o va una por una sin anunciarlo? Hoy va una por una: al cerrar un acuerdo ofrece la siguiente cuenta antes de colgar
-- [ ] Duda para el padrastro: si una cuota cae en fin de semana (en la prueba, el tercer pago quedó para un domingo), ¿se corre al lunes o se deja?
+- [x] Duda para el padrastro (2026-11-19): con varias deudas, el agente anuncia el orden al principio (primero el pago rebotado más antiguo). Respondido el 2026-11-20
+- [x] Duda para el padrastro: las cuotas que caen en fin de semana se dejan como están. Respondido el 2026-11-20
+- [ ] Duda para el padrastro (prueba de voz, 2026-11-22, Lucy Bennett): el deudor dijo que debía revisar con su banco antes de comprometerse y pidió que lo llamaran el miércoles. Lucy no ofreció un pago y agendó la llamada. ¿Es lo correcto cuando el deudor tiene que verificar con otra entidad (banco, empleador) antes de dar una respuesta, o Lucy debería ofrecer primero un pago con fecha?
+- [ ] Duda para el padrastro (prueba de voz, 2026-11-22, Mark Holloway): el deudor solo podía pagar el 1 de diciembre y la regla N8 permite el primer pago hasta el 30 de noviembre (faltaban exactamente 8 días, así que no se habilitó el mes siguiente). Terminó en una llamada agendada sin acuerdo. ¿Se amplía la regla para que, cerca de fin de mes, el primer pago pueda caer en los primeros días del mes siguiente?
 
 ## Desarrollo que se puede hacer ya
 

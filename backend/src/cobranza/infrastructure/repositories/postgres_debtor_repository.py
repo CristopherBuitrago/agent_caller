@@ -20,7 +20,7 @@ _DEBTOR_WITH_ACCOUNTS_SQL = """
            a.nsf_return_code, a.is_disputed
     FROM debtors d
     LEFT JOIN accounts a ON a.debtor_id = d.id
-    WHERE d.id = ANY(%(debtor_ids)s)
+    WHERE d.id = ANY(%(debtor_ids)s::uuid[])
     ORDER BY d.last_name, d.first_name, d.id, a.created_at, a.id
 """
 
@@ -36,6 +36,19 @@ class PostgresDebtorRepository:
                 {"p": phone_e164},
             ).fetchall()
             return self._load_debtors(conn, [row[0] for row in ids])
+
+    def find_by_name_words(self, words: list[str]) -> list[DebtorSummary]:
+        with self._pool.connection() as conn:
+            ids = conn.execute(
+                "SELECT id FROM debtors WHERE lower(last_name) = ANY(%(w)s) OR lower(first_name) = ANY(%(w)s)",
+                {"w": words},
+            ).fetchall()
+            return self._load_debtors(conn, [row[0] for row in ids])
+
+    def get_by_id(self, debtor_id: str) -> DebtorSummary | None:
+        with self._pool.connection() as conn:
+            found = self._load_debtors(conn, [debtor_id])
+        return found[0] if found else None
 
     def get_by_account(self, account_external_id: str) -> DebtorSummary | None:
         with self._pool.connection() as conn:

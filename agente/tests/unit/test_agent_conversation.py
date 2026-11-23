@@ -33,7 +33,7 @@ from cobranza_agent.infrastructure.claude_conversation_model import ClaudeConver
 # --- dobles -------------------------------------------------------------------------------
 
 # Las herramientas que publica el backend (GET /api/agent/tools); el prompt habla de todas.
-TOOL_NAMES = ("record_recording_consent", "verify_identity", "get_account_details", "propose_offer",
+TOOL_NAMES = ("record_recording_consent", "verify_identity", "confirm_identity", "get_account_details", "propose_offer",
               "record_offer_response", "propose_partial_payment", "record_hardship_answers",
               "record_dispute", "mark_do_not_call", "get_last_contact", "schedule_callback",
               "transfer_to_human", "end_call")
@@ -327,6 +327,29 @@ def test_the_greeting_says_lucy_and_not_virtual_assistant():
     prompt = _prompt()
     assert "you're speaking with a virtual assistant" not in prompt
     assert "this is a virtual assistant calling" not in prompt
+
+
+def test_lucy_never_says_an_option_does_not_exist():          # prueba de voz, 2026-11-20
+    assert "Never say that an option does not exist or is not available" in _prompt()
+
+
+def test_lucy_asks_ssn_then_date_then_confirms_the_name():      # usuario, 2026-11-22
+    prompt = _prompt()
+    assert "could you please give me the last four digits of your Social Security number?" in prompt
+    assert 'ask: "And your date of birth?"' in prompt
+    assert "Am I speaking with [name]?" in prompt and "confirm_identity" in prompt
+
+
+def test_lucy_only_speaks_english():                         # prueba de voz, 2026-11-20
+    prompt = _prompt()
+    assert "Always speak English, even if the caller or someone in the background" in prompt
+    assert "I'm sorry, I can only help in English. Would you like me to transfer you" in prompt
+
+
+def test_after_verification_it_says_this_is_and_not_calling_from():
+    prompt = _prompt()
+    assert "This is Live Oac Financial." in prompt
+    assert "I'm calling from Live Oac Financial" not in prompt
 
 
 def test_prompt_says_a_doubtful_yes_does_not_create_the_agreement():       # N7

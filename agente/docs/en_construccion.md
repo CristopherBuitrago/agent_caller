@@ -26,6 +26,8 @@ Lo técnico que falta en este servicio. Lo que espera respuesta de la empresa es
 | 6 | **Pipecat cambia seguido.** Ya marca piezas que se eliminan en la versión 2.0 | Una actualización rompe el bot | Mantener la versión fija (1.16.0) y actualizar a propósito, con las pruebas del puente |
 | 7 | **Costo real por llamada sin medir** (voz a texto y texto a voz se cobran por minuto y por carácter) | El costo estimado (~USD 1.966 al mes con 800 llamadas diarias) no se cumple | Medir en las primeras pruebas y en el piloto |
 | 8 | **La voz del agente no está elegida** (`aura-2-helena-en` por defecto) | La voz puede no gustarle a la empresa o sonar poco natural por teléfono | Probar 2 o 3 voces de Aura-2 y que el jefe elija |
+| 9 | **Voces de fondo** (anotado el 2026-11-20). En las pruebas por celular, Lucy le contestó a frases que dijo otra persona en la sala, una de ellas en español. Es el caso del televisor | Lucy responde algo que el deudor no le dijo, o corta su turno | Por ahora solo anotado (decisión del usuario). Opciones, en orden: subir el volumen mínimo de Silero, un filtro de voces de fondo (Krisp) o Smart Turn para el fin de turno |
+| 10 | **La conexión con Deepgram se corta tras ~40 s de silencio** (keepalive, 2026-11-20). En la prueba se reconectó sola | Si no se reconecta, Lucy queda muda | Vigilar en las próximas pruebas; si se repite, mandar keepalive o reconectar antes de hablar |
 
 ### Cómo probar el riesgo 1 (eco por WebRTC, sin claves)
 

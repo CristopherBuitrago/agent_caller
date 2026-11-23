@@ -11,6 +11,14 @@ class DebtorRepository(Protocol):
         """Deudores cuyo teléfono principal o secundario coincide (puede ser varios o ninguno)."""
         ...
 
+    def find_by_name_words(self, words: list[str]) -> list[DebtorSummary]:
+        """Deudores cuyo nombre o apellido es una de estas palabras (en minúsculas). Solo para demos."""
+        ...
+
+    def get_by_id(self, debtor_id: str) -> DebtorSummary | None:
+        """El deudor con todas sus cuentas."""
+        ...
+
     def get_by_account(self, account_external_id: str) -> DebtorSummary | None:
         """El deudor dueño de la cuenta, con todas sus cuentas."""
         ...

@@ -18,11 +18,12 @@ def test_jane_verifies_with_correct_data(use_cases, new_call, debtor_id, pool):
     assert (str(row[0]), row[1], row[2]) == (jane, 1, True)
 
 
-def test_two_failures_close_the_call(use_cases, new_call, debtor_id):
+def test_three_failures_close_the_call(use_cases, new_call, debtor_id):
     call, jane = new_call(), debtor_id("TEST-001")
     verify = use_cases.verify_identity.execute
     assert verify(call, jane, "Jane Carter", "9999", JANE_DOB) is V.FAILED
-    assert verify(call, jane, "Jane Carter", "1234", date(2000, 1, 1)) is V.MAX_ATTEMPTS_REACHED
+    assert verify(call, jane, "Jane Carter", "1234", date(2000, 1, 1)) is V.FAILED
+    assert verify(call, jane, "Jane Carter", "1234", date(2000, 1, 2)) is V.MAX_ATTEMPTS_REACHED
 
 
 def test_name_retry_does_not_touch_the_call(use_cases, new_call, debtor_id, pool):
@@ -53,3 +54,11 @@ def test_shared_phone_verifies_the_right_person(use_cases, new_call, debtor_id):
     call = new_call()
     luis = debtor_id("TEST-008")  # comparte teléfono con Ana; dob 1989-02-28, SSN 5555
     assert use_cases.verify_identity.execute(call, luis, "Luis Reyes", "5555", date(1989, 2, 28)) is V.VERIFIED
+
+
+def test_demo_finds_the_debtor_by_ssn_and_date(use_cases, debtor_id):
+    ids = use_cases.verify_identity.debtor_ids_with_identity("1234", JANE_DOB)
+    assert ids == [debtor_id("TEST-001")]
+    assert use_cases.get_debtor_by_id.execute(ids[0]).first_name == "Jane"
+    assert use_cases.verify_identity.identity_matches(ids[0], "1234", JANE_DOB)
+    assert not use_cases.verify_identity.identity_matches(ids[0], "9999", JANE_DOB)

@@ -177,6 +177,7 @@ def test_close_without_recording_consent_ends_as_recording_refused():
     client, _ = _api()
     call_id = _open(client)["call_id"]
     _tool(client, call_id, "record_recording_consent", accepted=False)
+    _tool(client, call_id, "record_recording_consent", accepted=False)
     body = client.post(f"/api/agent/calls/{call_id}/close", json={"outcome": "callback_requested"},
                        headers=AUTH).json()
     assert body["outcome"] == "recording_refused"
