@@ -683,7 +683,10 @@ def test_the_agreement_tells_the_debtor_how_payments_work():
     _run(tools, "verify_identity", **VERIFY_JANE)
     offer, _ = _run(tools, "propose_offer", account_ref="ACC-deb-1")
     accepted, _ = _run(tools, "record_offer_response", proposal_id=offer["proposal_id"], accepted=True)
-    assert "reminder text" in accepted["next_step"] and "end_call" in accepted["next_step"]
+    # Decisión 4 (2026-11-24): cierre en corto; el texto completo solo si pregunta.
+    assert "You'll get a text confirming it, and a secure link to pay on the payment date." in accepted["next_step"]
+    assert "do not list every payment" in accepted["next_step"] and "end_call" in accepted["next_step"]
+    assert "reminder text" in accepted["how_payments_work"]
 
 
 # --- hallazgo 6: las herramientas que cierran la llamada lo avisan --------------------------------
@@ -777,7 +780,8 @@ def test_with_several_debts_the_agent_announces_the_order_oldest_first():
     details, _ = _run(tools, "get_account_details")
     assert [a["account_ref"] for a in details["accounts"]] == ["ACC-2", "ACC-deb-1"]
     step = details["next_step"]
-    assert "start with the Brightwater Utilities balance and then look at Lakeside Auto Finance" in step
+    assert "Talk only about the first one, Brightwater Utilities" in step
+    assert "afterwards you will look at Lakeside Auto Finance, without details" in step
     assert "propose_offer with account_ref ACC-2" in step
 
 
@@ -946,3 +950,19 @@ def test_without_verification_the_callback_is_scheduled_at_once():
     tools, uc = _tools(direction=CallDirection.OUTBOUND)
     answer, _ = _run(tools, "schedule_callback", date="2026-11-25", time="10:00")
     assert answer["scheduled"] is True
+
+
+# --- turnos más cortos después de verificar (decisión 4, 2026-11-24) ------------------------------
+
+def test_after_verification_lucy_says_how_many_debts_and_stops():
+    tools, _ = _tools(debtors=(_debtor_with_two_accounts(),))
+    answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    step = answer["next_step"]
+    assert DISCLOSURE in step and "I see 2 payments that were returned. Let's start with the oldest one." in step
+    assert "end your turn there" in step and "get_account_details in your next turn" in step
+
+
+def test_with_one_debt_lucy_says_there_is_one_payment():
+    tools, _ = _tools()
+    answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
+    assert "I see a payment that was returned. Let me go over it." in answer["next_step"]

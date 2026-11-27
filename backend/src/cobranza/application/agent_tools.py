@@ -301,6 +301,7 @@ class _ToolInputError(ValueError):
 # Describe lo que hace el sistema: SMS de confirmación y link de pago (N1) y aviso 3 días antes (N10,
 # REMINDER_DAYS_BEFORE de la mensajería). El pago con tarjeta por teléfono (Función 6) todavía no
 # existe. Antes del piloto, Vaspian (SMS) y el procesador (link) tienen que estar conectados.
+SHORT_HOW_PAYMENTS_WORK = "You'll get a text confirming it, and a secure link to pay on the payment date."
 HOW_PAYMENTS_WORK = (
     "After the plan is set up, you'll get a text message confirming the amounts and dates. For each "
     "payment that is at least three days away, you'll get a reminder text three days before, and on each "
@@ -496,6 +497,8 @@ class CallTools:
             self._close(CallOutcome.IDENTITY_MISMATCH)
         next_step = _VERIFICATION_NEXT_STEP[outcome]
         result: dict[str, Any] = {"outcome": outcome.value}
+        if outcome is VerificationOutcome.VERIFIED:
+            next_step = _verified_next_step(len(debtor.collectable_accounts))
         if outcome is VerificationOutcome.FAILED:
             # B8: el agente sabe cuántos intentos quedan; si es el último, se lo dice al deudor.
             left = self._uc.verify_identity.attempts_left(self.call_id, debtor.id)
@@ -527,11 +530,12 @@ class CallTools:
             # Varias deudas (decisión del padrastro, 2026-11-20): se anuncia el orden antes de empezar.
             first, rest = ordered[0], ordered[1:]
             then = " and ".join(a.creditor_name for a in rest)
+            # Decisión 4 (2026-11-24): una deuda por turno, empezando por la más antigua.
             result["next_step"] = (
-                "Explain calmly that payments were returned by the bank and why, using each "
-                "returned_payment reason as a fact (do not soften it or suggest it may be wrong), and "
-                "give each creditor and balance. Then say you will start with the "
-                f"{first.creditor_name} balance and then look at {then}, and end your turn with: "
+                f"Talk only about the first one, {first.creditor_name}: explain calmly that the payment "
+                "was returned by the bank and why, using its returned_payment reason as a fact (do not "
+                "soften it or suggest it may be wrong), and give its balance. Mention that afterwards "
+                f"you will look at {then}, without details. End your turn with: "
                 f"\"Would you like to take care of the {first.creditor_name} balance today?\" Call "
                 f"propose_offer with account_ref {first.external_id} only after they answer, so the "
                 "offer goes in your next turn. If the debtor already said how much they can pay, call "
@@ -611,8 +615,12 @@ class CallTools:
             self._arranged_accounts.add(logged.account_external_id)
         result = {"arrangement_id": arrangement_id,
                   **({"payments": _describe(logged)["payments"]} if logged else {})}
-        next_step = ("Repeat the amounts and dates, thank the debtor, and tell them in your own "
-                     f'words: "{HOW_PAYMENTS_WORK}"')
+        # Decisión 4 (2026-11-24): el cierre era de ~28 s. Se confirma en corto; el texto completo de
+        # how_payments_work solo si el deudor pregunta.
+        result["how_payments_work"] = HOW_PAYMENTS_WORK
+        next_step = ("In one short turn: confirm the first payment amount and date and how many payments "
+                     "there are in total (do not list every payment), thank the debtor, and say: "
+                     f'"{SHORT_HOW_PAYMENTS_WORK}" Use how_payments_work only if they ask how paying works.')
         pending = self._accounts_without_arrangement()
         if pending:
             # Prueba por celular (2026-11-19): con dos deudas, el agente cerraba la primera y colgaba.
@@ -912,6 +920,18 @@ _COLLECTION_HOLD_SENTENCE = {
 # Hallazgo 6: estas herramientas ya cierran la llamada; el agente intentaba cerrarla otra vez con end_call
 # y repetía la despedida (o decía "the call has ended").
 ALREADY_CLOSED = "The call is already closed: do not call end_call and do not say that the call has ended."
+
+def _verified_next_step(debts: int) -> str:
+    """Decisión 4 (2026-11-24): el turno después de verificar duraba ~50 s (aviso legal y todas las
+    deudas). Ahora termina en el aviso y cuántas deudas hay; la primera deuda va en el turno siguiente."""
+    opening = f'Say "This is" and the company full name, then this sentence exactly: "{DISCLOSURE}" '
+    if debts == 0:
+        return opening + "Then call get_account_details."
+    count = ('"I see a payment that was returned. Let me go over it."' if debts == 1 else
+             f"\"I see {debts} payments that were returned. Let's start with the oldest one.\"")
+    return (opening + f"Then say {count} and end your turn there. Call get_account_details in your next "
+            "turn, after they answer.")
+
 
 _VERIFICATION_NEXT_STEP = {
     VerificationOutcome.VERIFIED:
