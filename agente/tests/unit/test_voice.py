@@ -22,6 +22,8 @@ from cobranza_agent.application.call import CallOutcome  # noqa: E402
 from cobranza_agent.application.conversation import AgentReply  # noqa: E402
 from cobranza_agent.infrastructure.voice.agent_processor import (  # noqa: E402
     FILLERS,
+    IDLE_GOODBYE,
+    IDLE_PROMPT,
     PATIENCE_FILLER,
     AgentTurnProcessor,
 )
@@ -165,6 +167,34 @@ def test_turn_strategies_wait_for_silence_and_need_two_words_to_interrupt(monkey
     (start,), (stop,) = strategies.start, strategies.stop
     assert isinstance(start, MinWordsUserTurnStartStrategy) and start._min_words == 2
     assert isinstance(stop, SpeechTimeoutUserTurnStopStrategy) and stop._user_speech_timeout == 2.5
+
+
+# --- silencio (decisión 9, 2026-11-24) ----------------------------------------------------------
+
+def _idle_processor(session):
+    return AgentTurnProcessor(lambda: (session, AgentReply("Hello.", False, None)),
+                              filler_after=10.0, patience_after=20.0,
+                              idle_prompt_after=0.05, idle_close_after=0.15)
+
+
+def test_silence_asks_if_they_are_there_and_then_hangs_up():
+    from pipecat.frames.frames import BotStoppedSpeakingFrame
+    from pipecat.tests.utils import SleepFrame
+
+    session = FakeSession([])
+    down = _run(_idle_processor(session), [BotStoppedSpeakingFrame(), SleepFrame(sleep=0.4)])
+    assert _spoken(down) == ["Hello.", IDLE_PROMPT, IDLE_GOODBYE]
+    assert session.hung_up
+
+
+def test_the_debtor_speaking_stops_the_silence_count():
+    from pipecat.frames.frames import BotStoppedSpeakingFrame, UserStartedSpeakingFrame
+    from pipecat.tests.utils import SleepFrame
+
+    session = FakeSession([])
+    down = _run(_idle_processor(session),
+                [BotStoppedSpeakingFrame(), UserStartedSpeakingFrame(), SleepFrame(sleep=0.3)])
+    assert IDLE_PROMPT not in _spoken(down) and IDLE_GOODBYE not in _spoken(down)
 
 
 def test_the_echo_returns_the_microphone_audio_as_output():

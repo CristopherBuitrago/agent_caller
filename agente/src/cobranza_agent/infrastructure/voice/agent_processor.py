@@ -18,6 +18,10 @@ mientras el agente todavía no contesta el anterior, los dos se juntan en uno (n
 Relleno (pedido en la prueba por celular, 2026-11-19): si la respuesta no está lista en
 FILLER_AFTER_SECONDS, el agente dice una frase corta ("One moment, please.") para no dejar silencio;
 si pasa de PATIENCE_AFTER_SECONDS, una segunda. El relleno no entra a la conversación del modelo.
+
+Silencio (decisión 9 del 2026-11-24): cuando Lucy termina de hablar y nadie dice nada, a los
+IDLE_PROMPT_AFTER_SECONDS pregunta "Are you still there?" y a los IDLE_CLOSE_AFTER_SECONDS se
+despide y cuelga (la llamada queda como volver a llamar). Cualquier palabra del deudor reinicia la cuenta.
 """
 
 import asyncio
@@ -30,8 +34,10 @@ from pipecat.frames.frames import (
     EndFrame,
     Frame,
     StartFrame,
+    BotStoppedSpeakingFrame,
     TranscriptionFrame,
     TTSSpeakFrame,
+    UserStartedSpeakingFrame,
     UserStoppedSpeakingFrame,
 )
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
@@ -52,13 +58,22 @@ FILLER_AFTER_SECONDS = 1.0
 PATIENCE_AFTER_SECONDS = 4.0
 FILLERS = ("Let me check our records, please.", "One moment, please.", "Okay...")
 PATIENCE_FILLER = "Thanks for your patience, I'm almost done."
+IDLE_PROMPT_AFTER_SECONDS = 10.0
+IDLE_CLOSE_AFTER_SECONDS = 30.0
+IDLE_PROMPT = "Are you still there?"
+IDLE_GOODBYE = "I'll end the call now. You can call us back anytime. Goodbye."
 
 
 class AgentTurnProcessor(FrameProcessor):
     def __init__(self, start_call: StartCall, on_turn_latency: Callable[[float], None] | None = None,
                  filler_after: float = FILLER_AFTER_SECONDS,
-                 patience_after: float = PATIENCE_AFTER_SECONDS, **kwargs):
+                 patience_after: float = PATIENCE_AFTER_SECONDS,
+                 idle_prompt_after: float = IDLE_PROMPT_AFTER_SECONDS,
+                 idle_close_after: float = IDLE_CLOSE_AFTER_SECONDS, **kwargs):
         super().__init__(**kwargs)
+        self._idle_prompt_after = idle_prompt_after
+        self._idle_close_after = idle_close_after
+        self._idle: asyncio.Task | None = None    # cuenta del silencio desde que Lucy terminó de hablar
         self._start_call = start_call
         self._on_turn_latency = on_turn_latency
         self._filler_after = filler_after
@@ -84,8 +99,15 @@ class AgentTurnProcessor(FrameProcessor):
         if isinstance(frame, StartFrame):
             await self.push_frame(frame, direction)
             self._enqueue(self._open_call)
+        elif isinstance(frame, BotStoppedSpeakingFrame):
+            await self.push_frame(frame, direction)
+            self._start_idle_count()
+        elif isinstance(frame, UserStartedSpeakingFrame):
+            await self.push_frame(frame, direction)
+            self._stop_idle_count()
         elif isinstance(frame, TranscriptionFrame):
             # No sigue hacia el texto a voz: lo que dijo el deudor solo lo lee el agente.
+            self._stop_idle_count()
             if frame.text.strip():
                 self._heard.append(frame.text.strip())
                 self._answer_if_ready()
@@ -95,6 +117,7 @@ class AgentTurnProcessor(FrameProcessor):
             self._turn_finished_at = time.monotonic()
             self._answer_if_ready()
         elif isinstance(frame, (EndFrame, CancelFrame)):
+            self._stop_idle_count()
             if self._grace is not None:
                 await self._grace                      # el último turno entra a la fila antes de colgar
             if self._worker is not None:
@@ -103,6 +126,29 @@ class AgentTurnProcessor(FrameProcessor):
             await self.push_frame(frame, direction)
         else:
             await self.push_frame(frame, direction)
+
+    # --- silencio -----------------------------------------------------------------------------
+
+    def _start_idle_count(self) -> None:
+        """Lucy terminó de hablar. Si ya había una cuenta (por ejemplo, tras "Are you still there?"),
+        sigue la misma: no se reinicia con lo que dice Lucy, solo con lo que dice el deudor."""
+        if self._idle is None and self._session is not None and not self._session.ended:
+            self._idle = asyncio.get_running_loop().create_task(self._count_silence())
+
+    def _stop_idle_count(self) -> None:
+        if self._idle is not None:
+            self._idle.cancel()
+            self._idle = None
+
+    async def _count_silence(self) -> None:
+        await asyncio.sleep(self._idle_prompt_after)
+        await self.push_frame(TTSSpeakFrame(IDLE_PROMPT))
+        await asyncio.sleep(self._idle_close_after - self._idle_prompt_after)
+        self._idle = None
+        log.info("Llamada sin respuesta por %.0f s: se cierra", self._idle_close_after)
+        await self.push_frame(TTSSpeakFrame(IDLE_GOODBYE))
+        await self._enqueue(self._hang_up)
+        await self.push_frame(EndFrame())
 
     # --- fila de trabajo ----------------------------------------------------------------------
 
@@ -180,6 +226,7 @@ class AgentTurnProcessor(FrameProcessor):
         return phrase
 
     async def _say(self, reply: AgentReply) -> None:
+        self._stop_idle_count()
         if reply.text:
             await self.push_frame(TTSSpeakFrame(reply.text))
         if reply.call_ended:
