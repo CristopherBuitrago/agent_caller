@@ -93,3 +93,19 @@ def test_reminder_three_days_before_the_second_installment(use_cases, pool, jane
     reminders = [r for r in _sms_rows(pool, arrangement_id) if r[0] == "payment_reminder"]
     assert len(reminders) == 1 and reminders[0][1] == "sent"
     assert "$395.00 is due on" in reminders[0][5] and "http" not in reminders[0][5]
+
+
+def test_no_sms_to_a_phone_reported_as_wrong(use_cases, pool, jane_arrangement):
+    """Decisión 5 (2026-11-24): mientras el reporte no se revise, ese teléfono no recibe SMS."""
+    arrangement_id, _ = jane_arrangement
+    with pool.connection() as conn:
+        call = conn.execute("SELECT call_id FROM payment_arrangements WHERE id = %s",
+                            (arrangement_id,)).fetchone()[0]
+    use_cases.report_wrong_number.execute(str(call), "+13055550001")
+    try:
+        sender = RecordingSender()
+        build_messaging(pool, use_cases, sender=sender).send_confirmations.execute()
+        assert _sms_rows(pool, arrangement_id) == [] and sender.sent == []
+    finally:
+        with pool.connection() as conn:
+            conn.execute("DELETE FROM phone_reports WHERE call_id = %s", (call,))

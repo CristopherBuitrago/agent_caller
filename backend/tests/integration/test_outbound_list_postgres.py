@@ -146,3 +146,22 @@ def test_a_legal_hold_keeps_the_debtor_out_of_the_daily_list(use_cases, started_
     assert jane.collection_hold is CollectionHold.DECEASED and jane.collectable_accounts == ()
     use_cases.build_daily_outbound_list.execute(list_date)
     assert "ACC-T001" not in _test_accounts(use_cases, list_date)
+
+
+# --- decisión 5 (2026-11-24): número equivocado -------------------------------------------------
+
+def test_a_phone_reported_as_wrong_stays_out_of_the_list_until_reviewed(use_cases, list_date,
+                                                                       started_calls, pool):
+    call = use_cases.start_call.execute(CallDirection.OUTBOUND, "+13055550001", "ACC-T001")
+    started_calls.append(call)
+    use_cases.report_wrong_number.execute(call, "+1 305 555 0001")
+    try:
+        use_cases.build_daily_outbound_list.execute(list_date)
+        assert "ACC-T001" not in _test_accounts(use_cases, list_date)
+        with pool.connection() as conn:
+            conn.execute("UPDATE phone_reports SET reviewed_at = now() WHERE call_id = %s", (call,))
+        use_cases.build_daily_outbound_list.execute(list_date)
+        assert "ACC-T001" in _test_accounts(use_cases, list_date)
+    finally:
+        with pool.connection() as conn:
+            conn.execute("DELETE FROM phone_reports WHERE call_id = %s", (call,))

@@ -23,6 +23,9 @@ class PostgresPaymentScheduleReader:
                    JOIN accounts a ON a.id = pa.account_id
                    JOIN debtors d ON d.id = a.debtor_id
                    WHERE pa.status = 'active' AND pa.created_at >= %s
+                     -- decisión 5 (2026-11-24): teléfono reportado como equivocado, sin revisar
+                     AND NOT EXISTS (SELECT 1 FROM phone_reports pr
+                                   WHERE pr.phone = d.phone_primary AND pr.reviewed_at IS NULL)
                    ORDER BY pa.created_at""",
                 (since,),
             ).fetchall()
@@ -58,6 +61,8 @@ class PostgresPaymentScheduleReader:
                     JOIN accounts a ON a.id = pa.account_id
                     JOIN debtors d ON d.id = a.debtor_id
                     WHERE sp.status = 'pending' AND pa.status = 'active' AND {due_condition}
+                      AND NOT EXISTS (SELECT 1 FROM phone_reports pr
+                                      WHERE pr.phone = d.phone_primary AND pr.reviewed_at IS NULL)
                     ORDER BY sp.due_date, pa.id, sp.sequence""",
                 (day,),
             ).fetchall()

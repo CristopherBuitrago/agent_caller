@@ -41,6 +41,9 @@ class PostgresOutboundListRepository:
                      AND NOT d.do_not_call
                      AND d.collection_hold IS NULL      -- abogado, bancarrota o fallecido
                      AND d.phone_primary IS NOT NULL
+                     -- decisión 5 (2026-11-24): teléfono reportado como equivocado, sin revisar
+                     AND NOT EXISTS (SELECT 1 FROM phone_reports pr
+                                     WHERE pr.phone = d.phone_primary AND pr.reviewed_at IS NULL)
                      AND NOT EXISTS (SELECT 1 FROM payment_arrangements pa
                                      WHERE pa.account_id = a.id AND pa.status = 'active')
                      AND (SELECT count(*) FROM calls c

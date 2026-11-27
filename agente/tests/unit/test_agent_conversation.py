@@ -36,7 +36,7 @@ from cobranza_agent.infrastructure.claude_conversation_model import ClaudeConver
 TOOL_NAMES = ("record_recording_consent", "verify_identity", "confirm_identity", "get_account_details", "propose_offer",
               "record_offer_response", "propose_partial_payment", "record_hardship_answers",
               "record_dispute", "mark_do_not_call", "get_last_contact", "schedule_callback",
-              "transfer_to_human", "end_call")
+              "report_wrong_number", "transfer_to_human", "end_call")
 DISCLOSURE = "This is an attempt to collect a debt."
 CATALOG = ToolCatalog(tuple(ToolSpec(n, n, {"type": "object"}) for n in TOOL_NAMES), DISCLOSURE,
                       ("What happened?", "Is it temporary?"))

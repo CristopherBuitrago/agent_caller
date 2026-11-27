@@ -265,3 +265,15 @@ ALTER TABLE debtors ADD COLUMN collection_hold text
     CHECK (collection_hold IN ('attorney', 'bankruptcy', 'deceased'));
 ALTER TABLE debtors ADD COLUMN collection_hold_details text;   -- abogado y teléfono, número de caso, quién informó
 ALTER TABLE debtors ADD COLUMN collection_hold_at timestamptz;
+
+-- Decisión 5 de las pruebas de voz (campos aprobados el 2026-11-24): teléfonos que alguien reportó
+-- como equivocados (no son del deudor). Mientras un cobrador no lo revise, a ese teléfono no se le
+-- mandan SMS ni entra a la lista diaria de salientes.
+CREATE TABLE phone_reports (
+    id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    phone       text NOT NULL,                       -- E.164
+    call_id     uuid NOT NULL REFERENCES calls(id),
+    reported_at timestamptz NOT NULL DEFAULT now(),
+    reviewed_at timestamptz                          -- vacío hasta que lo revise un cobrador
+);
+CREATE INDEX phone_reports_pending ON phone_reports (phone) WHERE reviewed_at IS NULL;

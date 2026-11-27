@@ -56,6 +56,8 @@ from cobranza.infrastructure.repositories.postgres_identity_repository import Po
 from cobranza.infrastructure.repositories.postgres_outbound_list_repository import PostgresOutboundListRepository
 from cobranza.infrastructure.repositories.postgres_payment_ledger import PostgresPaymentLedger
 from cobranza.infrastructure.repositories.postgres_payment_schedule_reader import PostgresPaymentScheduleReader
+from cobranza.infrastructure.repositories.postgres_phone_report_repository import PostgresPhoneReportRepository
+from cobranza.application.use_cases.phone_reports import ReportWrongNumber
 from cobranza.infrastructure.services.claude_call_summarizer import (
     BACKUP_MODEL,
     PRIMARY_MODEL,
@@ -73,6 +75,7 @@ class UseCases:
     find_debtors_by_phone: FindDebtorsByPhone
     find_debtors_by_name: FindDebtorsByName   # solo demos (DEMO_LOOKUP_BY_NAME en la API)
     get_debtor_by_id: GetDebtorById           # solo demos: el deudor hallado por SSN y fecha
+    report_wrong_number: ReportWrongNumber    # decisión 5 (2026-11-24): número equivocado
     get_debtor_by_account: GetDebtorByAccount
     verify_identity: VerifyIdentity
     start_call: StartCall
@@ -133,6 +136,7 @@ def build_use_cases(pool: ConnectionPool, pii_hmac_key: str,
         find_debtors_by_phone=FindDebtorsByPhone(debtors, phones),
         find_debtors_by_name=FindDebtorsByName(debtors, phones),
         get_debtor_by_id=GetDebtorById(debtors, phones),
+        report_wrong_number=ReportWrongNumber(PostgresPhoneReportRepository(pool), phones, clock),
         get_debtor_by_account=get_debtor_by_account,
         propose_arrangement=propose_arrangement,
         propose_next_offer=ProposeNextOffer(propose_arrangement, negotiation_log),

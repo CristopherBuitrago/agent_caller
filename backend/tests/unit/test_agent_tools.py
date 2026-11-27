@@ -95,6 +95,7 @@ def _use_cases(debtors=(None,), verify=VerificationOutcome.VERIFIED, next_offer=
         record_collection_hold=Stub(lambda *a: "summary"),
         get_last_contact=Stub(last_contact or (lambda *a: None)),
         schedule_callback=Stub(),
+        report_wrong_number=Stub(),
     )
 
 
@@ -966,3 +967,21 @@ def test_with_one_debt_lucy_says_there_is_one_payment():
     tools, _ = _tools()
     answer, _ = _run(tools, "verify_identity", **VERIFY_JANE)
     assert "I see a payment that was returned. Let me go over it." in answer["next_step"]
+
+
+# --- número equivocado (decisión 5, 2026-11-24) ---------------------------------------------------
+
+def test_wrong_number_is_reported_and_the_call_closes_as_wrong_party():
+    tools, uc = _tools(direction=CallDirection.OUTBOUND)
+    answer, is_error = _run(tools, "report_wrong_number")
+    assert not is_error and answer["reported"] is True
+    assert "Thank you for letting us know. Goodbye." in answer["next_step"]
+    assert uc.report_wrong_number.calls == [("c1", "+13055550001")]
+    assert tools.ended and tools.outcome is CallOutcome.WRONG_PARTY
+
+
+def test_a_verified_debtor_cannot_report_a_wrong_number():
+    tools, uc = _tools()
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    answer, is_error = _run(tools, "report_wrong_number")
+    assert is_error and answer["error"] == "not_allowed" and uc.report_wrong_number.calls == []

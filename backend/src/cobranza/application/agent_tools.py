@@ -32,6 +32,7 @@ from cobranza.application.use_cases.negotiate_arrangement import (
     UnknownProposalError,
 )
 from cobranza.application.use_cases.register_call import EndCall, RecordRecordingConsent, ScheduleCallback
+from cobranza.application.use_cases.phone_reports import ReportWrongNumber
 from cobranza.application.use_cases.verify_identity import VerifyIdentity
 from cobranza.domain.arrangement import (
     LAST_INSTALLMENTS_BEFORE_HARDSHIP,
@@ -104,6 +105,8 @@ class AgentUseCases:
     find_debtors_by_name: FindDebtorsByName | None = None
     # Solo demos: el deudor encontrado por SSN y fecha, sin teléfono.
     get_debtor_by_id: GetDebtorById | None = None
+    # Decisión 5 (2026-11-24): el teléfono no es del deudor y quien contesta no se verificó.
+    report_wrong_number: ReportWrongNumber | None = None
 
 
 # --- definición de las herramientas (lo que ve el modelo) ---------------------------------
@@ -229,6 +232,9 @@ TOOL_SPECS: tuple[ToolSpec, ...] = (
            "time": {"type": "string", "description": "Time as HH:MM, 24-hour, in the debtor's local time."},
            "note": {"type": "string", "description": "Optional short note, for example who asked."}},
           ("date", "time")),
+    _spec("report_wrong_number",
+          "The person (not verified) says this phone number is not the debtor's, and they refused the "
+          "identity questions or failed them. Saves the report and ends the call."),
     _spec("transfer_to_human",
           "Transfer the call to a representative. Ends your part of the call.",
           {"reason": {"type": "string"}}, ("reason",)),
@@ -743,6 +749,17 @@ class CallTools:
                     f"{NOTHING_BEFORE_VERIFICATION} {ALREADY_CLOSED}"}
         return {"scheduled": True, "callback": local_when.isoformat(), "next_step":
                 f'Confirm: "We\'ll call back on {spoken}." Then say goodbye. {ALREADY_CLOSED}'}
+
+    def _tool_report_wrong_number(self) -> dict:
+        """Decisión 5 (2026-11-24): el número queda sin SMS ni llamadas hasta que lo revise un cobrador."""
+        if self._debtor is not None:
+            raise ValueError("The caller is verified: this number belongs to the debtor")
+        if self._uc.report_wrong_number is None:
+            raise ValueError("Reporting a wrong number is not available")
+        self._uc.report_wrong_number.execute(self.call_id, self._caller_phone)
+        self._close(CallOutcome.WRONG_PARTY)
+        return {"reported": True, "next_step": 'Say exactly: "Thank you for letting us know. Goodbye." '
+                f"{NOTHING_BEFORE_VERIFICATION} {ALREADY_CLOSED}"}
 
     def _debtor_for_callback(self) -> DebtorSummary | None:
         """Sin verificación: el deudor de la cuenta (saliente) o el primero de ese teléfono (entrante)."""
