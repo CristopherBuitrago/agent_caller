@@ -375,16 +375,18 @@ def _tools_on(day):
 
 def test_offer_says_the_first_payment_can_wait_until_the_end_of_the_month():
     result, _ = _run(_tools_on(date(2026, 11, 12)), "propose_offer", account_ref="ACC-deb-1")
-    assert result["latest_first_payment_date"] == "2026-11-30"
+    assert result["latest_first_payment_date"] == "2026-12-02"
     assert result["first_payment_date_rule"].startswith("Try to get the first payment today.")
     assert "offer the last day of the month, Monday, November 30, 2026" in result["first_payment_date_rule"]
+    assert "the latest possible date is Wednesday, December 2, 2026" in result["first_payment_date_rule"]
 
 
 def test_near_the_end_of_the_month_it_asks_for_this_month_first():
     result, _ = _run(_tools_on(date(2027, 1, 27)), "propose_offer", account_ref="ACC-deb-1")
-    assert result["latest_first_payment_date"] == "2027-02-28"
+    assert result["latest_first_payment_date"] == "2027-03-02"
     rule = result["first_payment_date_rule"]
-    assert rule.index("Sunday, January 31, 2027") < rule.index("Sunday, February 28, 2027")
+    assert (rule.index("Sunday, January 31, 2027") < rule.index("Sunday, February 28, 2027")
+            < rule.index("Tuesday, March 2, 2027"))
 
 
 # --- N12: número para devolver la llamada a quien no logra verificarse ---------------------

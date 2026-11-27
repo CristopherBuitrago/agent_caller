@@ -84,7 +84,7 @@ def test_plan_cannot_exceed_ten_installments():
     assert _violation(build_plan, BALANCE, 11, TODAY, TODAY) is R.INVALID_SCHEDULE
 
 
-@pytest.mark.parametrize("days, ok", [(-1, False), (0, True), (28, True), (29, False)])  # 2 nov -> 30 nov
+@pytest.mark.parametrize("days, ok", [(-1, False), (0, True), (28, True), (30, True), (31, False)])  # 2 nov -> 30 nov + 2 = 2 dic
 def test_first_payment_is_up_to_the_end_of_the_month(days, ok):
     first_due = TODAY + timedelta(days=days)
     if ok:
@@ -247,10 +247,10 @@ def test_altered_partial_installments_are_rejected():
 
 # --- N8: el primer pago, hasta fin de mes (o fin del mes siguiente si faltan menos de 8 días) --
 
-from cobranza.domain.arrangement import latest_first_payment_date  # noqa: E402
+from cobranza.domain.arrangement import first_payment_month_end, latest_first_payment_date  # noqa: E402
 
 
-@pytest.mark.parametrize("today, latest", [
+@pytest.mark.parametrize("today, month_end", [
     (date(2026, 11, 12), date(2026, 11, 30)),   # faltan 18 días: fin de este mes
     (date(2026, 12, 8), date(2026, 12, 31)),
     (date(2027, 1, 23), date(2027, 1, 31)),     # justo 8 días
@@ -258,8 +258,26 @@ from cobranza.domain.arrangement import latest_first_payment_date  # noqa: E402
     (date(2028, 1, 27), date(2028, 2, 29)),     # año bisiesto
     (date(2026, 12, 29), date(2027, 1, 31)),    # cambia de año
 ])
-def test_latest_first_payment_date(today, latest):
+def test_first_payment_month_end(today, month_end):
+    assert first_payment_month_end(today) == month_end
+
+
+@pytest.mark.parametrize("today, latest", [
+    (date(2026, 11, 22), date(2026, 12, 2)),    # el caso de Mark: podía pagar el 1 de diciembre
+    (date(2027, 1, 27), date(2027, 3, 2)),
+    (date(2026, 12, 29), date(2027, 2, 2)),
+    (date(2028, 1, 27), date(2028, 3, 2)),      # 29 de febrero + 2
+])
+def test_latest_first_payment_date_is_two_days_after_that_month_end(today, latest):
+    """Decisión del 2026-11-24, tras la prueba de voz del 22 de noviembre."""
     assert latest_first_payment_date(today) == latest
+
+
+def test_a_first_payment_after_those_two_days_is_rejected():
+    with pytest.raises(ArrangementRuleError):
+        build_plan(BALANCE, 2, date(2026, 12, 3), date(2026, 11, 22))
+    plan = build_plan(BALANCE, 2, date(2026, 12, 1), date(2026, 11, 22))
+    assert [p.due_date for p in plan.payments] == [date(2026, 12, 1), date(2027, 1, 1)]
 
 
 # --- N8: si el primer pago cae a fin de mes, todas las cuotas caen a fin de mes ------------

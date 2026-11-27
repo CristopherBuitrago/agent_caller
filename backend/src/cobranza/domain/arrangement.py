@@ -19,6 +19,9 @@ LAST_INSTALLMENTS_BEFORE_HARDSHIP = 3
 # puede ir hasta fin de este mes, que es cuando cobra la mayoría. Si faltan menos de 8 días, hasta
 # fin del mes siguiente (el agente ofrece primero fin de este mes). Siempre se intenta hoy primero.
 MIN_DAYS_BEFORE_MONTH_END = 8
+# Prueba de voz del 2026-11-22 (decisión del 2026-11-24): el deudor que solo puede pagar el 1 del mes
+# siguiente se quedaba sin acuerdo. El primer pago puede ir hasta 2 días después de ese fin de mes.
+DAYS_AFTER_MONTH_END = 2
 MAX_DAYS_TO_PAY_REMAINDER = 30  # contados desde el primer pago
 # Plazo máximo del plan: 1 año ("Maximo un año"). El último pago puede caer, como mucho, el mismo
 # día del mes 12 meses después del primero.
@@ -128,15 +131,21 @@ def monthly_due_date(first_due: date, months: int) -> date:
     return add_months(first_due, months)
 
 
-def latest_first_payment_date(today: date) -> date:
-    """N8: fin de este mes; si faltan menos de 8 días, fin del mes siguiente.
-
-    12 de noviembre -> 30 de noviembre; 27 de enero -> 28 (o 29) de febrero.
-    """
+def first_payment_month_end(today: date) -> date:
+    """N8: el fin de mes hasta el que se ofrece el primer pago: este mes; si faltan menos de 8 días,
+    el mes siguiente."""
     this_month_end = end_of_month(today)
     if (this_month_end - today).days >= MIN_DAYS_BEFORE_MONTH_END:
         return this_month_end
     return end_of_month(add_months(today.replace(day=1), 1))
+
+
+def latest_first_payment_date(today: date) -> date:
+    """N8: ese fin de mes más 2 días (2026-11-24).
+
+    22 de noviembre -> 2 de diciembre; 27 de enero -> 2 de marzo.
+    """
+    return first_payment_month_end(today) + timedelta(days=DAYS_AFTER_MONTH_END)
 
 
 def _equal_parts(total_cents: int, parts: int) -> list[int]:

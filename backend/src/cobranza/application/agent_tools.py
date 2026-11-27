@@ -36,6 +36,7 @@ from cobranza.application.use_cases.verify_identity import VerifyIdentity
 from cobranza.domain.arrangement import (
     LAST_INSTALLMENTS_BEFORE_HARDSHIP,
     end_of_month,
+    first_payment_month_end,
     latest_first_payment_date,
     LAST_OFFER,
     REGULAR_MIN_PARTIAL_PAYMENT_PCT,
@@ -581,18 +582,22 @@ class CallTools:
         today = (now.astimezone(ZoneInfo(self._debtor.timezone)).date()
                  if self._debtor.timezone else now.date())
         latest = latest_first_payment_date(today)
+        month_end = first_payment_month_end(today)
         this_month_end = end_of_month(today)
         # N8 (2026-11-13): si pide tiempo, el primer pago va el último día del mes y las cuotas
-        # siguientes también caen el último día de cada mes.
-        if latest == this_month_end:
+        # siguientes también caen el último día de cada mes. Desde el 2026-11-24 puede ir hasta 2 días
+        # después, solo si el deudor no puede antes.
+        if month_end == this_month_end:
             note = (f"Try to get the first payment today. If they need time, offer the last day of the "
-                    f"month, {_spoken_date(latest)}, and call propose_offer again with that "
+                    f"month, {_spoken_date(month_end)}, and call propose_offer again with that "
                     "first_payment_date; any later payments will also fall on the last day of each month.")
         else:
             note = (f"Try to get the first payment today. If they need time, first offer "
-                    f"{_spoken_date(this_month_end)}; only if they cannot, offer {_spoken_date(latest)}. "
+                    f"{_spoken_date(this_month_end)}; only if they cannot, offer {_spoken_date(month_end)}. "
                     "Call propose_offer again with that first_payment_date; any later payments will also "
                     "fall on the last day of each month.")
+        note += (f" Only if they cannot pay by then, the latest possible date is {_spoken_date(latest)}; "
+                 "later payments then fall on that same day of each month.")
         return {"latest_first_payment_date": latest.isoformat(), "first_payment_date_rule": note}
 
     def _tool_record_offer_response(self, proposal_id: str, accepted: bool) -> dict:
