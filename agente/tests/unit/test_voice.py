@@ -34,15 +34,21 @@ class FakeSession:
 
     call_id = "c1"
 
-    def __init__(self, replies, thinking_seconds=0.0):
+    def __init__(self, replies, thinking_seconds=0.0, chunks=None, pause=0.0):
         self.replies = list(replies)
         self.thinking_seconds = thinking_seconds
+        self.chunks = chunks      # si viene, la respuesta llega por partes (como Claude por streaming)
+        self.pause = pause        # espera entre partes
         self.heard = []
         self.ended = False
         self.hung_up = False
 
-    def debtor_says(self, text):
+    def debtor_says(self, text, on_text=None):
         self.heard.append(text)
+        if self.chunks and on_text:
+            for chunk in self.chunks:
+                on_text(chunk)
+                time.sleep(self.pause)
         time.sleep(self.thinking_seconds)
         reply = self.replies.pop(0)
         self.ended = reply.call_ended
@@ -213,3 +219,35 @@ def test_the_echo_returns_the_microphone_audio_as_output():
     out = [f for f in down if isinstance(f, OutputAudioRawFrame)]
     assert len(out) == 1 and out[0].audio == audio.audio and out[0].sample_rate == 16000
     assert echo.frames_echoed == 1
+
+
+# --- respuesta por partes (decisión 11, 2026-11-24) --------------------------------------------
+
+ANSWER = "Sure. Let me check that. Your balance is $485.00. Would you like to take care of it today?"
+CHUNKS = ["Sure. Let me ", "check that. Your bal", "ance is $485.00. Would you like ", "to take care of it today?"]
+
+
+def test_each_sentence_goes_to_the_voice_as_soon_as_it_is_complete():
+    session = FakeSession([AgentReply(ANSWER, False, None)], chunks=CHUNKS)
+    down = _run(_processor(session), [_heard("How much do I owe?"), UserStoppedSpeakingFrame()])
+    assert _spoken(down) == ["Thank you for calling L.O.F.", "Sure.", "Let me check that.",
+                             "Your balance is $485.00.", "Would you like to take care of it today?"]
+
+
+def test_no_fixed_filler_when_the_model_already_started_talking():
+    session = FakeSession([AgentReply("Let me check that. Done.", False, None)],
+                          chunks=["Let me check that. ", "Done."], pause=0.15)
+    down = _run(_processor(session, filler_after=0.05), [_heard("Hi"), UserStoppedSpeakingFrame()])
+    assert not set(FILLERS) & set(_spoken(down))
+    assert _spoken(down)[1:] == ["Let me check that.", "Done."]
+
+
+def test_an_interruption_stops_the_rest_of_the_answer():
+    from pipecat.frames.frames import UserStartedSpeakingFrame
+    from pipecat.tests.utils import SleepFrame
+
+    session = FakeSession([AgentReply("First part. Second part.", False, None)],
+                          chunks=["First part. ", "Second part."], pause=0.6)
+    down = _run(_processor(session), [_heard("Hi"), UserStoppedSpeakingFrame(), SleepFrame(sleep=0.5),
+                                      UserStartedSpeakingFrame(), SleepFrame(sleep=0.8)])
+    assert "First part." in _spoken(down) and "Second part." not in _spoken(down)

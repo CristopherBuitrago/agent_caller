@@ -453,3 +453,94 @@ def test_the_prompt_never_says_the_short_name_with_a_double_period():
     assert "L.O.F.." not in prompt and "calling from L.O.F." in prompt
     without_period = render_system_prompt("Live Oac Financial", "LOF", CATALOG)
     assert "calling from LOF." in without_period
+
+
+# --- respuesta por partes (decisión 11, 2026-11-24) --------------------------------------------
+
+class StreamingModel(ScriptedModel):
+    """Como ScriptedModel, pero entrega el texto de cada turno por on_text."""
+
+    def send_user_text(self, text, on_text=None):
+        turn = super().send_user_text(text)
+        if on_text and turn.text:
+            on_text(turn.text)
+        return turn
+
+    def send_tool_results(self, results, on_text=None):
+        turn = super().send_tool_results(results)
+        if on_text and turn.text:
+            on_text(turn.text)
+        return turn
+
+
+def test_the_session_passes_the_text_as_it_arrives_across_tool_rounds():
+    parts = []
+    model = StreamingModel(_say("Let me check that.", ("get_account_details", {})), _say("You owe $485."))
+    reply = AgentSession(FakeCallTools(), model).debtor_says("How much?", on_text=parts.append)
+    assert "".join(parts) == "Let me check that. You owe $485."
+    assert reply.text == "Let me check that. You owe $485."
+
+
+def test_without_on_text_the_session_works_as_before():
+    reply = AgentSession(FakeCallTools(), ScriptedModel(_say("Hello."))).debtor_says("Hi")
+    assert reply.text == "Hello."
+
+
+class FakeStream:
+    def __init__(self, deltas, final, error=None):
+        self.deltas, self.final, self.error = deltas, final, error
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    @property
+    def text_stream(self):
+        for delta in self.deltas:
+            yield delta
+        if self.error:
+            raise self.error
+
+    def get_final_message(self):
+        return self.final
+
+
+class StreamingMessages(FakeMessages):
+    def __init__(self, *streams):
+        super().__init__()
+        self.streams = list(streams)
+
+    def stream(self, **request):
+        self.models.append(request["model"])
+        return self.streams.pop(0)
+
+
+def test_claude_streams_the_text_and_returns_the_whole_turn():
+    final = _response("end_turn", _text("Sure. Let me check."))
+    messages = StreamingMessages(FakeStream(["Sure. ", "Let me check."], final))
+    model = ClaudeConversationModel(SimpleNamespace(messages=messages), "primary", "backup")
+    parts = []
+    turn = model.start("system", []).send_user_text("hi", on_text=parts.append)
+    assert parts == ["Sure. ", "Let me check."] and turn.text == "Sure. Let me check."
+
+
+def test_claude_does_not_switch_models_after_part_of_the_answer_was_said():
+    messages = StreamingMessages(FakeStream(["Sure. "], None, error=_api_error()))
+    model = ClaudeConversationModel(SimpleNamespace(messages=messages), "primary", "backup")
+    with pytest.raises(ConversationModelError):
+        model.start("system", []).send_user_text("hi", on_text=lambda t: None)
+    assert messages.models == ["primary"]
+
+
+def test_claude_uses_the_backup_if_the_stream_fails_before_any_text():
+    final = _response("end_turn", _text("Hello."))
+    messages = StreamingMessages(FakeStream([], None, error=_api_error()), FakeStream(["Hello."], final))
+    model = ClaudeConversationModel(SimpleNamespace(messages=messages), "primary", "backup")
+    assert model.start("system", []).send_user_text("hi", on_text=lambda t: None).text == "Hello."
+    assert messages.models == ["primary", "backup"]
+
+
+def test_prompt_asks_for_a_short_phrase_before_each_tool():
+    assert "Before calling a tool, say one short natural phrase that fits what you are doing" in _prompt()

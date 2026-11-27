@@ -13,6 +13,7 @@ from cobranza_agent.application.conversation_model import (
     ConversationModelError,
     ModelTurn,
     ToolCall,
+    TextSink,
     ToolResult,
     ToolSpec,
 )
@@ -47,31 +48,36 @@ class ClaudeConversation:
                        for t in tools]
         self._messages: list[dict] = []
 
-    def send_user_text(self, text: str) -> ModelTurn:
+    def send_user_text(self, text: str, on_text: TextSink | None = None) -> ModelTurn:
         self._messages.append({"role": "user", "content": text})
-        return self._request()
+        return self._request(on_text)
 
-    def send_tool_results(self, results: list[ToolResult]) -> ModelTurn:
+    def send_tool_results(self, results: list[ToolResult], on_text: TextSink | None = None) -> ModelTurn:
         self._messages.append({"role": "user", "content": [
             {"type": "tool_result", "tool_use_id": r.tool_call_id, "content": r.content,
              "is_error": r.is_error}
             for r in results
         ]})
-        return self._request()
+        return self._request(on_text)
 
-    def _request(self) -> ModelTurn:
+    def _request(self, on_text: TextSink | None = None) -> ModelTurn:
         for model in self._models:
+            request = dict(model=model, max_tokens=MAX_TOKENS, system=self._system, tools=self._tools,
+                           messages=self._messages, cache_control={"type": "ephemeral"},
+                           output_config={"effort": EFFORT})
+            sent = []   # texto ya entregado por partes: si el modelo falla después, no se puede retirar
             try:
-                response = self._client.messages.create(
-                    model=model,
-                    max_tokens=MAX_TOKENS,
-                    system=self._system,
-                    tools=self._tools,
-                    messages=self._messages,
-                    cache_control={"type": "ephemeral"},
-                    output_config={"effort": EFFORT},
-                )
+                if on_text is None:
+                    response = self._client.messages.create(**request)
+                else:
+                    with self._client.messages.stream(**request) as stream:
+                        for delta in stream.text_stream:
+                            sent.append(delta)
+                            on_text(delta)
+                        response = stream.get_final_message()
             except anthropic.APIError:
+                if sent:
+                    raise ConversationModelError("El modelo falló a mitad de la respuesta") from None
                 log.warning("Falló %s; se intenta con el siguiente modelo", model, exc_info=True)
                 continue
             if response.stop_reason == "refusal":

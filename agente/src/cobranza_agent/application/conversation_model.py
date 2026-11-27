@@ -3,8 +3,13 @@
 Implementación: infrastructure/services/claude_conversation_model.py
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
+
+# Recibe el texto del modelo a medida que lo escribe (decisión 11, 2026-11-24): la voz empieza a
+# hablar con la primera frase. El chat y las simulaciones no lo usan.
+TextSink = Callable[[str], None]
 
 
 @dataclass(frozen=True)
@@ -43,9 +48,11 @@ class ConversationModelError(Exception):
 class ModelConversation(Protocol):
     """Una conversación en curso; guarda su propio historial."""
 
-    def send_user_text(self, text: str) -> ModelTurn: ...
+    def send_user_text(self, text: str, on_text: TextSink | None = None) -> ModelTurn:
+        """`on_text`, si viene, recibe el texto por partes mientras el modelo lo escribe."""
+        ...
 
-    def send_tool_results(self, results: list[ToolResult]) -> ModelTurn:
+    def send_tool_results(self, results: list[ToolResult], on_text: TextSink | None = None) -> ModelTurn:
         """Devuelve los resultados de todas las herramientas del turno anterior, juntos."""
         ...
 

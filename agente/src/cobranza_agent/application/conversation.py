@@ -19,6 +19,7 @@ from cobranza_agent.application.conversation_model import (
     ModelConversation,
     ModelTurn,
     ToolCall,
+    TextSink,
     ToolResult,
     ToolSpec,
 )
@@ -101,11 +102,12 @@ class AgentSession:
         """Aviso del sistema telefónico (no lo dijo el deudor)."""
         return self._send(f"<call_event>{event}</call_event>")
 
-    def debtor_says(self, text: str) -> AgentReply:
+    def debtor_says(self, text: str, on_text: TextSink | None = None) -> AgentReply:
+        """`on_text` (voz): recibe lo que va escribiendo el modelo, para decirlo frase por frase."""
         if self.ended:
             raise ValueError("La llamada ya terminó")
         self._add_line(f"Debtor: {text}")
-        return self._send(text)
+        return self._send(text, on_text)
 
     def hang_up(self) -> None:
         """El deudor colgó. El modelo elige el resultado; si no cierra, se cierra como volver a llamar."""
@@ -122,9 +124,11 @@ class AgentSession:
         except CallBackendError:
             log.warning("No se pudo enviar la conversación de la llamada %s", self.call_id, exc_info=True)
 
-    def _send(self, user_text: str) -> AgentReply:
+    def _send(self, user_text: str, on_text: TextSink | None = None) -> AgentReply:
         try:
-            return self._run(self._conversation.send_user_text(user_text))
+            if on_text is None:
+                return self._run(self._conversation.send_user_text(user_text))
+            return self._run(self._conversation.send_user_text(user_text, on_text=on_text), on_text)
         except ConversationModelError:
             log.warning("El modelo no respondió en la llamada %s", self.call_id, exc_info=True)
             return self._fail()
@@ -132,7 +136,7 @@ class AgentSession:
             log.warning("El backend no respondió en la llamada %s", self.call_id, exc_info=True)
             return self._fail()
 
-    def _run(self, turn: ModelTurn) -> AgentReply:
+    def _run(self, turn: ModelTurn, on_text: TextSink | None = None) -> AgentReply:
         texts = [turn.text]
         rounds = 0
         while turn.tool_calls:
@@ -147,7 +151,11 @@ class AgentSession:
                     self._on_tool(call, result)
                 results.append(result)
             # Todas las respuestas de herramientas del turno van juntas.
-            turn = self._conversation.send_tool_results(results)
+            if on_text is None:
+                turn = self._conversation.send_tool_results(results)
+            else:
+                on_text(" ")   # separa lo dicho antes y después de las herramientas
+                turn = self._conversation.send_tool_results(results, on_text=on_text)
             texts.append(turn.text)
         return self._reply(" ".join(t.strip() for t in texts if t and t.strip()))
 
