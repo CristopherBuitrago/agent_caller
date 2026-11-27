@@ -491,6 +491,7 @@ def test_schedule_callback_uses_the_debtor_local_time_and_closes_the_call():
     tools, uc = _tools()
     _run(tools, "record_recording_consent", accepted=True)
     _run(tools, "verify_identity", **VERIFY_JANE)
+    _run(tools, "propose_offer", account_ref="ACC-deb-1")     # P9: primero se ofreció el pago
     result, is_error = _run(tools, "schedule_callback", date="2026-11-20", time="18:00", note="asked by debtor")
     assert not is_error and result["scheduled"] is True
     call_id, when, note = uc.schedule_callback.calls[0]
@@ -604,6 +605,7 @@ def test_callback_for_someone_not_verified_uses_the_fixed_sentence():
 def test_callback_for_the_verified_debtor_keeps_the_normal_confirmation():
     tools, _ = _tools()
     _run(tools, "verify_identity", **VERIFY_JANE)
+    _run(tools, "propose_offer", account_ref="ACC-deb-1")
     result, _ = _run(tools, "schedule_callback", date="2026-11-20", time="18:00")
     assert result["next_step"].startswith("Confirm: \"We'll call back on")
 
@@ -694,6 +696,7 @@ def test_the_agreement_tells_the_debtor_how_payments_work():
 def test_tools_that_close_the_call_say_not_to_close_it_again(tool, args):
     tools, _ = _tools()
     _run(tools, "verify_identity", **VERIFY_JANE)
+    _run(tools, "propose_offer", account_ref="ACC-deb-1")
     result, _ = _run(tools, tool, **args)
     assert "do not call end_call" in result["next_step"] and tools.ended
 
@@ -912,3 +915,34 @@ def test_a_first_refusal_is_not_saved_until_the_caller_repeats_it():
     assert uc.record_recording_consent.calls == [] and not tools.ended
     second, _ = _run(tools, "record_recording_consent", accepted=False)
     assert second["recorded"] is True and "recording_refused" in second["next_step"]
+
+
+# --- P9 exigido: antes de agendar, ofrecer el pago con fecha (decisión 8, 2026-11-24) -------------
+
+def _verified_for_callback():
+    tools, uc = _tools()
+    _run(tools, "record_recording_consent", accepted=True)
+    _run(tools, "verify_identity", **VERIFY_JANE)
+    return tools, uc
+
+
+def test_a_first_callback_request_without_an_offer_asks_to_offer_first():
+    tools, uc = _verified_for_callback()
+    first, _ = _run(tools, "schedule_callback", date="2026-11-25", time="10:00")
+    assert first["error"] == "offer_first" and "If it helps, we can set your first payment" in first["next_step"]
+    assert uc.schedule_callback.calls == [] and not tools.ended
+    second, _ = _run(tools, "schedule_callback", date="2026-11-25", time="10:00")
+    assert second["scheduled"] is True and tools.ended
+
+
+def test_after_an_offer_the_callback_is_scheduled_at_once():
+    tools, uc = _verified_for_callback()
+    _run(tools, "propose_offer", account_ref="ACC-deb-1")
+    answer, _ = _run(tools, "schedule_callback", date="2026-11-25", time="10:00")
+    assert answer["scheduled"] is True
+
+
+def test_without_verification_the_callback_is_scheduled_at_once():
+    tools, uc = _tools(direction=CallDirection.OUTBOUND)
+    answer, _ = _run(tools, "schedule_callback", date="2026-11-25", time="10:00")
+    assert answer["scheduled"] is True

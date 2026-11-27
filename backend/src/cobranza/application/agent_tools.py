@@ -361,6 +361,7 @@ class CallTools:
         self._debtor: DebtorSummary | None = None  # deudor verificado
         self._names_given: list[str] = []  # nombres que dio quien llama en cada intento de verificación
         self._refusal_explained = False    # se le explicó que la grabación es obligatoria
+        self._offer_before_callback_reminded = False   # P9: ya se le pidió ofrecer el pago con fecha
         # SSN y fecha coincidieron con este deudor; falta que quien llama confirme el nombre.
         self._pending_identity: tuple[DebtorSummary, str, date] | None = None
         self._proposals: dict[str, LoggedProposal] = {}
@@ -703,6 +704,15 @@ class CallTools:
 
     def _tool_schedule_callback(self, date: str, time: str, note: str | None = None) -> dict:
         """N9 / B2: guarda el día y la hora pedidos (hora local del deudor) y cierra la llamada."""
+        if (self._debtor is not None and self._debtor.collectable_accounts and not self._proposals
+                and not self._offer_before_callback_reminded):
+            # P9 exigido por el sistema (decisión 8 del 2026-11-24): en la prueba de voz del 22 de
+            # noviembre Lucy agendó sin ofrecer antes el pago con fecha. El segundo intento sí agenda.
+            self._offer_before_callback_reminded = True
+            return {"error": "offer_first", "next_step": "Before scheduling, offer: \"If it helps, we can "
+                    "set your first payment for when you'll have the money. When would that be?\" If "
+                    "they give a date, call propose_offer with that first_payment_date. If they still "
+                    "want a call back, call schedule_callback again."}
         day = _parse_date(date, "date")
         try:
             hour, minute = (int(part) for part in str(time).strip().split(":"))
