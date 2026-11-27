@@ -340,6 +340,16 @@ def test_lucy_asks_ssn_then_date_then_confirms_the_name():      # usuario, 2026-
     assert "Am I speaking with [name]?" in prompt and "confirm_identity" in prompt
 
 
+def test_lucy_says_what_lof_is_before_verifying():               # decisión 1, 2026-11-24
+    assert "L.O.F. is the company that sent you the message." in _prompt()
+
+
+def test_lucy_never_talks_about_errors_or_the_system():          # decisión 10, 2026-11-24
+    prompt = _prompt()
+    assert "Never say \"error\", \"system\"" in prompt
+    assert "I'm sorry, we need to end the call here. You can call us back anytime. Goodbye." in prompt
+
+
 def test_lucy_only_speaks_english():                         # prueba de voz, 2026-11-20
     prompt = _prompt()
     assert "Always speak English, even if the caller or someone in the background" in prompt

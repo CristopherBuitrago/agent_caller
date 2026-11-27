@@ -67,3 +67,4 @@ Antes: ~USD 3.789 al mes. Cambia porque la voz a texto pasa a AssemblyAI (~USD 4
 | # | Tema | Qué hay que revisar | Estado |
 | --- | --- | --- | --- |
 | L7 | Deudores vulnerables y SMS | Las obligaciones con deudores en situación vulnerable, y el consentimiento, la forma de darse de baja y el texto de los SMS de cobranza. También qué muestra la página de confirmación del acuerdo por SMS y su texto de consentimiento (duda 9). Lo revisa el abogado de la empresa en EE. UU. | **Pendiente** |
+| L8 | Cómo se identifica Lucy antes de verificar | Si preguntan qué es L.O.F., Lucy responde: "L.O.F. is the company that sent you the message. I can share the details once I confirm I am speaking with the right person." Confirmar que cumple con la identificación del cobrador de la FDCPA sin revelar la deuda a un tercero (prueba de voz del 2026-11-22) | Supuesto vigente; falta que lo valide el abogado |
