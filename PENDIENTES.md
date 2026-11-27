@@ -40,14 +40,16 @@ Para mandárselo al jefe están `docs/para_el_jefe/pendientes_externos.md` y `do
 - [ ] ¿Las entrantes de deudores en NSF pasan directo al agente? El jefe lo iba a proponer al dueño
 - [x] Duda para el padrastro (2026-11-19): con varias deudas, el agente anuncia el orden al principio (primero el pago rebotado más antiguo). Respondido el 2026-11-20
 - [x] Duda para el padrastro: las cuotas que caen en fin de semana se dejan como están. Respondido el 2026-11-20
-- [ ] Duda para el padrastro (prueba de voz, 2026-11-22, Lucy Bennett): el deudor dijo que debía revisar con su banco antes de comprometerse y pidió que lo llamaran el miércoles. Lucy no ofreció un pago y agendó la llamada. ¿Es lo correcto cuando el deudor tiene que verificar con otra entidad (banco, empleador) antes de dar una respuesta, o Lucy debería ofrecer primero un pago con fecha?
-- [ ] Duda para el padrastro (prueba de voz, 2026-11-22, Mark Holloway): el deudor solo podía pagar el 1 de diciembre y la regla N8 permite el primer pago hasta el 30 de noviembre (faltaban exactamente 8 días, así que no se habilitó el mes siguiente). Terminó en una llamada agendada sin acuerdo. ¿Se amplía la regla para que, cerca de fin de mes, el primer pago pueda caer en los primeros días del mes siguiente?
+- [x] Duda para el padrastro (Lucy Bennett): antes de agendar, el sistema exige ofrecer el pago con fecha (P9). Respondido el 2026-11-24
+- [x] Duda para el padrastro (Mark Holloway): el primer pago puede ir hasta 2 días después de fin de mes. Respondido el 2026-11-24
 
 ## Desarrollo que se puede hacer ya
 
 En el orden propuesto el 2026-11-17. El detalle técnico de cada uno está en el `docs/en_construccion.md` de su servicio (`backend/`, `agente/` o `messaging/`):
 
-- [ ] **Siguiente (2026-11-24):** aplicar las decisiones de las pruebas de voz del 22 de noviembre, en el orden 7, 8, 1, 10, 9, 4, 5 y 11. Plan aprobado y detallado en `agente/docs/pruebas_voz/2026-11-22_decisiones.md` (incluye la tabla `phone_reports`, ya aprobada)
+- [x] Decisiones de las pruebas de voz del 22 de noviembre, construidas el 2026-11-27 en el orden 7, 8, 1, 10, 9, 4, 5 y 11 (plan en `agente/docs/pruebas_voz/2026-11-22_decisiones.md`; reglas en `README.md`). Pasan 488 pruebas del backend, 117 del agente y 20 de messaging
+- [ ] **Siguiente:** prueba de voz por celular con todos los cambios (Lucy dice qué es L.O.F., una deuda por turno, silencio, número equivocado y respuesta por partes) y medir la demora hasta la primera palabra contra la del 22 de noviembre (mediana 1,65 s)
+- [ ] Las simulaciones del 2026-11-19 (prueba de ataque) se revisaron con las expresiones de `simular.py` rotas (no detectaban nada). Repetirlas para ver si hubo alertas que se pasaron
 - [ ] Capa de voz con Pipecat (rama `capa_de_voz`): **escuchada y probada desde un celular (2026-11-19)**, con una llamada completa hasta el acuerdo. Ajustes de la prueba: el agente se llama Lucy, 1,5 s de silencio para cerrar el turno, relleno si tarda, y después de un acuerdo ofrece la siguiente deuda. Falta: probar otra vez con estos ajustes, frases cortas para los datos de verificación que faltan o son imposibles (propuesta sin aprobar) y no decir "I'm calling from" en las entrantes (ver `agente/docs/en_construccion.md`)
 - [ ] Prueba con una llamada real, pedida por el jefe (2026-11-18) sin acceso al CRM ni al EER. Con un deudor de prueba en la base cuyo teléfono sea el de quien llama, y alguien de la empresa como deudor, que sabe que se graba. Transporte propuesto: un número de prueba en Twilio (Pipecat ya lo soporta) hasta que llegue Vaspian. Falta elegir el transporte
 - [ ] Endpoint para recibir el aviso de pago en la API (llama a `RecordPaymentResult`) y lector de reporte diario, probados con avisos falsos. Al conectarlo, activar `break_overdue_arrangements` (`PAYMENT_RESULTS_CONNECTED=true`)

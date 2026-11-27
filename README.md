@@ -84,10 +84,13 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
 - **Llamada entrante:** el saludo incluye el aviso de grabación.
 - **Llamada saliente:** primero solo pregunta por el deudor. Si no queda claro quién contestó, pregunta *"Am I speaking with [nombre]?"*; solo lo trata como otra persona cuando dice claramente que no es el deudor. Si ya le dio el aviso de grabación, el sistema rechaza el primer intento de cerrar como "otra persona" y le pide confirmar (hallazgo 4; desarrollador, opción A, 2026-11-18). Cuando la persona confirma que es él, el agente se identifica y da el aviso de grabación. La grabación empieza ahí, así que a un tercero no se le graba ni se le dice nada (N3).
 - **Grabación:** solo se informa, sin preguntar (L2, jefe). Si el deudor no quiere ser grabado, se le explica que es un requisito. Si insiste, la llamada se cierra como `recording_refused` sin hablar de la deuda.
-- **Nombre de la empresa:** antes de verificar solo se dice "L.O.F."; después, "Live Oac Financial" (L3, jefe).
-- **Verificación:** el deudor dice su nombre completo, los últimos 4 del SSN y su fecha de nacimiento (N2, confirmado por el jefe el 2026-11-13).
-  - Máximo 2 fallos por llamada. Con 5 fallos en 24 horas se bloquea y pasa a una persona.
-  - Solo se pide deletrear el apellido si lo único que no coincide es el apellido (S2). Nunca se dice qué dato falló.
+- **Nombre de la empresa:** antes de verificar solo se dice "L.O.F."; después, "Live Oac Financial" (L3, jefe). Si preguntan qué es L.O.F.: *"L.O.F. is the company that sent you the message. I can share the details once I confirm I'm speaking with the right person."* (decisión 1, 2026-11-24; falta que lo valide el abogado, L8).
+- **El agente se llama Lucy** y solo habla inglés.
+- **Verificación:** Lucy pide los últimos 4 del SSN, después la fecha de nacimiento, y el sistema le da el nombre para confirmar: *"Am I speaking with [nombre]?"*. Si dice que sí, queda verificado; si dice que no, se le pide el nombre completo. En salientes no se pregunta el nombre, porque ya se confirmó al saludar. Cambia N2 (el jefe pidió el 2026-11-13 que el deudor dijera su nombre): **decisión del desarrollador del 2026-11-24, riesgo aceptado: quien tenga el SSN y la fecha robados recibe el nombre.**
+  - Máximo 3 fallos por llamada (antes 2). Con 5 fallos en 24 horas se bloquea y pasa a una persona.
+  - Antes del último intento, Lucy pregunta solo por el dato que no coincidió (lee el SSN que dijo la persona y pide confirmarlo); en el resto de la llamada nunca dice qué dato falló (desarrollador, 2026-11-22).
+  - Al comparar nombres se ignoran las letras dobles ("Anna" = "Ana"), por errores de la transcripción de voz.
+  - Solo se pide deletrear el apellido si lo único que no coincide es el apellido (S2).
   - Si quien llama cambia el nombre de pila entre intentos, la llamada se cierra como `identity_mismatch` (S1).
   - Después de un fallo, `attempts_left` dice cuántos intentos quedan. Si queda 1, el agente avisa que es el último (B8).
   - Si los datos no los pudo haber dicho una persona (nombre sin apellido o de relleno, SSN 0000, fecha de nacimiento futura o de hace más de 120 años), la herramienta responde `invalid_input` y no cuenta como intento. Viene de la simulación con Haiku, que llamó con datos inventados antes de preguntarlos (desarrollador, opción A, 2026-11-18).
@@ -95,7 +98,9 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
   - Al que no logra verificarse se le da el número de la línea de entrada (`AGENT_CALLBACK_NUMBER`), si está configurado (N12).
 - **Aviso de cobrador:** justo después de verificar: *"This is an attempt to collect a debt... This communication is from a debt collector."* (L6).
 - **Terceros:** solo se les dice "It's a personal matter" o "Legally, I can only share this information with [deudor]". Nunca se deja recado (P3, jefe).
-- **Si preguntan si es un robot:** el agente dice que es un asistente virtual y ofrece pasar a una persona.
+- **Si preguntan si es un robot:** Lucy dice que es una asistente virtual y ofrece pasar a una persona.
+- **Grabación rechazada:** la negativa solo se guarda si la persona la repite después de que Lucy explica que es obligatoria (prueba de voz del 2026-11-22).
+- **Nunca dice "error" ni "system"**; si la llamada tiene que terminar de forma inesperada, usa una frase fija (decisión 10, 2026-11-24).
 
 ### Negociación
 - **Orden de las ofertas** (las elige el sistema con `ProposeNextOffer`, nunca la IA):
@@ -108,11 +113,13 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
   7. parcial de último recurso;
   8. si nada funciona, se transfiere a una persona.
 - **Cuotas:** iguales y mensuales, en fecha fija. El deudor acepta o rechaza; nunca diseña el plan. El plan dura como máximo 1 año, medido en meses del calendario.
-- **Primer pago:** siempre se intenta hoy. Si el deudor pide tiempo, el primer pago y todas las cuotas caen el último día de cada mes. La herramienta da la fecha límite (N8 y B7).
+- **Primer pago:** siempre se intenta hoy. Si el deudor pide tiempo, el primer pago y todas las cuotas caen el último día de cada mes. Solo si no puede, el primer pago puede ir hasta 2 días después de ese fin de mes, y las cuotas caen ese mismo día de cada mes (decisión 7, 2026-11-24). La herramienta da la fecha límite (N8 y B7).
+- **Varias deudas:** Lucy anuncia el orden (primero el pago rebotado más antiguo) y habla de una a la vez. Al cerrar un acuerdo ofrece la siguiente; si la respuesta no es clara, confirma antes de colgar.
 - **Pago parcial:** desde el 10% en cualquier momento. El resto se paga a los 30 días o, si el deudor dice cuánto puede pagar al mes, en cuotas mensuales. Con más de 3 pagos, primero van las Hardship Questions (N6).
 - **Menos del 10% (piso del 5%):** solo después de las Hardship Questions y de rechazar todas las ofertas.
 - **Si el deudor dice cuánto puede pagar,** el sistema salta las ofertas con cuotas mayores. Nunca salta la de 3 cuotas ni la última (N4, opción A').
 - **Aceptación:** solo vale un sí claro. Con duda ("I'll try"), el agente pregunta cuánto puede pagar cómodo y pide otra oferta (N7).
+- **Turnos cortos (decisión 4, 2026-11-24):** después de verificar, el aviso legal y cuántas deudas hay; en el turno siguiente, la primera deuda. Al cerrar el acuerdo: el primer pago, cuántos pagos y *"You'll get a text confirming it, and a secure link to pay on the payment date."*
 - **Cómo se paga:** si el deudor pregunta, el agente usa el texto `how_payments_work` del sistema: SMS de confirmación, aviso 3 días antes de cada cuota, link seguro el día del pago, y nadie llama para cobrar por teléfono (hallazgo 5; desarrollador, opción A, 2026-11-18). **Condición para el piloto:** Vaspian (SMS) y el procesador (link) conectados; si no, el agente estaría prometiendo algo que no pasa.
 - **Al aceptar:** el acuerdo se crea con la propuesta guardada, nunca con montos que envíe la IA. La cuenta pasa a `PTP`. Solo puede haber un acuerdo activo por cuenta. Una propuesta rechazada no se puede aceptar después (B15).
 
@@ -127,13 +134,19 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
 - **"No llamar":** solo si el deudor lo pide de forma explícita (N13). En salientes vale sin verificar; en entrantes exige verificación.
 - **Queja por las llamadas:** el agente dice la fecha y hora real de la última llamada (`get_last_contact`) y sigue (N13).
 - **Angustia, amenazas o insultos:** el agente mantiene la calma y sigue. Nunca cuelga ni transfiere por eso (N14); negarse a pagar o insultar no es "nada funciona": primero presenta las ofertas (prueba de ataque, 2026-11-19).
-- **Volver a llamar:** `schedule_callback` guarda el día y la hora que pidió la persona (en el futuro, entre 8 a. m. y 9 p. m. hora del deudor y a menos de 30 días). La lista diaria la llama a esa hora (N9 y B2).
+- **Volver a llamar:** si el deudor verificado pide que lo llamen y no se le presentó ninguna oferta, el sistema rechaza el primer intento y le pide a Lucy ofrecer antes el pago con fecha (P9 exigido, decisión 8, 2026-11-24). Si el deudor dice una hora exacta se agenda a esa hora; si no ("en la mañana"), Lucy elige una (decisión 2). `schedule_callback` guarda el día y la hora que pidió la persona (en el futuro, entre 8 a. m. y 9 p. m. hora del deudor y a menos de 30 días). La lista diaria la llama a esa hora (N9 y B2).
 - **Transferencia:** se guarda el motivo en `calls.transfer_reason`. Si ya había un acuerdo, la llamada queda como `arrangement_made` (B3 y B4).
-- **Resultados de una saliente antes de verificar:** `wrong_party` si el número no es del deudor y `debtor_unavailable` si vive ahí pero no está. Si no aplica ninguno, `callback_requested`.
+- **Número equivocado (decisión 5, 2026-11-24):** si alguien sin verificar dice que el número no es del deudor, Lucy le pide verificarse. Si falla o no quiere, `report_wrong_number` guarda el teléfono en `phone_reports` y cierra como `wrong_party`. Mientras un cobrador no lo revise, ese teléfono no recibe SMS ni entra a la lista diaria. Las quejas por muchos mensajes no hacen nada.
+- **Resultados de una saliente antes de verificar:** `debtor_unavailable` si vive ahí pero no está. Si no aplica, `callback_requested`.
 
 ### Modelo y resumen
 - **Modelos:** conversa Claude Haiku 5.5 con esfuerzo bajo. Si un turno falla, responde Claude Sonnet 5.5. Si ninguno responde, o pide más de 8 herramientas en un turno, la llamada pasa a una persona con el motivo.
 - **Resumen:** en inglés, generado por la IA. Si la persona no se verificó, no menciona la deuda (B12).
+
+### Voz (Pipecat)
+- **Fin del turno:** 1,5 s de silencio (`TURN_SILENCE_SECONDS`). Para interrumpir a Lucy hacen falta 2 palabras.
+- **Respuesta por partes (decisión 11, 2026-11-24):** cada frase va a la voz apenas Claude la escribe. Lo que Lucy dice antes de usar una herramienta es el relleno según el contexto; si en 1 s no dijo nada, un relleno neutro ("Mm-hmm.").
+- **Silencio (decisión 9, 2026-11-24):** a los 10 s sin respuesta, *"Are you still there?"*; a los 30 s se despide y cuelga (`callback_requested`).
 
 ### Después del acuerdo
 - **SMS (N1 y N10):** confirmación del acuerdo, aviso 3 días antes de cada cuota y link de pago el día de la cuota.
@@ -145,7 +158,7 @@ Entre paréntesis va quién lo decidió y cuándo. El detalle y las palabras exa
   - Si una cuota sigue sin pagar 5 días después de su fecha, el acuerdo queda `broken`, las cuotas pendientes `cancelled` y la cuenta vuelve a `NSF`, sin alerta (jefe, 2026-11-12).
 
 ### Lista diaria de salientes
-- **Quiénes entran:** cada mañana se arma con las cuentas en `NSF`, sin disputa, sin "no llamar", sin acuerdo activo y con teléfono.
+- **Quiénes entran:** cada mañana se arma con las cuentas en `NSF`, sin disputa, sin "no llamar", sin acuerdo activo y con teléfono, salvo los teléfonos reportados como equivocados sin revisar.
 - **Reg F:** no se llama a quien ya tuvo 7 llamadas en 7 días, ni a quien tuvo una conversación en los últimos 7 días. Las llamadas de los cobradores también cuentan (L4, jefe), pero falta leerlas de la base real.
 - **Quiénes salen:** si un deudor de la lista llama y se verifica, sale de la lista. Un impostor no puede sacarlo.
 
